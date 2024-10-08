@@ -8,7 +8,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Benjamin Hammond",
     author_email="benjaminphammond@gmail.com",
-    url="https://github.com/benjaminingreens/borg",
+    url="https://github.com/benjaminingreens/org",
     packages=find_packages(),
     install_requires=[
         "pyyaml",
