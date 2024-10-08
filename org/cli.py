@@ -31,6 +31,26 @@ def init():
                     os.makedirs(folder_path)
                     print(f"Created: {folder_path}")
 
+    # Check for .gitignore and add .org to it if necessary
+    gitignore_path = os.path.join(current_dir, ".gitignore")
+    
+    if os.path.exists(gitignore_path):
+        with open(gitignore_path, 'r') as gitignore_file:
+            gitignore_lines = gitignore_file.readlines()
+        
+        # Add .org to .gitignore if it's not already there
+        if ".org\n" not in gitignore_lines and ".org" not in gitignore_lines:
+            with open(gitignore_path, 'a') as gitignore_file:
+                gitignore_file.write(".org\n")
+            print("Added .org to existing .gitignore")
+        else:
+            print(".org is already listed in .gitignore")
+    else:
+        # Create .gitignore and add .org
+        with open(gitignore_path, 'w') as gitignore_file:
+            gitignore_file.write(".org\n")
+        print("Created .gitignore and added .org")
+
 def main():
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     
