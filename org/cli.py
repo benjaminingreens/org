@@ -1,7 +1,7 @@
 import argparse
 import os
 import curses  # Import curses
-from borg import views
+from org import views
 
 def init():
     """Initializes borg in the current directory."""
