@@ -1,19 +1,22 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="borg",
+    name="org",
     version="0.0.1",
     description="Suckless second brain",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
-    author="Your Name",
+    author="Benjamin Hammond",
     author_email="benjaminphammond@gmail.com",
-    url="https://github.com/benjaminingreens/borg",  # Your GitHub URL
+    url="https://github.com/benjaminingreens/borg",
     packages=find_packages(),
-    install_requires=[],  # Add your dependencies here
+    install_requires=[
+        "pyyaml",
+        "setuptools"
+    ], 
     entry_points={
         'console_scripts': [
-            'borg=borg.cli:main',  # Link 'borg' command to cli.py's main
+            'org=org.cli:main', 
         ],
     },
     classifiers=[
