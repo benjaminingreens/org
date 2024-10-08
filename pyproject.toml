@@ -1,0 +1,3 @@
+[build-system]
+requires = ["setuptools", "wheel"]  # Ensures setuptools and wheel are installed
+build-backend = "setuptools.build_meta"

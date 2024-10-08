@@ -2,9 +2,9 @@ import os
 import yaml
 import curses
 
-# Define the super root directory containing all sub-root directories
-SUPER_ROOT = os.path.expanduser("~/test")
-DEBUG_LOG = os.path.expanduser("~/test/debug.txt")
+# Dynamically set SUPER_ROOT to the directory where the 'borg' command is run
+SUPER_ROOT = os.getcwd()
+DEBUG_LOG = os.path.join(SUPER_ROOT, "debug.txt")
 
 # Log debug output to a file
 def log_debug(message):
