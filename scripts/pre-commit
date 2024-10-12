@@ -1,0 +1,36 @@
+#!/bin/bash
+
+SUPER_ROOT=$(git rev-parse --show-toplevel)
+CONFIG_FILE="${SUPER_ROOT}/.org/orgrc.py"
+VALIDATION_SCRIPT="${SUPER_ROOT}/scripts/validation.py"
+
+# Check if 'git' variable is true in the config
+check_git_in_config() {
+    git_enabled=$(python3 -c "
+import os
+config = {}
+config_path = '${CONFIG_FILE}'
+if os.path.exists(config_path):
+    with open(config_path, 'r') as f:
+        exec(f.read(), config)
+    print(config.get('git', False))
+")
+    if [ "$git_enabled" == "True" ]; then
+        return 0
+    else:
+        return 1
+    fi
+}
+
+if ! check_git_in_config; then
+    echo "'git' is not enabled in the config. Skipping validation."
+    exit 0
+fi
+
+python3 "${VALIDATION_SCRIPT}"
+if [ $? -ne 0 ]; then
+    echo "Pre-commit hook failed. Aborting commit."
+    exit 1
+fi
+
+exit 0

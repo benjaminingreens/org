@@ -1,9 +1,10 @@
 import os
 import stat
+import shutil
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 
-# Custom command to make the pre-commit hook executable
+# Custom command to copy the pre-commit hook and make it executable
 class CustomInstallCommand(install):
     def run(self):
         # Run the standard installation process first
@@ -12,17 +13,22 @@ class CustomInstallCommand(install):
         # Define SUPER_ROOT (current package installation directory)
         super_root = os.getcwd()
 
-        # Path to the pre-commit hook within the git folder
-        pre_commit_hook = os.path.join(super_root, '.git', 'hooks', 'pre-commit')
+        # Path to the pre-commit hook within the package
+        source_hook = os.path.join(super_root, 'scripts', 'pre-commit')  # Assuming pre-commit is stored in scripts
+        destination_hook = os.path.join(super_root, '.git', 'hooks', 'pre-commit')
 
-        # Check if the pre-commit hook exists
-        if os.path.exists(pre_commit_hook):
+        # Check if the source pre-commit hook exists
+        if os.path.exists(source_hook):
+            # Copy the pre-commit hook to the .git/hooks folder
+            shutil.copyfile(source_hook, destination_hook)
+            print(f"Pre-commit hook copied to {destination_hook}")
+
             # Change file mode to make the pre-commit hook executable
-            st = os.stat(pre_commit_hook)
-            os.chmod(pre_commit_hook, st.st_mode | stat.S_IEXEC)
-            print(f"Pre-commit hook at {pre_commit_hook} has been made executable.")
+            st = os.stat(destination_hook)
+            os.chmod(destination_hook, st.st_mode | stat.S_IEXEC)
+            print(f"Pre-commit hook at {destination_hook} has been made executable.")
         else:
-            print(f"Pre-commit hook {pre_commit_hook} not found. Skipping chmod.")
+            print(f"Source pre-commit hook {source_hook} not found. Skipping.")
 
 setup(
     name="org",
