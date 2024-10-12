@@ -3,13 +3,13 @@
 import argparse
 import os
 import curses  # Import curses
+import shutil  # For copying the pre-commit hook
 from scripts import views
 from scripts.validation import main as run_validation  # Import the validation function
 
 MARKER = '_org'  # Customize the marker you want to use for valid subdirectories
 
 def init():
-
     """Initializes org in the current directory."""
     current_dir = os.getcwd()
 
@@ -21,15 +21,14 @@ def init():
         # Check if it's a directory
         if os.path.isdir(org_dir_path):
             print(f"Directory '{current_dir}' is already initialized for org.")
-            return
         else:
             # If it's a file, remove it and create a directory
             print(f"Error: '{org_dir_path}' exists as a file. Removing and creating as a directory.")
             os.remove(org_dir_path)
-
-    # Create the .org directory
-    os.makedirs(org_dir_path)
-    print(f"Created .org directory in {current_dir}")
+    else:
+        # Create the .org directory
+        os.makedirs(org_dir_path)
+        print(f"Created .org directory in {current_dir}")
 
     # Create 'notes', 'todos', 'events' directories inside valid subfolders
     for subfolder in os.listdir(current_dir):
@@ -61,6 +60,52 @@ def init():
         with open(gitignore_path, 'w') as gitignore_file:
             gitignore_file.write(".org\n")
         print("Created .gitignore and added .org")
+
+    # Check if .git exists in the super root directory
+    git_dir_path = os.path.join(current_dir, ".git")
+    config_file = os.path.join(org_dir_path, "orgrc.py")
+    
+    # Function to check if 'git' is enabled in the config file
+    def is_git_enabled():
+        config = {}
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                exec(f.read(), config)
+            return config.get('git', False)
+        return False
+
+    # Initialize Git repository if .git doesn't exist and git is enabled in the config
+    if not os.path.exists(git_dir_path):
+        if is_git_enabled():
+            print("No Git repository found. Initializing Git repository...")
+            os.system("git init")
+        else:
+            print("Git is not enabled in the config file. Skipping Git initialization.")
+    
+    # Move the pre-commit hook if .git exists
+    if os.path.exists(git_dir_path):
+        pre_commit_src = os.path.join(current_dir, 'hooks', 'pre-commit')
+        pre_commit_dest = os.path.join(git_dir_path, 'hooks', 'pre-commit')
+
+        # Check if the source pre-commit file exists
+        if os.path.exists(pre_commit_src):
+            try:
+                # Create the hooks directory if it doesn't exist
+                hooks_dir = os.path.join(git_dir_path, 'hooks')
+                os.makedirs(hooks_dir, exist_ok=True)
+
+                # Copy the pre-commit hook
+                shutil.copyfile(pre_commit_src, pre_commit_dest)
+
+                # Make the pre-commit hook executable
+                os.chmod(pre_commit_dest, 0o755)
+                print(f"Moved pre-commit hook to {pre_commit_dest} and made it executable.")
+            except Exception as e:
+                print(f"Error while moving pre-commit hook: {e}")
+        else:
+            print(f"Pre-commit hook not found at {pre_commit_src}. Skipping.")
+    else:
+        print(f".git directory not found in {current_dir}. Skipping pre-commit hook setup.")
 
 def display_graphical_view(file_type, search_prop=None, search_term=None, exact=False, sort_prop=None, reverse=False):
     """Handle graphical view display with optional filters and sorting."""

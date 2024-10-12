@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Resolve the SUPER_ROOT dynamically as the root of the Git repository
+SUPER_ROOT=$(git rev-parse --show-toplevel)
+CONFIG_FILE="${SUPER_ROOT}/.org/orgrc.py"
+VALIDATION_SCRIPT="${SUPER_ROOT}/scripts/validation.py"
+
+# Check if the .org directory exists in SUPER_ROOT
+if [ ! -d "${SUPER_ROOT}/.org" ]; then
+    echo "No .org directory found in the repository. Skipping validation."
+    exit 0  # Allow the commit without running validation
+fi
+
+# Function to check if 'git' variable is true in the config
+check_git_in_config() {
+    # Extract the 'git' variable from the config using Python
+    git_enabled=$(python3 -c "
+import os
+config = {}
+config_path = '${CONFIG_FILE}'
+if os.path.exists(config_path):
+    with open(config_path, 'r') as f:
+        exec(f.read(), config)
+    print(config.get('git', False))
+else:
+    print('False')
+")
+
+    if [ "$git_enabled" == "True" ]; then
+        return 0  # Git is enabled
+    else
+        return 1  # Git is not enabled
+    fi
+}
+
+# Check if git is enabled in the config
+if ! check_git_in_config; then
+    echo "'git' is not enabled in the config. Skipping validation."
+    exit 0  # Allow the commit without validation
+fi
+
+# Run the validation.py script
+python3 "${VALIDATION_SCRIPT}"
+
+# Check if the script failed
+if [ $? -ne 0 ]; then
+    echo "Pre-commit hook failed. Aborting commit."
+    exit 1  # Fail the commit
+fi
+
+# Continue with the commit if the validation passed
+exit 0  # Allow the commit
+
