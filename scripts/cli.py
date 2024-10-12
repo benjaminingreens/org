@@ -1,3 +1,5 @@
+# cli.py
+
 import argparse
 import os
 import curses  # Import curses

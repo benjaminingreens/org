@@ -1,9 +1,12 @@
+# validation.py
+
 import os
 import json
 import yaml
 import stat
 import time
 import shutil
+import sys
 from pathlib import Path
 from datetime import date
 
@@ -12,6 +15,13 @@ SUPER_ROOT = os.getcwd()
 ORG_RC_PATH = os.path.join(SUPER_ROOT, '.org', 'orgrc.py')
 INDEX_PATH = os.path.join(SUPER_ROOT, '.org', 'index.json')
 INDEX_1_PATH = os.path.join(SUPER_ROOT, '.org', 'index_1.json')
+
+# Function to check if .org directory exists in SUPER_ROOT
+def check_org_initialized():
+    org_dir_path = os.path.join(SUPER_ROOT, '.org')
+    if not os.path.isdir(org_dir_path):
+        print(f"Error: The directory '{SUPER_ROOT}' is not initialized for org. No .org directory found.")
+        sys.exit(1)  # Exit the script with an error code
 
 # Read the config from .org/orgrc.py and load into a dict
 def load_config():
@@ -162,6 +172,7 @@ def handle_sparse_checkout():
         print('All paths included, user can manage sparse-checkout manually')
 
 def main():
+    check_org_initialized()
     config = load_config()
     index = load_or_initialize_index(INDEX_PATH)
     index_1 = load_or_initialize_index(INDEX_1_PATH) if os.path.exists(INDEX_1_PATH) else []
