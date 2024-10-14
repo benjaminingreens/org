@@ -174,10 +174,10 @@ def handle_sparse_checkout():
 def main():
 
     def log_debug(message):
-        with open("test_log.txt", "a") as f:
+        with open("debug.txt", "a") as f:
             f.write(f"{message}\n")
 
-    log_debug('validation just ran')
+    log_debug('Validation just ran')
 
     check_org_initialized()
     config = load_config()

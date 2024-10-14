@@ -47,7 +47,7 @@ def init():
     
     if os.path.exists(gitignore_path):
         with open(gitignore_path, 'r') as gitignore_file:
-            gitignore_lines = gitignore_file.readlines()
+            gitignore_lines = [line.strip() for line in gitignore_file.readlines()]
         
         # Add .org to .gitignore if it's not already there
         if ".org\n" not in gitignore_lines and ".org" not in gitignore_lines:
