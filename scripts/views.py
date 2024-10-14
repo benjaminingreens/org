@@ -1,6 +1,9 @@
+# views.py
+
 import os
 import yaml
 import curses
+from scripts.validation import main as run_validation
 
 # Dynamically set SUPER_ROOT to the directory where the 'borg' command is run
 SUPER_ROOT = os.getcwd()
@@ -340,9 +343,12 @@ def display_menu(stdscr, items):
 
 # App logic
 def main(stdscr):
+
     curses.curs_set(0)
     curses.use_default_colors()
     stdscr.keypad(True)
+
+    run_validation()    
 
     menu_items = ['View Notes', 'View Todos', 'View Events', 'View All']
     while True:

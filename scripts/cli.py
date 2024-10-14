@@ -4,6 +4,7 @@ import argparse
 import os
 import curses  # Import curses
 import shutil  # For copying the pre-commit hook
+import subprocess
 from scripts import views
 from scripts.validation import main as run_validation  # Import the validation function
 
@@ -168,6 +169,7 @@ def main():
     if args.command == 'init':
         init()  # Run init function
     elif args.command == 'view':
+
         # First, run validation before proceeding with view commands
         run_validation()
 
