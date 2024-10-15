@@ -48,7 +48,34 @@ def log_error(error_message):
     with open("debug.txt", "a") as f:
         f.write(f"{current_datetime()} - {error_message}\n")
 
-# Validation function for Note, Todo, and Event YAML
+# Function to update the YAML front matter in the .md file
+def update_yaml_frontmatter(filepath, yaml_content):
+    # Read the existing file content
+    with open(filepath, "r") as f:
+        content = f.read()
+    
+    # Split the content into front matter and body
+    if content.startswith("---"):
+        # Extract front matter and body
+        parts = content.split("---", 2)
+        frontmatter = parts[1]
+        body = parts[2].strip()  # Keep the content after front matter
+    else:
+        # If no front matter exists, assume body is the full content
+        frontmatter = ""
+        body = content
+
+    # Update the front matter with the new yaml_content
+    updated_frontmatter = yaml.dump(yaml_content, default_flow_style=False)
+
+    # Recreate the file content with the updated front matter and the existing body
+    updated_content = f"---\n{updated_frontmatter}---\n\n{body}"
+    
+    # Write the updated content back to the file
+    with open(filepath, "w") as f:
+        f.write(updated_content)
+
+# Modify the validate_yaml_frontmatter function to use the update function
 def validate_yaml_frontmatter(filepath, yaml_content, item_state):
     try:
         config = load_config()
@@ -123,17 +150,21 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
             yaml_content["created"] = current_time
             yaml_content["modified"] = current_time
             yaml_content["uid"] = os.urandom(8).hex()
-            # write above to .md file?
+            # Update the markdown file with new YAML front matter
+            update_yaml_frontmatter(filepath, yaml_content)
         elif item_state == 'existing':
             stat_info = os.stat(filepath)
             yaml_content["modified"] = datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime("%Y-%m-%d@%H:%M:%S")
-            # write above to .md file?
+            # Update the markdown file with updated YAML front matter
+            update_yaml_frontmatter(filepath, yaml_content)
 
             # Check created date with index.json
             with open('.org/index.json') as f:
                 index_data = json.load(f)
                 if index_data.get(filepath, {}).get("created") != yaml_content["created"]:
                     yaml_content["created"] = index_data.get(filepath, {}).get("created")
+                    # Update the markdown file with corrected created date
+                    update_yaml_frontmatter(filepath, yaml_content)
         elif item_state == 'lapsed':
             pass
 
@@ -144,3 +175,4 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
         log_error(error_message)  # Log the error to debug.txt
         print("Validation failed:", error_message)
         return 1, None
+
