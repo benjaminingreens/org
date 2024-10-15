@@ -1,5 +1,6 @@
 # cli.py
 
+import sys
 import argparse
 import os
 import curses  # Import curses
@@ -9,6 +10,25 @@ from scripts import views
 from scripts.validation import main as run_validation  # Import the validation function
 
 MARKER = '_org'  # Customize the marker you want to use for valid subdirectories
+
+# Function to safely load the config file and get values
+def load_orgrc_values(config_file):
+    # Initialize default values
+    device = None
+    permissions = None
+    
+    try:
+        # Execute the config file as a Python script and extract variables
+        with open(config_file) as f:
+            exec(f.read(), globals())
+        
+        # Fetch the device and permissions variables from globals
+        device = globals().get('device')
+        permissions = globals().get('permissions')
+    except Exception as e:
+        print(f"Error loading config from {config_file}: {e}")
+    
+    return device, permissions
 
 def init():
     """Initializes org in the current directory."""
@@ -104,9 +124,45 @@ def init():
             except Exception as e:
                 print(f"Error while moving pre-commit hook: {e}")
         else:
-            print(f"Pre-commit hook not found at {pre_commit_src}. Skipping.")
+            print(f"Pre-commit hook not found at {pre_commit_src}. Exiting.")
+            sys.exit(1)
     else:
-        print(f".git directory not found in {current_dir}. Skipping pre-commit hook setup.")
+        print(f".git directory not found in {current_dir}. Exiting pre-commit hook setup.")
+        sys.exit(1)
+
+
+    # Load the values of 'device' and 'permissions' from orgrc.py
+    device, permissions = load_orgrc_values(config_file)
+
+    # Only move the post-receive hook if the conditions are met
+    if device == 'server' and permissions == 'archive':
+        if os.path.exists(git_dir_path):
+            post_receive_src = os.path.join(current_dir, 'hooks', 'post-receive')
+            post_receive_dest = os.path.join(git_dir_path, 'hooks', 'post-receive')
+
+            # Check if the source post-receive file exists
+            if os.path.exists(post_receive_src):
+                try:
+                    # Create the hooks directory if it doesn't exist
+                    hooks_dir = os.path.join(git_dir_path, 'hooks')
+                    os.makedirs(hooks_dir, exist_ok=True)
+
+                    # Copy the post-receive hook
+                    shutil.copyfile(post_receive_src, post_receive_dest)
+
+                    # Make the post-receive hook executable
+                    os.chmod(post_receive_dest, 0o755)
+                    print(f"Moved post-receive hook to {post_receive_dest} and made it executable.")
+                except Exception as e:
+                    print(f"Error while moving post-receive hook: {e}")
+            else:
+                print(f"Post-receive hook not found at {post_receive_src}. Exiting.")
+                sys.exit(1)
+        else:
+            print(f".git directory not found in {current_dir}. Exiting post-receive hook setup.")
+            sys.exit(1)
+    else:
+        print("Conditions not met: device is not 'server' or permissions are not 'archive'. Skipping post-receive hook setup.")
 
 def display_graphical_view(file_type, search_prop=None, search_term=None, exact=False, sort_prop=None, reverse=False):
     """Handle graphical view display with optional filters and sorting."""
