@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Run the 'org val' command in the terminal
+org val
+
+# Capture the exit status of the command
+if [ $? -ne 0 ]; then
+    echo "org val command failed" >&2
+    exit 1
+else
+    echo "org val command executed successfully"
+fi

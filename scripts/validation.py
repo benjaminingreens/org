@@ -17,6 +17,10 @@ ORG_RC_PATH = os.path.join(SUPER_ROOT, '.org', 'orgrc.py')
 INDEX_PATH = os.path.join(SUPER_ROOT, '.org', 'index.json')
 INDEX_1_PATH = os.path.join(SUPER_ROOT, '.org', 'index_1.json')
 
+def log_debug(message):
+    with open("debug.txt", "a") as f:
+        f.write(f"{message}\n")
+
 # Function to check if .org directory exists in SUPER_ROOT
 def check_org_initialized():
     org_dir_path = os.path.join(SUPER_ROOT, '.org')
@@ -58,9 +62,47 @@ def read_yaml_from_file(file_path):
             return yaml.safe_load(yaml_part)
     return {}
 
+# If a file state is 'new' (that is, there is no matching uid  in the index), but there is a matching uid in index_1, then the file is 'archive lapsed'
+# This  means that the file was archived server-side. But, before the user ran 'git pull' so that the file would be archived client-side, the user edited the file and pushed
+# This creates the illusion of a new file server side, because it is pushed the non-archive area, and the comparator functions do not find it as existing
+# Since the existing version is in the archive, finding the uid in index_1 reveals the file to be 'archive lapsed'
+# In thise case, the old file in the archive needs to be replaced by the new file (both the actual file and all the metadata). The restore_files function will take care of the rest
+def check_archive_lapse(state, yaml):
+
+    index_1 = load_or_initialize_index(INDEX_1_PATH)
+
+    if state == 'new':
+
+        state = 'lapsed' if any(i['uid'] == yaml.get('uid') for i in index_1) else 'new'
+
+    return state
+
+def replace_file_content(new_file_path, old_file_path):
+    # Read the contents of the new file
+    with open(new_file_path, 'r') as new_file:
+        new_content = new_file.read()
+
+    # Write the new content to the old file, overwriting it
+    with open(old_file_path, 'w') as old_file:
+        old_file.write(new_content)
+
+def insert_one_in_path(file_path):
+    # Split the path by '/' to separate directories from the file part
+    parts = file_path.split('/')
+
+    # Split the first part (directory) by underscore '_'
+    directory_parts = parts[0].split('_')
+
+    # Insert '1' between the first and second part
+    new_directory = f'{directory_parts[0]}_1_{directory_parts[1]}'
+
+    # Rebuild the full path
+    new_file_path = '/'.join([new_directory] + parts[1:])
+
+    return new_file_path
 
 # Add or update files in index.json
-def update_index(index):
+def update_index(index, index_1):
 
     def is_valid_directory(subdir):
         # Check if the path ends with 'notes', 'todos', or 'events'
@@ -77,6 +119,8 @@ def update_index(index):
 
                     item_state = 'existing' if any(i['uid'] == yaml_data.get('uid') for i in index) else 'new'
 
+                    item_state = check_archive_lapse(item_state, yaml_data)
+
                     exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
 
                     if exit_code == 1:
@@ -84,26 +128,51 @@ def update_index(index):
                     else:
                         pass
 
-                    # Search for the file in the index by UID or add new if not found
-                    for item in index:
-                        if item['uid'] == yaml_data.get('uid'):
-                            if item['stat_access'] < file_stat[stat.ST_ATIME]:
-                                item.update(yaml_data)
-                                item['stat_access'] = file_stat[stat.ST_ATIME]
-                                item['stat_mod'] = file_stat[stat.ST_MTIME]
-                                item['root_folder'] = os.path.dirname(root)
-                                item['item_type'] = os.path.basename(root)
-                            break
-                    else:
-                        # Add new entry
-                        index.append({
-                            'uid': yaml_data.get('uid'),
-                            'root_folder': os.path.dirname(root),
-                            'item_type': os.path.basename(root),
-                            'stat_access': file_stat[stat.ST_ATIME],
-                            'stat_mod': file_stat[stat.ST_MTIME],
-                            **yaml_data
-                        })
+                    if item_state == 'new' or 'existing':
+
+                        # Search for the file in the index by UID or add new if not found
+                        for item in index:
+                            if item['uid'] == yaml_data.get('uid'):
+                                if item['stat_access'] < file_stat[stat.ST_ATIME]:
+                                    item.update(yaml_data)
+                                    item['stat_access'] = file_stat[stat.ST_ATIME]
+                                    item['stat_mod'] = file_stat[stat.ST_MTIME]
+                                    item['root_folder'] = os.path.dirname(root)
+                                    item['item_type'] = os.path.basename(root)
+                                break
+                        else:
+                            # Add new entry
+                            index.append({
+                                'uid': yaml_data.get('uid'),
+                                'root_folder': os.path.dirname(root),
+                                'item_type': os.path.basename(root),
+                                'stat_access': file_stat[stat.ST_ATIME],
+                                'stat_mod': file_stat[stat.ST_MTIME],
+                                **yaml_data
+                            })
+
+                    elif item_state == 'lapsed':
+
+                        # Update data in archive index
+                        for item in index_1:
+                            if item['uid'] == yaml_data.get('uid'):
+                                if item['stat_access'] < file_stat[stat.ST_ATIME]:
+                                    item.update(yaml_data)
+                                    item['stat_access'] = file_stat[stat.ST_ATIME]
+                                    item['stat_mod'] = file_stat[stat.ST_MTIME]
+                                    item['root_folder'] = os.path.dirname(root)
+                                    item['item_type'] = os.path.basename(root)
+
+                                # Replace arhived file with archive lapsed file
+                                lapsed_file_path = insert_one_in_path(file_path)
+                                replace_file_content(file_path, lapsed_file_path)
+                                log_debug(f'Lapsed file ({lapsed_file_path}) moved to archived area and index_1 updated')
+
+                                break
+                        else:
+
+                            log_debug('Supposed lapsed file not found in index_1')
+
         save_index(index, INDEX_PATH)
 
 # Archive function for older files
@@ -184,16 +253,12 @@ def main():
     index_1 = load_or_initialize_index(INDEX_1_PATH) if os.path.exists(INDEX_1_PATH) else []
 
     # Run the update_index function first
-    update_index(index)
+    update_index(index, index_1)
 
     # Controlled by config permissions
     if config.get('permissions') == 'archive':
         archive_files(index, index_1)
         restore_files(index, index_1)
-
-    def log_debug(message):
-        with open("debug.txt", "a") as f:
-            f.write(f"{message}\n")
 
     log_debug('Validation just ran')
 

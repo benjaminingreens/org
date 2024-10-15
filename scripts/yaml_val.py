@@ -1,3 +1,6 @@
+# yaml_val.py
+# Shouldn't updates to yaml here be written to the markdown file?
+
 import os
 import re
 import yaml
@@ -109,15 +112,19 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
             yaml_content["created"] = current_time
             yaml_content["modified"] = current_time
             yaml_content["uid"] = os.urandom(8).hex()
+            # write above to .md file?
         elif item_state == 'existing':
             stat_info = os.stat(filepath)
             yaml_content["modified"] = datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime("%Y-%m-%d@%H:%M:%S")
+            # write above to .md file?
 
             # Check created date with index.json
             with open('.org/index.json') as f:
                 index_data = json.load(f)
                 if index_data.get(filepath, {}).get("created") != yaml_content["created"]:
                     yaml_content["created"] = index_data.get(filepath, {}).get("created")
+        elif item_state == 'lapsed':
+            pass
 
         return 0, yaml_content
 
