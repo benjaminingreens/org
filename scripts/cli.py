@@ -36,6 +36,7 @@ def init():
 
     # Path to the .org directory
     org_dir_path = os.path.join(current_dir, '.org')
+    config_dir_path = os.path.join(current_dir, '.config')
 
     # Check if .org already exists
     if os.path.exists(org_dir_path):
@@ -70,12 +71,12 @@ def init():
             gitignore_lines = [line.strip() for line in gitignore_file.readlines()]
         
         # Add .org to .gitignore if it's not already there
-        if ".org\n" not in gitignore_lines and ".org" not in gitignore_lines:
+        if "/.org\n" not in gitignore_lines and "/.org" not in gitignore_lines:
             with open(gitignore_path, 'a') as gitignore_file:
                 gitignore_file.write("/.org\n")
-            print("Added .org to existing .gitignore")
+            print("Added /.org to existing .gitignore")
         else:
-            print(".org is already listed in .gitignore")
+            print("/.org is already listed in .gitignore")
     else:
         # Create .gitignore and add .org
         with open(gitignore_path, 'w') as gitignore_file:
@@ -84,7 +85,7 @@ def init():
 
     # Check if .git exists in the super root directory
     git_dir_path = os.path.join(current_dir, ".git")
-    config_file = os.path.join(org_dir_path, "orgrc.py")
+    config_file = os.path.join(config_dir_path, "orgrc.py")
     
     # Function to check if 'git' is enabled in the config file
     def is_git_enabled():

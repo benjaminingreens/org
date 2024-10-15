@@ -13,7 +13,7 @@ from scripts.yaml_val import validate_yaml_frontmatter as validate_yaml
 
 # Constants
 SUPER_ROOT = os.getcwd()
-ORG_RC_PATH = os.path.join(SUPER_ROOT, '.org', 'orgrc.py')
+ORG_RC_PATH = os.path.join(SUPER_ROOT, '.config', 'orgrc.py')
 INDEX_PATH = os.path.join(SUPER_ROOT, '.org', 'index.json')
 INDEX_1_PATH = os.path.join(SUPER_ROOT, '.org', 'index_1.json')
 
@@ -28,7 +28,7 @@ def check_org_initialized():
         print(f"Error: The directory '{SUPER_ROOT}' is not initialized for org. No .org directory found.")
         sys.exit(1)  # Exit the script with an error code
 
-# Read the config from .org/orgrc.py and load into a dict
+# Read the config from .config/orgrc.py and load into a dict
 def load_config():
     config = {}
     with open(ORG_RC_PATH, 'r') as f:

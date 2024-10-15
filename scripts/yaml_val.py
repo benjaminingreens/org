@@ -9,13 +9,13 @@ import stat
 from pathlib import Path
 import json
 
-# Helper function to load configuration from .org/orgrc.py
+# Helper function to load configuration from .config/orgrc.py
 def load_config():
     config = {}
     try:
-        exec(open(".org/orgrc.py").read(), config)
+        exec(open(".config/orgrc.py").read(), config)
     except FileNotFoundError:
-        raise FileNotFoundError(".org/orgrc.py not found")
+        raise FileNotFoundError(".config/orgrc.py not found")
     return config
 
 # Helper function to extract category from the file path
