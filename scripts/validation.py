@@ -9,6 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 from datetime import date
+from scripts.yaml_val import validate_yaml_frontmatter as validate_yaml 
 
 # Constants
 SUPER_ROOT = os.getcwd()
@@ -57,10 +58,6 @@ def read_yaml_from_file(file_path):
             return yaml.safe_load(yaml_part)
     return {}
 
-# YAML validation placeholder
-def validate_yaml(yaml_data):
-    # Placeholder for YAML_VAL.PY script
-    return yaml_data
 
 # Add or update files in index.json
 def update_index(index):
@@ -77,7 +74,15 @@ def update_index(index):
                     file_path = os.path.join(root, file)
                     file_stat = os.stat(file_path)
                     yaml_data = read_yaml_from_file(file_path)
-                    yaml_data = validate_yaml(yaml_data)
+
+                    item_state = 'existing' if any(i['uid'] == yaml_data.get('uid') for i in index) else 'new'
+
+                    exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+
+                    if exit_code == 1:
+                        raise ValueError('YAML validation failed')
+                    else:
+                        pass
 
                     # Search for the file in the index by UID or add new if not found
                     for item in index:
@@ -173,12 +178,6 @@ def handle_sparse_checkout():
 
 def main():
 
-    def log_debug(message):
-        with open("debug.txt", "a") as f:
-            f.write(f"{message}\n")
-
-    log_debug('Validation just ran')
-
     check_org_initialized()
     config = load_config()
     index = load_or_initialize_index(INDEX_PATH)
@@ -191,6 +190,12 @@ def main():
     if config.get('permissions') == 'archive':
         archive_files(index, index_1)
         restore_files(index, index_1)
+
+    def log_debug(message):
+        with open("debug.txt", "a") as f:
+            f.write(f"{message}\n")
+
+    log_debug('Validation just ran')
 
     # Handle sparse checkout
     # I think this is redundant - the user can use  git sparse-checkout by  themselves.
