@@ -161,10 +161,25 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
             # Check created date with index.json
             with open('.org/index.json') as f:
                 index_data = json.load(f)
-                if index_data.get(filepath, {}).get("created") != yaml_content["created"]:
-                    yaml_content["created"] = index_data.get(filepath, {}).get("created")
-                    # Update the markdown file with corrected created date
-                    update_yaml_frontmatter(filepath, yaml_content)
+
+                # Check if index_data is a list or dictionary
+                if isinstance(index_data, dict):
+                    # If it's a dictionary, proceed with the current logic
+                    if index_data.get(filepath, {}).get("created") != yaml_content["created"]:
+                        yaml_content["created"] = index_data.get(filepath, {}).get("created")
+                        update_yaml_frontmatter(filepath, yaml_content)
+                elif isinstance(index_data, list):
+                    # If it's a list, loop through the items to find the one that matches filepath
+                    for item in index_data:
+                        if item.get("filepath") == filepath:
+                            if item.get("created") != yaml_content["created"]:
+                                yaml_content["created"] = item.get("created")
+                                update_yaml_frontmatter(filepath, yaml_content)
+                            break
+                else:
+                    raise ValueError("index.json format is not supported (neither list nor dictionary)")
+
+
         elif item_state == 'lapsed':
             pass
 
