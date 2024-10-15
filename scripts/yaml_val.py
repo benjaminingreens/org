@@ -18,10 +18,15 @@ def load_config():
         raise FileNotFoundError(".config/orgrc.py not found")
     return config
 
-# Helper function to extract category from the file path
 def extract_category(filepath):
-    root_folder = Path(filepath).parts[0]
-    return root_folder.capitalize()
+    # Get the last three parts of the filepath
+    parts = Path(filepath).parts[-3:]
+    
+    # Get the first part of the first part before the underscore
+    root_folder = Path(filepath).parts[-3]
+    first_part = root_folder.split('_')[0]
+    
+    return first_part
 
 # Helper function to generate datetime string with '@' separator
 def current_datetime():
@@ -56,8 +61,8 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
         category = yaml_content.get("category", extract_category(filepath)).capitalize()
 
         # Check if the category matches root folder
-        if extract_category(filepath) != category:
-            raise ValueError(f"Category mismatch: {category} should be {extract_category(filepath)}")
+        if extract_category(filepath) != category.lower():
+            raise ValueError(f"Category mismatch: {category} should be {extract_category(filepath)} - from {filepath}")
 
         # Note Validation
         if item_type == "Note":
@@ -76,6 +81,9 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
             for field in required_fields_todo:
                 if field not in yaml_content and field != "created" and field != "modified":
                     raise ValueError(f"Missing required field {field} for Todo")
+
+            if not filepath.endswith(f'{yaml_content["title"]}.md'):
+                raise ValueError(f"Filename mismatch: expected {yaml_content['title']}.md")
 
             # Validate status, urgency, and importance
             if yaml_content["status"] not in ['Not started', 'In progress', 'Blocked', 'Dependent', 'Redundant', 'Unknown', 'Not done', 'Done']:
@@ -96,6 +104,9 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
             for field in required_fields_event:
                 if field not in yaml_content and field != "created" and field != "modified":
                     raise ValueError(f"Missing required field {field} for Event")
+
+            if not filepath.endswith(f'{yaml_content["title"]}.md'):
+                raise ValueError(f"Filename mismatch: expected {yaml_content['title']}.md")
 
             # Validate start and end datetime
             if not validate_datetime(yaml_content["start"]):
