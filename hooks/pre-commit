@@ -2,7 +2,7 @@
 
 # Resolve the SUPER_ROOT dynamically as the root of the Git repository
 SUPER_ROOT=$(git rev-parse --show-toplevel)
-CONFIG_FILE="${SUPER_ROOT}/.org/orgrc.py"
+CONFIG_FILE="${SUPER_ROOT}/.config/orgrc.py"
 VALIDATION_SCRIPT="${SUPER_ROOT}/scripts/validation.py"
 
 # Check if the .org directory exists in SUPER_ROOT
