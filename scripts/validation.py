@@ -113,43 +113,62 @@ def update_index(index, index_1):
         if is_valid_directory(root):
             for file in files:
                 if file.endswith('.md'):
+
                     file_path = os.path.join(root, file)
                     file_stat = os.stat(file_path)
                     yaml_data = read_yaml_from_file(file_path)
+
+                    log_debug(f'file is: {file_path}')
+                    log_debug(f'stat mod is: {file_stat[stat.ST_MTIME]}')
 
                     item_state = 'existing' if any(i['uid'] == yaml_data.get('uid') for i in index) else 'new'
 
                     item_state = check_archive_lapse(item_state, yaml_data)
 
-                    exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+                    if item_state == 'existing':
 
-                    if exit_code == 1:
-                        raise ValueError('YAML validation failed')
-                    else:
-                        pass
+                        log_debug(f'existing file is: {file_path}')
+                        log_debug(f'stat mod is: {file_stat[stat.ST_MTIME]}')
 
-                    if item_state == 'new' or 'existing':
-
-                        # Search for the file in the index by UID or add new if not found
                         for item in index:
+
                             if item['uid'] == yaml_data.get('uid'):
-                                if item['stat_access'] < file_stat[stat.ST_ATIME]:
+
+                                if item['stat_mod'] < file_stat[stat.ST_MTIME]:
+
+                                    log_debug(f'{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}')
+
+                                    exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+                                    if exit_code == 1:
+                                        raise ValueError('YAML validation failed')
+                                    else:
+                                        pass
+
                                     item.update(yaml_data)
                                     item['stat_access'] = file_stat[stat.ST_ATIME]
                                     item['stat_mod'] = file_stat[stat.ST_MTIME]
                                     item['root_folder'] = os.path.dirname(root)
                                     item['item_type'] = os.path.basename(root)
+
                                 break
+
+                    elif item_state == 'new':
+
+                        exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+                        if exit_code == 1:
+                            raise ValueError('YAML validation failed')
                         else:
-                            # Add new entry
-                            index.append({
-                                'uid': yaml_data.get('uid'),
-                                'root_folder': os.path.dirname(root),
-                                'item_type': os.path.basename(root),
-                                'stat_access': file_stat[stat.ST_ATIME],
-                                'stat_mod': file_stat[stat.ST_MTIME],
-                                **yaml_data
-                            })
+                            pass
+
+                        # Add new entry
+                        index.append({
+                            'uid': yaml_data.get('uid'),
+                            'root_folder': os.path.dirname(root),
+                            'item_type': os.path.basename(root),
+                            'stat_access': file_stat[stat.ST_ATIME],
+                            'stat_mod': file_stat[stat.ST_MTIME],
+                            **yaml_data
+                        })
 
                     elif item_state == 'lapsed':
 

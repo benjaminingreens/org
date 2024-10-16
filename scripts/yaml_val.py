@@ -152,14 +152,24 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
             yaml_content["uid"] = os.urandom(8).hex()
             # Update the markdown file with new YAML front matter
             update_yaml_frontmatter(filepath, yaml_content)
-        elif item_state == 'existing':
+        elif item_state == 'existing' or 'lapsed':
             stat_info = os.stat(filepath)
             yaml_content["modified"] = datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime("%Y-%m-%d@%H:%M:%S")
             # Update the markdown file with updated YAML front matter
             update_yaml_frontmatter(filepath, yaml_content)
+            
+            index_name = ''
+
+            if item_state == 'existing':
+
+                index_name = 'index'
+
+            elif item_state == 'lapsed':
+
+                index_name = 'index_1'
 
             # Check created date with index.json
-            with open('.org/index.json') as f:
+            with open(f'.org/{index_name}.json') as f:
                 index_data = json.load(f)
 
                 # Check if index_data is a list or dictionary
@@ -179,8 +189,7 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
                 else:
                     raise ValueError("index.json format is not supported (neither list nor dictionary)")
 
-
-        elif item_state == 'lapsed':
+        else:
             pass
 
         return 0, yaml_content

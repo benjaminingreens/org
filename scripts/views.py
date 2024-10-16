@@ -1,4 +1,5 @@
 # views.py
+# run_validation slows down opening the main menu. think of solutions (perhaps threading?)
 
 import os
 import yaml
