@@ -180,20 +180,32 @@ def update_index(index, index_1):
                         for item in index_1:
                             if item['uid'] == yaml_data.get('uid'):
                                 if item['stat_access'] < file_stat[stat.ST_ATIME]:
+
+                                    # Replace arhived file with archive lapsed file
+                                    lapsed_file_path = insert_one_in_path(file_path)
+                                    replace_file_content(file_path, lapsed_file_path)
+                                    log_debug(f'Lapsed file ({lapsed_file_path}) moved to archived area and index_1 updated')
+
+                                    #  OFNOTE: The below cannot throw an exception, as this is running server-side. In theory, there should be no possibility for errors. A lapsed file would have already passed validation client side. The below basically has the sole function of ensuring correct created and modified times for YAML front matter before then updating the index
+                                    exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+
+                                    file_stat = os.stat(file_path)
+
                                     item.update(yaml_data)
                                     item['stat_access'] = file_stat[stat.ST_ATIME]
                                     item['stat_mod'] = file_stat[stat.ST_MTIME]
                                     item['root_folder'] = os.path.dirname(root)
                                     item['item_type'] = os.path.basename(root)
 
-                                # Replace arhived file with archive lapsed file
-                                lapsed_file_path = insert_one_in_path(file_path)
-                                replace_file_content(file_path, lapsed_file_path)
-                                log_debug(f'Lapsed file ({lapsed_file_path}) moved to archived area and index_1 updated')
+                                    break
 
-                                # OFNOTE: I wonder if the last thing that should be  happening here is the  updating of MTIME.  I am not sure, but I need to check if MTIME is being update BEFORE any file modifications. The updating of MTIIME must always come last
+                                else:
 
-                                break
+                                    # In this situation, the file has been archived server side, and the push from the user has the file in a non-archived state. Yet, the file has not been modified
+                                    # In this case, just delete the  'lapsed' file. This situation should theoretically be impossible anyway, as the only reason a file would be in this situation is if it has been modified, and therefore this conditional block cannot be encountered
+
+                                    break
+
                         else:
 
                             log_debug('Supposed lapsed file not found in index_1')
