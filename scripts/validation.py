@@ -144,6 +144,8 @@ def update_index(index, index_1):
                                     else:
                                         pass
 
+                                    file_stat = os.stat(file_path)
+
                                     item.update(yaml_data)
                                     item['stat_access'] = file_stat[stat.ST_ATIME]
                                     item['stat_mod'] = file_stat[stat.ST_MTIME]
@@ -159,6 +161,8 @@ def update_index(index, index_1):
                             raise ValueError('YAML validation failed')
                         else:
                             pass
+
+                        file_stat = os.stat(file_path)
 
                         # Add new entry
                         index.append({
@@ -186,6 +190,8 @@ def update_index(index, index_1):
                                 lapsed_file_path = insert_one_in_path(file_path)
                                 replace_file_content(file_path, lapsed_file_path)
                                 log_debug(f'Lapsed file ({lapsed_file_path}) moved to archived area and index_1 updated')
+
+                                # OFNOTE: I wonder if the last thing that should be  happening here is the  updating of MTIME.  I am not sure, but I need to check if MTIME is being update BEFORE any file modifications. The updating of MTIIME must always come last
 
                                 break
                         else:
