@@ -3,13 +3,21 @@
 import sys
 import argparse
 import os
-import curses  # Import curses
-import shutil  # For copying the pre-commit hook
-import subprocess
+import curses  
+import shutil  
+import datetime
 from scripts import views
 from scripts.validation import main as run_validation  # Import the validation function
 
+# Constants
 MARKER = '_org'  # Customize the marker you want to use for valid subdirectories
+LOG_PATH =  os.path.join(os.getcwd(), "debug.txt") 
+
+def log_debug(message):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    script_name = os.path.basename(__file__)
+    with open(LOG_PATH, "a") as f:
+        f.write(f"[{current_time}][{script_name}]: {message}\n")
 
 # Function to safely load the config file and get values
 def load_orgrc_values(config_file):
@@ -31,7 +39,8 @@ def load_orgrc_values(config_file):
     return device, permissions
 
 def init():
-    """Initializes org in the current directory."""
+
+    # Establish current directory
     current_dir = os.getcwd()
 
     # Path to the .org directory
@@ -201,6 +210,11 @@ def display_graphical_view(file_type, search_prop=None, search_term=None, exact=
     curses.wrapper(inner)
 
 def main():
+
+    # Inform log of process start
+    log_debug('Process start')
+
+    # Not sure what this does again
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     
     # Add subcommands
@@ -224,7 +238,11 @@ def main():
 
     # Dispatch commands
     if args.command == 'init':
-        init()  # Run init function
+
+        log_debug('`org init` command received')
+        init()
+        log_debug('Initiation process complete')
+
     elif args.command == 'view':
 
         # First, run validation before proceeding with view commands
@@ -249,10 +267,15 @@ def main():
         else:
             # Simple view without filters in the graphical view
             display_graphical_view(args.file_type)
+
     elif args.command == 'val':
-        # Run the validation script when 'org val' is run
+
+        log_debug('`org  val` command received')
         run_validation()
+        log_debug('Validation complete')
+
     else:
+
         # Check if .org file exists before running commands
         current_dir = os.getcwd()
         org_file_path = os.path.join(current_dir, '.org')
@@ -263,6 +286,8 @@ def main():
 
         # Wrap views.main() with curses.wrapper() to handle stdscr argument
         curses.wrapper(views.main)
+
+    log_debug('Process end')
 
 if __name__ == "__main__":
     main()

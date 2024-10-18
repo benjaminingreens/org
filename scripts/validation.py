@@ -7,6 +7,7 @@ import stat
 import time
 import shutil
 import sys
+import datetime
 from pathlib import Path
 from datetime import date
 from scripts.yaml_val import validate_yaml_frontmatter as validate_yaml 
@@ -17,9 +18,12 @@ ORG_RC_PATH = os.path.join(SUPER_ROOT, '.config', 'orgrc.py')
 INDEX_PATH = os.path.join(SUPER_ROOT, '.org', 'index.json')
 INDEX_1_PATH = os.path.join(SUPER_ROOT, '.org', 'index_1.json')
 
+# Add debugging message
 def log_debug(message):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    script_name = os.path.basename(__file__)  # Get the name of the current script
     with open("debug.txt", "a") as f:
-        f.write(f"{message}\n")
+        f.write(f"[{current_time}][{script_name}]: {message}\n")
 
 # Function to check if .org directory exists in SUPER_ROOT
 def check_org_initialized():
@@ -101,6 +105,12 @@ def insert_one_in_path(file_path):
 
     return new_file_path
 
+# Function to extract the parent folder name without '_org'
+def get_root_folder_name(root):
+    parent_dir = os.path.dirname(root)  # Get the parent directory path
+    basename = os.path.basename(parent_dir)  # Get the base directory name
+    return basename.replace('_org', '')  # Remove '_org' from the base name
+
 # Add or update files in index.json
 def update_index(index, index_1):
 
@@ -149,7 +159,7 @@ def update_index(index, index_1):
                                     item.update(yaml_data)
                                     item['stat_access'] = file_stat[stat.ST_ATIME]
                                     item['stat_mod'] = file_stat[stat.ST_MTIME]
-                                    item['root_folder'] = os.path.dirname(root)
+                                    item['root_folder'] = get_root_folder_name(root)
                                     item['item_type'] = os.path.basename(root)
 
                                 break
@@ -167,7 +177,7 @@ def update_index(index, index_1):
                         # Add new entry
                         index.append({
                             'uid': yaml_data.get('uid'),
-                            'root_folder': os.path.dirname(root),
+                            'root_folder': get_root_folder_name(root),
                             'item_type': os.path.basename(root),
                             'stat_access': file_stat[stat.ST_ATIME],
                             'stat_mod': file_stat[stat.ST_MTIME],
@@ -194,7 +204,7 @@ def update_index(index, index_1):
                                     item.update(yaml_data)
                                     item['stat_access'] = file_stat[stat.ST_ATIME]
                                     item['stat_mod'] = file_stat[stat.ST_MTIME]
-                                    item['root_folder'] = os.path.dirname(root)
+                                    item['root_folder'] = get_root_folder_name(root)
                                     item['item_type'] = os.path.basename(root)
 
                                     break

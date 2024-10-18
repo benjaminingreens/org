@@ -2,6 +2,7 @@
 # run_validation slows down opening the main menu. think of solutions (perhaps threading?)
 
 import os
+import json
 import yaml
 import curses
 from scripts.validation import main as run_validation
@@ -9,38 +10,33 @@ from scripts.validation import main as run_validation
 # Dynamically set SUPER_ROOT to the directory where the 'borg' command is run
 SUPER_ROOT = os.getcwd()
 DEBUG_LOG = os.path.join(SUPER_ROOT, "debug.txt")
+INDEX_JSON_PATH = os.path.join(SUPER_ROOT, ".org/index.json")
 
 # Log debug output to a file
 def log_debug(message):
     with open(DEBUG_LOG, "a") as f:
         f.write(message + "\n")
 
-# Helper function to read YAML front matter from a Markdown file
-def read_yaml_from_file(file_path):
-    with open(file_path, 'r') as file:
-        content = file.read()
-        if content.startswith("---"):
-            yaml_part = content.split('---', 2)[1]
-            return yaml.safe_load(yaml_part)
-    return {}
+# Load JSON data from index.json
+def load_index_json():
+    log_debug(f"Loading data from {INDEX_JSON_PATH}...")
+    with open(INDEX_JSON_PATH, 'r') as file:
+        return json.load(file)
 
-# Load all files from the /notes, /todos, or /events directories across all roots
-def load_files_from_subdir(subdir):
+# Load all files from the index.json filtered by item_type
+def load_files_from_subdir(item_type):
     entries = []
-    log_debug(f"Loading files from {subdir}...")
-    for root_dir in os.listdir(SUPER_ROOT):
-        root_path = os.path.join(SUPER_ROOT, root_dir)
-        if os.path.isdir(root_path):
-            target_dir = os.path.join(root_path, subdir)
-            log_debug(f"Checking for {target_dir}...")
-            if os.path.exists(target_dir) and os.path.isdir(target_dir):
-                log_debug(f"Found {target_dir}, loading files...")
-                for filename in os.listdir(target_dir):
-                    if filename.endswith(".md"):
-                        file_path = os.path.join(target_dir, filename)
-                        yaml_data = read_yaml_from_file(file_path)
-                        entries.append((file_path, yaml_data, subdir))
-                        log_debug(f"Loaded {filename} from {target_dir}")
+    log_debug(f"Loading files of type {item_type} from index.json...")
+    
+    # Load the full index.json data
+    json_data = load_index_json()
+
+    # Filter based on the item_type (e.g., notes, todos, events)
+    for entry in json_data:
+        if entry["item_type"] == item_type:
+            entries.append((entry["uid"], entry, item_type))
+            log_debug(f"Loaded {entry['title']} from index.json")
+    
     return entries
 
 # Function to split long lines at '//' instead of cutting mid-word
@@ -83,7 +79,6 @@ def sort_items(entries, prop=None, reverse=False):
     # Sort the entries using the sort_key, placing 'n/a' at the bottom
     return sorted(entries, key=sort_key, reverse=reverse)
 
-# Function to display input for Vim-like commands, with Esc to exit command mode
 def display_input(stdscr, prompt):
     h, w = stdscr.getmaxyx()
     stdscr.addstr(h - 1, 0, prompt.ljust(w - 1))
@@ -107,7 +102,9 @@ def display_input(stdscr, prompt):
             stdscr.addch(h - 1, len(prompt) + len(input_str) - 1, chr(key))
         stdscr.refresh()
 
-    return ''.join(input_str).strip()
+    # Check if the input is None before calling strip
+    result = ''.join(input_str).strip() if input_str else ""
+    return result
 
 # Function to display messages at the bottom without clearing the screen
 def display_message(stdscr, message):
@@ -138,7 +135,6 @@ def display_message(stdscr, message):
     stdscr.refresh()
     stdscr.getch()  # Wait for a key press to continue
 
-# CSV-style display with row highlighting, screen resize handling, and wrapping
 def display_files_with_view(stdscr, entries, view_filter=None, file_type="todo"):
     current_selection = 0
     original_entries = list(entries)
@@ -156,85 +152,72 @@ def display_files_with_view(stdscr, entries, view_filter=None, file_type="todo")
     }
 
     # Ensure the correct header is selected based on file_type
-    if file_type in headers:
-        unified_header = headers[file_type]
-    else:
-        unified_header = headers["all"]  # Fallback to 'all' if file_type is unknown
-    
-    available_properties = {
-        "todo": ['title', 'status', 'urgency', 'importance', 'assignee', 'deadline', 'created', 'modified', 'uid'],
-        "note": ['title', 'tags', 'created', 'modified', 'uid'],
-        "event": ['title', 'status', 'start', 'end', 'assignee', 'created', 'modified', 'uid']
-    }
+    unified_header = headers.get(file_type, headers["all"])
 
     while True:
-        h, w = stdscr.getmaxyx()
+        h, w = stdscr.getmaxyx()  # Get screen height and width
 
         stdscr.clear()
 
+        # Display the header at the top
         wrapped_header = wrap_text_smart(unified_header, w)
-        for idx, line in enumerate(wrapped_header):
-            stdscr.addstr(idx, 0, line[:w])
+        row_idx = 0  # Start row index at the top of the screen
 
-        row_idx = len(wrapped_header)
+        for header_line in wrapped_header:
+            stdscr.addstr(row_idx, 0, header_line[:w])  # Print the header
+            row_idx += 1
 
         # Display each row as a CSV-style line with ' // ' as the separator
-        for idx, (file_path, yaml_data, item_type) in enumerate(entries):
+        for idx, (file_uid, json_data, item_type) in enumerate(entries):
+            if row_idx >= h - 1:  # Ensure we don't overflow the screen
+                break
+
+            log_debug(f'item type is: {item_type}')
+
             # Create a row with only relevant fields for each item type
-            if file_type == "todo":
-                title = yaml_data.get('title', 'Untitled')
-                status = yaml_data.get('status', 'n/a')
-                urgency = yaml_data.get('urgency', 'n/a')
-                importance = yaml_data.get('importance', 'n/a')
-                assignee = yaml_data.get('assignee', 'n/a')
-                deadline = yaml_data.get('deadline', 'n/a')  # Added deadline handling
-                created = str(yaml_data.get('created', 'n/a'))
-                modified = str(yaml_data.get('modified', 'n/a'))
-                uid = yaml_data.get('uid', 'n/a')
+            if item_type == "todos":
+                title = json_data.get('title', 'Untitled')
+                status = json_data.get('status', 'n/a')
+                urgency = json_data.get('urgency', 'n/a')
+                importance = json_data.get('importance', 'n/a')
+                assignee = json_data.get('assignee', 'n/a')
+                deadline = json_data.get('deadline', 'n/a')  # Added deadline handling
+                created = json_data.get('created', 'n/a')
+                modified = json_data.get('modified', 'n/a')
+                uid = json_data.get('uid', 'n/a')
                 line = f"{title} // {status} // {urgency} // {importance} // {assignee} // {deadline} // {created} // {modified} // {uid}"
-            elif file_type == "note":
-                title = yaml_data.get('title', 'Untitled')
-                tags = yaml_data.get('tags', 'n/a')
-                created = str(yaml_data.get('created', 'n/a'))
-                modified = str(yaml_data.get('modified', 'n/a'))
-                uid = yaml_data.get('uid', 'n/a')
+            elif item_type == "notes":
+                title = json_data.get('title', 'Untitled')
+                tags = json_data.get('tags', 'n/a')
+                created = json_data.get('created', 'n/a')
+                modified = json_data.get('modified', 'n/a')
+                uid = json_data.get('uid', 'n/a')
                 line = f"{title} // {tags} // {created} // {modified} // {uid}"
-            elif file_type == "event":
-                title = yaml_data.get('title', 'Untitled')
-                status = yaml_data.get('status', 'n/a')
-                start = yaml_data.get('start', 'n/a')
-                end = yaml_data.get('end', 'n/a')
-                assignee = yaml_data.get('assignee', 'n/a')
-                created = str(yaml_data.get('created', 'n/a'))
-                modified = str(yaml_data.get('modified', 'n/a'))
-                uid = yaml_data.get('uid', 'n/a')
+            elif item_type == "events":
+                title = json_data.get('title', 'Untitled')
+                status = json_data.get('status', 'n/a')
+                start = json_data.get('start', 'n/a')
+                end = json_data.get('end', 'n/a')
+                assignee = json_data.get('assignee', 'n/a')
+                created = json_data.get('created', 'n/a')
+                modified = json_data.get('modified', 'n/a')
+                uid = json_data.get('uid', 'n/a')
                 line = f"{title} // {status} // {start} // {end} // {assignee} // {created} // {modified} // {uid}"
-            elif file_type == "all":
-                # Handle 'all' case, using 'n/a' for missing properties
-                title = yaml_data.get('title', 'Untitled')
-                status = yaml_data.get('status', 'n/a')
-                urgency = yaml_data.get('urgency', 'n/a')
-                importance = yaml_data.get('importance', 'n/a')
-                assignee = yaml_data.get('assignee', 'n/a')
-                deadline = yaml_data.get('deadline', 'n/a')  # Added deadline handling
-                tags = yaml_data.get('tags', 'n/a')
-                start = yaml_data.get('start', 'n/a')
-                end = yaml_data.get('end', 'n/a')
-                created = str(yaml_data.get('created', 'n/a'))
-                modified = str(yaml_data.get('modified', 'n/a'))
-                uid = yaml_data.get('uid', 'n/a')
-                line = f"{title} // {status} // {urgency} // {importance} // {assignee} // {deadline} // {tags} // {start} // {end} // {created} // {modified} // {uid}"
 
             # Wrap the line to fit within the terminal width
             wrapped_lines = wrap_text_smart(line, w)
 
             for wrapped_line in wrapped_lines:
+                if row_idx >= h - 1:  # Ensure we don't overflow the screen
+                    break
+
                 if idx == current_selection:
                     stdscr.attron(curses.A_REVERSE)
-                    stdscr.addstr(row_idx, 0, wrapped_line)
+                    stdscr.addstr(row_idx, 0, wrapped_line[:w])  # Reverse highlight the selected item
                     stdscr.attroff(curses.A_REVERSE)
                 else:
-                    stdscr.addstr(row_idx, 0, wrapped_line)
+                    stdscr.addstr(row_idx, 0, wrapped_line[:w])
+
                 row_idx += 1
 
         stdscr.refresh()
@@ -253,12 +236,16 @@ def display_files_with_view(stdscr, entries, view_filter=None, file_type="todo")
             if command is None:
                 continue  # Handle Esc key, return to the main view
             elif command.startswith('s'):
-                search_prop = display_input(stdscr, "Property: ").strip()
-                if search_prop is None:
+                search_prop = display_input(stdscr, "Property: ")
+                search_prop = search_prop.strip() if search_prop else ""  # Handle None case
+                if not search_prop:
                     continue  # Handle Esc key, return to the main view
-                search_term = display_input(stdscr, f"Search {search_prop}: ").strip()
-                if search_term is None:
+
+                search_term = display_input(stdscr, f"Search {search_prop}: ")
+                search_term = search_term.strip() if search_term else ""  # Handle None case
+                if not search_term:
                     continue  # Handle Esc key, return to the main view
+
                 new_entries = fuzzy_search(entries, search_prop.lower(), search_term)
                 if new_entries:
                     entries = new_entries
@@ -268,12 +255,16 @@ def display_files_with_view(stdscr, entries, view_filter=None, file_type="todo")
                 log_debug(f"Fuzzy search: {len(new_entries)} results")
 
             elif command.startswith('es'):
-                search_prop = display_input(stdscr, "Property: ").strip()
-                if search_prop is None:
+                search_prop = display_input(stdscr, "Property: ")
+                search_prop = search_prop.strip() if search_prop else ""  # Handle None case
+                if not search_prop:
                     continue  # Handle Esc key, return to the main view
-                search_term = display_input(stdscr, f"Exact search {search_prop}: ").strip()
-                if search_term is None:
+
+                search_term = display_input(stdscr, f"Exact search {search_prop}: ")
+                search_term = search_term.strip() if search_term else ""  # Handle None case
+                if not search_term:
                     continue  # Handle Esc key, return to the main view
+
                 new_entries = exact_search(entries, search_prop.lower(), search_term)
                 if new_entries:
                     entries = new_entries
@@ -309,23 +300,32 @@ def display_files_with_view(stdscr, entries, view_filter=None, file_type="todo")
                 break
 
         elif key == curses.KEY_RESIZE:
-            h, w = stdscr.getmaxyx()
+            h, w = stdscr.getmaxyx()  # Get screen height and width
 
-# Display a menu with j/k navigation
+# Display a menu with j/k navigation, centered in the terminal
 def display_menu(stdscr, items):
     current_selection = 0
 
     while True:
         stdscr.clear()
+        h, w = stdscr.getmaxyx()
 
-        # Display the menu items
+        # Calculate the vertical and horizontal starting points for centering the menu
+        menu_height = len(items)
+        menu_width = max(len(item) for item in items)
+        start_y = (h - menu_height) // 2
+        start_x = (w - menu_width) // 2
+
+        # Display the menu items, centered in the terminal
         for idx, item in enumerate(items):
+            x = start_x
+            y = start_y + idx
             if idx == current_selection:
                 stdscr.attron(curses.A_REVERSE)
-                stdscr.addstr(idx, 0, item)
+                stdscr.addstr(y, x, item)
                 stdscr.attroff(curses.A_REVERSE)
             else:
-                stdscr.addstr(idx, 0, item)
+                stdscr.addstr(y, x, item)
 
         stdscr.refresh()
         key = stdscr.getch()
