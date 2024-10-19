@@ -6,12 +6,16 @@ import os
 import curses  
 import shutil  
 import datetime
+import subprocess
 from scripts import views
 from scripts.validation import main as run_validation  # Import the validation function
+from scripts.device_setup import main as device_setup
 
 # Constants
+SUPER_ROOT = os.getcwd()
 MARKER = '_org'  # Customize the marker you want to use for valid subdirectories
 LOG_PATH =  os.path.join(os.getcwd(), "debug.txt") 
+DEVICE_SETUP = os.path.join(SUPER_ROOT, 'scripts', 'device_setup.py')
 
 def log_debug(message):
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -240,6 +244,7 @@ def main():
     if args.command == 'init':
 
         log_debug('`org init` command received')
+        subprocess.run(["python3", DEVICE_SETUP], check=True)
         init()
         log_debug('Initiation process complete')
 
@@ -283,6 +288,8 @@ def main():
         if not os.path.exists(org_file_path):
             print(f"Error: '.org' file not found in {current_dir}. This directory is not initialized for org.")
             return
+
+        subprocess.run(["python3", DEVICE_SETUP], check=True)
 
         # Wrap views.main() with curses.wrapper() to handle stdscr argument
         curses.wrapper(views.main)

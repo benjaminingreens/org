@@ -1,12 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-# Run the 'org val' command in the terminal
-org val
+import subprocess
+import sys
 
-# Capture the exit status of the command
-if [ $? -ne 0 ]; then
-    echo "org val command failed" >&2
-    exit 1
-else
-    echo "org val command executed successfully"
-fi
+def main():
+    # Run the 'org val' command in the terminal
+    try:
+        result = subprocess.run(['org', 'val'], check=True)
+        print("org val command executed successfully")
+    except subprocess.CalledProcessError:
+        print("org val command failed", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()

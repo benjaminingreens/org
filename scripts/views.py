@@ -5,6 +5,7 @@ import os
 import json
 import yaml
 import curses
+import subprocess
 from scripts.validation import main as run_validation
 
 # Dynamically set SUPER_ROOT to the directory where the 'borg' command is run

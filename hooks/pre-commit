@@ -1,53 +1,38 @@
-#!/bin/bash
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import sys
 
 # Resolve the SUPER_ROOT dynamically as the root of the Git repository
-SUPER_ROOT=$(git rev-parse --show-toplevel)
-CONFIG_FILE="${SUPER_ROOT}/.config/orgrc.py"
-VALIDATION_SCRIPT="${SUPER_ROOT}/scripts/validation.py"
+def get_super_root():
+    try:
+        super_root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip().decode('utf-8')
+        return super_root
+    except subprocess.CalledProcessError:
+        print("Error: Not inside a Git repository.")
+        sys.exit(1)
 
-# Check if the .org directory exists in SUPER_ROOT
-if [ ! -d "${SUPER_ROOT}/.org" ]; then
-    echo "No .org directory found in the repository. Skipping validation."
-    exit 0  # Allow the commit without running validation
-fi
+def main():
+    super_root = get_super_root()
+    config_file = os.path.join(super_root, '.config', 'orgrc.py')
+    validation_script = os.path.join(super_root, 'scripts', 'validation.py')
 
-# Function to check if 'git' variable is true in the config
-check_git_in_config() {
-    # Extract the 'git' variable from the config using Python
-    git_enabled=$(python3 -c "
-import os
-config = {}
-config_path = '${CONFIG_FILE}'
-if os.path.exists(config_path):
-    with open(config_path, 'r') as f:
-        exec(f.read(), config)
-    print(config.get('git', False))
-else:
-    print('False')
-")
+    # Check if the .org directory exists in SUPER_ROOT
+    org_dir = os.path.join(super_root, '.org')
+    if not os.path.isdir(org_dir):
+        print("No .org directory found in the repository. Skipping validation.")
+        sys.exit(0)  # Allow the commit without running validation
 
-    if [ "$git_enabled" == "True" ]; then
-        return 0  # Git is enabled
-    else
-        return 1  # Git is not enabled
-    fi
-}
+    # Run the validation.py script
+    try:
+        result = subprocess.run(['python3', validation_script], check=True)
+    except subprocess.CalledProcessError:
+        print("Pre-commit hook failed. Aborting commit.")
+        sys.exit(1)  # Fail the commit
 
-# Check if git is enabled in the config
-if ! check_git_in_config; then
-    echo "'git' is not enabled in the config. Skipping validation."
-    exit 0  # Allow the commit without validation
-fi
+    # Continue with the commit if the validation passed
+    sys.exit(0)  # Allow the commit
 
-# Run the validation.py script
-python3 "${VALIDATION_SCRIPT}"
-
-# Check if the script failed
-if [ $? -ne 0 ]; then
-    echo "Pre-commit hook failed. Aborting commit."
-    exit 1  # Fail the commit
-fi
-
-# Continue with the commit if the validation passed
-exit 0  # Allow the commit
-
+if __name__ == '__main__':
+    main()

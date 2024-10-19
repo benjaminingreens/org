@@ -1,7 +1,6 @@
-# SETUP
+# DEVICE
 device = 'server'
 permissions = 'archive'
-git = True
 
 # DEFAULTS
 todo_status = 'Not started'

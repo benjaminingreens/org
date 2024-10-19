@@ -8,15 +8,18 @@ import time
 import shutil
 import sys
 import datetime
+import subprocess
 from pathlib import Path
 from datetime import date
 from scripts.yaml_val import validate_yaml_frontmatter as validate_yaml 
+from scripts.device_setup import main as device_setup
 
 # Constants
 SUPER_ROOT = os.getcwd()
 ORG_RC_PATH = os.path.join(SUPER_ROOT, '.config', 'orgrc.py')
 INDEX_PATH = os.path.join(SUPER_ROOT, '.org', 'index.json')
 INDEX_1_PATH = os.path.join(SUPER_ROOT, '.org', 'index_1.json')
+DEVICE_SETUP = os.path.join(SUPER_ROOT, 'scripts', 'device_setup.py')
 
 # Add debugging message
 def log_debug(message):
@@ -295,6 +298,9 @@ def handle_sparse_checkout():
 def main():
 
     check_org_initialized()
+    
+    subprocess.run(["python3", DEVICE_SETUP], check=True)
+
     config = load_config()
     index = load_or_initialize_index(INDEX_PATH)
     index_1 = load_or_initialize_index(INDEX_1_PATH) if os.path.exists(INDEX_1_PATH) else []
