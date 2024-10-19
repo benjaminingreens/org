@@ -1,11 +1,14 @@
-# device_setup.py 
-# Need to fix code which formats orgrc, as the formatting is a bit messed up
-
 import os
 
 # Get the current working directory (super root)
 SUPER_ROOT = os.getcwd()
 ORGRC_PATH = os.path.join(SUPER_ROOT, '.config', 'orgrc.py')
+
+# Ensure parent directories exist
+def ensure_directories_exist():
+    parent_dir = os.path.dirname(ORGRC_PATH)
+    if not os.path.exists(parent_dir):
+        os.makedirs(parent_dir)
 
 # Check if the file contains device and permissions variables
 def check_orgrc_file():
@@ -13,6 +16,9 @@ def check_orgrc_file():
         "device": None,
         "permissions": None
     }
+
+    # Ensure the directories exist before checking the file
+    ensure_directories_exist()
 
     if os.path.exists(ORGRC_PATH):
         with open(ORGRC_PATH, "r") as file:
@@ -32,7 +38,10 @@ def ensure_device_comment_and_variables(variables):
     device_found = False
     permissions_found = False
 
-    if os.path.exists(ORGRC_PATH):
+    # If the file doesn't exist or is empty, initialize it with the # DEVICE comment
+    if not os.path.exists(ORGRC_PATH) or os.stat(ORGRC_PATH).st_size == 0:
+        content_lines = ["# DEVICE\n"]
+    else:
         with open(ORGRC_PATH, "r") as file:
             content_lines = file.readlines()
 
@@ -143,7 +152,7 @@ def main():
     # Adjust blank lines at the end of the logic
     adjust_blank_lines()
 
-    print(f"Updated {ORGRC_PATH} with the missing variables and adjusted blank lines.")
+    # print(f"Updated {ORGRC_PATH} with the missing variables and adjusted blank lines.")
 
 if __name__ == "__main__":
     main()
