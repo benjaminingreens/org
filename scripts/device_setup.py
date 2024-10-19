@@ -1,6 +1,3 @@
-# device_setup.py 
-# Need to fix code which formats orgrc, as the formatting is a bit messed up
-
 import os
 
 # Get the current working directory (super root)
@@ -14,14 +11,19 @@ def check_orgrc_file():
         "permissions": None
     }
 
-    if os.path.exists(ORGRC_PATH):
-        with open(ORGRC_PATH, "r") as file:
-            content = file.read()
-            # Check if device and permissions variables exist
-            if "device" in content:
-                exec(content, variables)
-            if "permissions" in content:
-                exec(content, variables)
+    # Check if the file exists, otherwise create an empty one
+    if not os.path.exists(ORGRC_PATH):
+        os.makedirs(os.path.dirname(ORGRC_PATH), exist_ok=True)
+        with open(ORGRC_PATH, "w") as file:
+            file.write("# DEVICE\n")
+
+    with open(ORGRC_PATH, "r") as file:
+        content = file.read()
+        # Check if device and permissions variables exist
+        if "device" in content:
+            exec(content, variables)
+        if "permissions" in content:
+            exec(content, variables)
 
     return variables
 
