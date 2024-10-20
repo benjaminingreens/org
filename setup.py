@@ -9,11 +9,10 @@ setup(
     author="Benjamin Hammond",
     author_email="benjaminphammond@gmail.com",
     url="https://github.com/benjaminingreens/org",
-    packages=find_packages(),
+    packages=find_packages(include=['org', 'org.*']),
     include_package_data=True,
     package_data={
-        'scripts': ['hooks/pre-commit'],
-        'scripts': ['hooks/post-receive'],        
+        'org': ['scripts/hooks/*'],
     },
     install_requires=[
         "pyyaml",
@@ -21,7 +20,7 @@ setup(
     ], 
     entry_points={
         'console_scripts': [
-            'org=scripts.cli:main', 
+            'org = org.scripts.cli:main', 
         ],
     },
     classifiers=[

@@ -8,9 +8,9 @@ import shutil
 import datetime
 import shutil
 import importlib.resources as pkg_resources
-from scripts import views
-from scripts.validation import main as run_validation  # Import the validation function
-from scripts.device_setup import main as device_setup
+from org.scripts import views
+from org.scripts.validation import main as run_validation  # Import the validation function
+from org.scripts.device_setup import main as device_setup
 
 # Constants
 SUPER_ROOT = os.getcwd()
@@ -220,9 +220,9 @@ def init():
                 else:
                     print(f"Post-receive hook not found at {post_receive_src}. Exiting.")
                     sys.exit(1)
-            else:
-                print(f".git directory not found in {current_dir}. Exiting post-receive hook setup.")
-                sys.exit(1)
+        else:
+            print(f".git directory not found in {current_dir}. Exiting post-receive hook setup.")
+            sys.exit(1)
     else:
         print("Conditions not met: device is not 'server' or permissions are not 'archive'. Skipping post-receive hook setup.")
 

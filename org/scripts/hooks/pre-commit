@@ -16,7 +16,7 @@ def get_super_root():
 def main():
     super_root = get_super_root()
     config_file = os.path.join(super_root, '.config', 'orgrc.py')
-    validation_script = os.path.join(super_root, 'scripts', 'validation.py')
+    validation_script = os.path.join(super_root, 'org/scripts', 'validation.py')
 
     # Check if the .org directory exists in SUPER_ROOT
     org_dir = os.path.join(super_root, '.org')
