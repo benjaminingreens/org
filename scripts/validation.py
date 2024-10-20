@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 from datetime import date
 from scripts.yaml_val import validate_yaml_frontmatter as validate_yaml 
+from scripts.device_setup import main as device_setup
 
 # Constants
 SUPER_ROOT = os.getcwd()
@@ -298,7 +299,7 @@ def main():
 
     check_org_initialized()
     
-    subprocess.run(["python3", DEVICE_SETUP], check=True)
+    device_setup()
 
     config = load_config()
     index = load_or_initialize_index(INDEX_PATH)
