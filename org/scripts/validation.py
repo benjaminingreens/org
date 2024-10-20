@@ -149,7 +149,7 @@ def update_index(index, index_1):
 
                                 if item['stat_mod'] < file_stat[stat.ST_MTIME]:
 
-                                    log_debug(f'{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}')
+                                    log_debug(f"{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}")
 
                                     exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
                                     if exit_code == 1:
