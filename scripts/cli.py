@@ -100,19 +100,11 @@ def init():
     git_dir_path = os.path.join(current_dir, ".git")
     config_file = os.path.join(config_dir_path, "orgrc.py")
     
-    # Function to check if 'git' is enabled in the config file
-    def is_git_enabled():
-        config = {}
-        if os.path.exists(config_file):
-            with open(config_file, 'r') as f:
-                exec(f.read(), config)
-            return config.get('git', False)
-        return False
-
     # Initialize Git repository if .git doesn't exist and git is enabled in the config
     if not os.path.exists(git_dir_path):
-        if is_git_enabled():
-            print("No Git repository found. Initializing Git repository...")
+        # I need to make the code for checking git in the config file redundant
+        if True:
+            print("Initializing Git repository...")
             os.system("git init")
         else:
             print("Git is not enabled in the config file. Skipping Git initialization.")
