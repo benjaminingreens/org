@@ -111,7 +111,12 @@ def init():
     
     # Move the pre-commit hook if .git exists
     if os.path.exists(git_dir_path):
-        pre_commit_src = os.path.join(current_dir, 'hooks', 'pre-commit')
+
+        # Get the absolute path to the directory where the current script resides
+        package_dir = os.path.dirname(os.path.realpath(__file__))
+        # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
+        pre_commit_src = os.path.join(package_dir, 'hooks', 'pre-commit')
+
         pre_commit_dest = os.path.join(git_dir_path, 'hooks', 'pre-commit')
 
         # Check if the source pre-commit file exists
@@ -143,7 +148,12 @@ def init():
     # Only move the post-receive hook if the conditions are met
     if device == 'server' and permissions == 'archive':
         if os.path.exists(git_dir_path):
-            post_receive_src = os.path.join(current_dir, 'hooks', 'post-receive')
+
+            # Get the absolute path to the directory where the current script resides
+            package_dir = os.path.dirname(os.path.realpath(__file__))
+            # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
+            post_receive_src = os.path.join(package_dir, 'hooks', 'post-receive')
+
             post_receive_dest = os.path.join(git_dir_path, 'hooks', 'post-receive')
 
             # Check if the source post-receive file exists
