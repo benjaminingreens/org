@@ -10,6 +10,11 @@ setup(
     author_email="benjaminphammond@gmail.com",
     url="https://github.com/benjaminingreens/org",
     packages=find_packages(),
+    include_package_data=True,
+    package_data={
+        'scripts': ['hooks/pre-commit'],
+        'scripts': ['hooks/post-receive'],        
+    },
     install_requires=[
         "pyyaml",
         "setuptools"

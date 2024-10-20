@@ -6,7 +6,8 @@ import os
 import curses  
 import shutil  
 import datetime
-import subprocess
+import shutil
+import importlib.resources as pkg_resources
 from scripts import views
 from scripts.validation import main as run_validation  # Import the validation function
 from scripts.device_setup import main as device_setup
@@ -16,6 +17,36 @@ SUPER_ROOT = os.getcwd()
 MARKER = '_org'  # Customize the marker you want to use for valid subdirectories
 LOG_PATH =  os.path.join(os.getcwd(), "debug.txt") 
 # DEVICE_SETUP = os.path.join(SUPER_ROOT, 'scripts', 'device_setup.py')
+
+# Generic function to get the hook file path within the package
+def get_hook_path(hook_name):
+    # Assuming 'my_package' is the name of your package
+    with pkg_resources.path('org.scripts.hooks', hook_name) as hook_path:
+        return hook_path
+
+# Function to copy a specific hook file to the user's current working directory
+def copy_hook(hook_name):
+    # Get the hook file path within the package (pre-commit or post-receive)
+    hook_path = get_hook_path(hook_name)
+
+    # Define the destination path in the user's current working directory
+    destination_path = os.path.join(os.getcwd(), '.git/hooks', hook_name)
+
+    # Copy the file to the current working directory
+    shutil.copy(hook_path, destination_path)
+
+    os.chmod(destination_path, 0o755)
+
+    print(f"Copied {hook_path} to {destination_path} and made it executable")
+
+# Copy the pre-commit hook
+def copy_pre_commit_hook():
+    copy_hook('pre-commit')
+
+# Copy the post-receive hook
+def copy_post_receive_hook():
+    copy_hook('post-receive')
+
 
 def log_debug(message):
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -112,31 +143,38 @@ def init():
     # Move the pre-commit hook if .git exists
     if os.path.exists(git_dir_path):
 
-        # Get the absolute path to the directory where the current script resides
-        package_dir = os.path.dirname(os.path.realpath(__file__))
-        # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
-        pre_commit_src = os.path.join(package_dir, 'hooks', 'pre-commit')
+        # Create the hooks directory if it doesn't exist
+        hooks_dir = os.path.join(git_dir_path, 'hooks')
+        os.makedirs(hooks_dir, exist_ok=True)
 
-        pre_commit_dest = os.path.join(git_dir_path, 'hooks', 'pre-commit')
+        copy_pre_commit_hook()
 
-        # Check if the source pre-commit file exists
-        if os.path.exists(pre_commit_src):
-            try:
-                # Create the hooks directory if it doesn't exist
-                hooks_dir = os.path.join(git_dir_path, 'hooks')
-                os.makedirs(hooks_dir, exist_ok=True)
+        if False:
+            # Get the absolute path to the directory where the current script resides
+            package_dir = os.path.dirname(os.path.realpath(__file__))
+            # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
+            pre_commit_src = os.path.join(package_dir, 'hooks', 'pre-commit')
 
-                # Copy the pre-commit hook
-                shutil.copyfile(pre_commit_src, pre_commit_dest)
+            pre_commit_dest = os.path.join(git_dir_path, 'hooks', 'pre-commit')
 
-                # Make the pre-commit hook executable
-                os.chmod(pre_commit_dest, 0o755)
-                print(f"Moved pre-commit hook to {pre_commit_dest} and made it executable.")
-            except Exception as e:
-                print(f"Error while moving pre-commit hook: {e}")
-        else:
-            print(f"Pre-commit hook not found at {pre_commit_src}. Exiting.")
-            sys.exit(1)
+            # Check if the source pre-commit file exists
+            if os.path.exists(pre_commit_src):
+                try:
+                    # Create the hooks directory if it doesn't exist
+                    hooks_dir = os.path.join(git_dir_path, 'hooks')
+                    os.makedirs(hooks_dir, exist_ok=True)
+
+                    # Copy the pre-commit hook
+                    shutil.copyfile(pre_commit_src, pre_commit_dest)
+
+                    # Make the pre-commit hook executable
+                    os.chmod(pre_commit_dest, 0o755)
+                    print(f"Moved pre-commit hook to {pre_commit_dest} and made it executable.")
+                except Exception as e:
+                    print(f"Error while moving pre-commit hook: {e}")
+            else:
+                print(f"Pre-commit hook not found at {pre_commit_src}. Exiting.")
+                sys.exit(1)
     else:
         print(f".git directory not found in {current_dir}. Exiting pre-commit hook setup.")
         sys.exit(1)
@@ -149,34 +187,42 @@ def init():
     if device == 'server' and permissions == 'archive':
         if os.path.exists(git_dir_path):
 
-            # Get the absolute path to the directory where the current script resides
-            package_dir = os.path.dirname(os.path.realpath(__file__))
-            # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
-            post_receive_src = os.path.join(package_dir, 'hooks', 'post-receive')
+            # Create the hooks directory if it doesn't exist
+            hooks_dir = os.path.join(git_dir_path, 'hooks')
+            os.makedirs(hooks_dir, exist_ok=True)
 
-            post_receive_dest = os.path.join(git_dir_path, 'hooks', 'post-receive')
+            copy_post_receive_hook()
 
-            # Check if the source post-receive file exists
-            if os.path.exists(post_receive_src):
-                try:
-                    # Create the hooks directory if it doesn't exist
-                    hooks_dir = os.path.join(git_dir_path, 'hooks')
-                    os.makedirs(hooks_dir, exist_ok=True)
 
-                    # Copy the post-receive hook
-                    shutil.copyfile(post_receive_src, post_receive_dest)
+            if False:
+                # Get the absolute path to the directory where the current script resides
+                package_dir = os.path.dirname(os.path.realpath(__file__))
+                # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
+                post_receive_src = os.path.join(package_dir, 'hooks', 'post-receive')
 
-                    # Make the post-receive hook executable
-                    os.chmod(post_receive_dest, 0o755)
-                    print(f"Moved post-receive hook to {post_receive_dest} and made it executable.")
-                except Exception as e:
-                    print(f"Error while moving post-receive hook: {e}")
+                post_receive_dest = os.path.join(git_dir_path, 'hooks', 'post-receive')
+
+                # Check if the source post-receive file exists
+                if os.path.exists(post_receive_src):
+                    try:
+                        # Create the hooks directory if it doesn't exist
+                        hooks_dir = os.path.join(git_dir_path, 'hooks')
+                        os.makedirs(hooks_dir, exist_ok=True)
+
+                        # Copy the post-receive hook
+                        shutil.copyfile(post_receive_src, post_receive_dest)
+
+                        # Make the post-receive hook executable
+                        os.chmod(post_receive_dest, 0o755)
+                        print(f"Moved post-receive hook to {post_receive_dest} and made it executable.")
+                    except Exception as e:
+                        print(f"Error while moving post-receive hook: {e}")
+                else:
+                    print(f"Post-receive hook not found at {post_receive_src}. Exiting.")
+                    sys.exit(1)
             else:
-                print(f"Post-receive hook not found at {post_receive_src}. Exiting.")
+                print(f".git directory not found in {current_dir}. Exiting post-receive hook setup.")
                 sys.exit(1)
-        else:
-            print(f".git directory not found in {current_dir}. Exiting post-receive hook setup.")
-            sys.exit(1)
     else:
         print("Conditions not met: device is not 'server' or permissions are not 'archive'. Skipping post-receive hook setup.")
 
