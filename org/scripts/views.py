@@ -54,26 +54,42 @@ def wrap_text_smart(text, width):
     lines.append(text)
     return lines
 
-# Fuzzy search implementation
 def fuzzy_search(entries, prop, search_term):
-    search_term = search_term.lower()
+    search_term = search_term.lower().strip().strip('"')  # Strip surrounding quotes from the search term
     log_debug(f"Fuzzy searching for {search_term} in {prop}")
-    return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
-            if yaml_data.get(prop, 'n/a').lower() != 'n/a' and search_term in yaml_data.get(prop, '').lower()]
+    
+    # Check if the property is tags or assignee and split by comma
+    def prop_contains_term(entry_prop):
+        if isinstance(entry_prop, str):
+            items = [item.strip().strip('"').lower() for item in entry_prop.split(",")]  # Strip quotes from items
+            return any(search_term in item for item in items)
+        return search_term in entry_prop.lower()
 
-# Exact search implementation
+    # Apply the split and search logic to tags and assignee properties
+    return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
+            if yaml_data.get(prop, 'n/a').lower() != 'n/a' and prop_contains_term(yaml_data.get(prop, ''))]
+
 def exact_search(entries, prop, search_term):
+    search_term = search_term.lower().strip().strip('"')  # Strip surrounding quotes from the search term
     log_debug(f"Exact searching for {search_term} in {prop}")
-    return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
-            if yaml_data.get(prop, 'n/a') == search_term]
 
-# Function to sort items based on a property or method, placing 'n/a' values at the bottom
+    # Check if the property is tags or assignee and split by comma
+    def prop_contains_exact_term(entry_prop):
+        if isinstance(entry_prop, str):
+            items = [item.strip().strip('"').lower() for item in entry_prop.split(",")]  # Strip quotes from items
+            return search_term in items
+        return search_term == entry_prop.lower().strip().strip('"')
+
+    # Apply the split and search logic to tags and assignee properties
+    return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
+            if yaml_data.get(prop, 'n/a').lower() != 'n/a' and prop_contains_exact_term(yaml_data.get(prop, ''))]
+
 def sort_items(entries, prop=None, reverse=False):
     log_debug(f"Sorting by {prop}")
 
     def sort_key(entry):
         # Fetch the property value, default to 'n/a' if not found
-        value = entry[1].get(prop, 'n/a')
+        value = entry[1].get(prop, 'n/a').strip().strip('"')  # Strip quotes before sorting
         # If the value is 'n/a', treat it as greater than any other value
         return (value == 'n/a', value)
     

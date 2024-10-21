@@ -29,8 +29,14 @@ def extract_category(filepath):
     return first_part
 
 # Helper function to generate datetime string with '@' separator
-def current_datetime():
-    return datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S")
+def current_datetime(type):
+    if type == 'full':
+        return datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S")
+    elif type == 'date':
+        return datetime.datetime.now().strftime("%Y-%m-%d")
+    elif type == 'title':
+        return datetime.datetime.now().strftime("%Y%m%d-%H%M%S.md")
+
 
 # Helper function to validate datetime format with '@'
 def validate_datetime(value):
@@ -46,7 +52,7 @@ def validate_datetime(value):
 # Function to log validation errors to debug.txt
 def log_error(error_message):
     with open("debug.txt", "a") as f:
-        f.write(f"{current_datetime()} - {error_message}\n")
+        f.write(f"{current_datetime(type='full')} - {error_message}\n")
 
 # Function to update the YAML front matter in the .md file
 def update_yaml_frontmatter(filepath, yaml_content):
@@ -75,98 +81,205 @@ def update_yaml_frontmatter(filepath, yaml_content):
     with open(filepath, "w") as f:
         f.write(updated_content)
 
+def ensure_quotes(field_value):
+    if field_value is None:
+        return None  # If the field is None, return it as-is
+
+    if not isinstance(field_value, str):
+        return field_value  # Return as-is if it's not a string
+
+    # Scenario 1: No quotation marks anywhere
+    if not field_value.startswith('"') and not field_value.endswith('"'):
+        return f'"{field_value.replace("\"", "\'")}"'  # Add quotes to start and end, convert internal to single
+
+    # Scenario 2: Quotation mark at the beginning or end, but not both
+    if field_value.startswith('"') and not field_value.endswith('"'):
+        return f'{field_value}"'  # Add missing quotation mark at the end
+    elif not field_value.startswith('"') and field_value.endswith('"'):
+        return f'"{field_value}'  # Add missing quotation mark at the beginning
+
+    # Scenario 3: Quotation mark at the beginning or end, but not both, with internal quotation marks
+    if (field_value.startswith('"') and not field_value.endswith('"')) or \
+       (not field_value.startswith('"') and field_value.endswith('"')):
+        return f'"{field_value.strip("\"").replace("\"", "\'")}"'  # Add missing quote and convert internal to single
+
+    # Scenario 4: Internal quotation marks but none at the beginning or end
+    if '"' in field_value and not (field_value.startswith('"') and field_value.endswith('"')):
+        return f'"{field_value.replace("\"", "\'")}"'  # Add quotes to start/end and convert internal to single
+
+    # Scenario 5: Quotation marks at the beginning and end, with internal ones
+    if field_value.startswith('"') and field_value.endswith('"') and '"' in field_value[1:-1]:
+        return f'"{field_value[1:-1].replace("\"", "\'")}"'  # Convert internal quotes to single
+
+    # Default: Return the field as-is if none of the above conditions match
+    return field_value 
+
+def check_duplicate_filename(filepath, new_filename=None):
+    # Extract the directory and filename from the given filepath
+    directory, filename = os.path.split(filepath)
+
+    # If new_filename is provided, update the filename
+    if new_filename:
+        filename = new_filename
+
+    # Check if the directory exists
+    if not os.path.exists(directory):
+        raise ValueError(f"Directory does not exist: {directory}")
+    
+    # Check if any file in the directory has the same name as the current or new filename
+    if filename in os.listdir(directory):
+        raise ValueError(f"A file with the name '{filename}' already exists in the directory '{directory}'")
+    
+    # If new_filename is provided and no duplicate was found, rename the file
+    if new_filename:
+        new_filepath = os.path.join(directory, new_filename)
+        os.rename(filepath, new_filepath)
+        print(f"File renamed to '{new_filename}' in the directory '{directory}'.")
+        return new_filepath
+    else:
+        print(f"No duplicate found for '{filename}' in the directory '{directory}', safe to proceed.")
+        return None
+
+def validate_item(filepath, yaml_content, item_state):
+
+    pass
+
+def validate_title(item_type, filepath, yaml_content, item_state):
+
+    title = yaml_content.get("title", None)
+
+    if item_type == 'Note':
+
+        pass
+
+    elif item_type == 'Todo':
+
+        pass
+
+    elif item_type == 'Event':
+
+        pass
+
+    pass
+
 # Modify the validate_yaml_frontmatter function to use the update function
 def validate_yaml_frontmatter(filepath, yaml_content, item_state):
     try:
         config = load_config()
 
+        # Define required fields for notes, todos, and events
         required_fields_note = ["item", "category", "title", "tags"]
-        required_fields_todo = ["item", "category", "title", "tags", "status", "urgency", "importance", "assignee"]
-        required_fields_event = ["item", "category", "title", "tags", "start", "end", "status", "assignee"]
+        required_fields_todo = ["item", "category", "title", "tags", "status", "assignee", "urgency", "importance"]
+        required_fields_event = ["item", "category", "title", "tags", "status", "assignee", "start", "end"]
 
-        item_type = yaml_content.get("item", "").capitalize()
-        category = yaml_content.get("category", extract_category(filepath)).capitalize()
+        # Ensure item exists and is valid
+        item_type = ensure_quotes(yaml_content.get("item", ""))
+        if item_type is not None:
+            item_type = item_type.strip('"')
+        if item_type not in ["Note", "Todo", "Event"]:
+            raise ValueError(f"Invalid or missing item type. Expected 'Note', 'Todo', or 'Event', but got '{item_type}'.")
 
-        # Check if the category matches root folder
+        # Set default category if not provided, based on the item type
+        category = yaml_content.get("category", None)
+        if category is None:
+            category = config.get(f'{item_type.lower()}_category')
+        if category is not None:
+            category = category.strip('"')
+        if not category:
+            raise ValueError(f"Category is missing for item type '{item_type}' and no default category found in config.")
+
+        # Check if the category matches the root folder
         if extract_category(filepath) != category.lower():
             raise ValueError(f"Category mismatch: {category} should be {extract_category(filepath)} - from {filepath}")
 
-        # Note Validation
+        # All validation for category should now be complete, so ensure it is in quotes
+        yaml_content["category"] = ensure_quotes(category)
+
+        # Ensure title is quoted and exists for todos and events, but can be replaced by a datetime for notes
         if item_type == "Note":
-            for field in required_fields_note:
-                if field not in yaml_content and field != "created" and field != "modified":
-                    raise ValueError(f"Missing required field {field} for Note")
-
-            # Validate title and filename
-            if not yaml_content.get("title"):
-                yaml_content["title"] = current_datetime()
-            if not filepath.endswith(f'{yaml_content["title"]}.md'):
-                raise ValueError(f"Filename mismatch: expected {yaml_content['title']}.md")
-
-        # Todo Validation
-        elif item_type == "Todo":
-            for field in required_fields_todo:
-                if field not in yaml_content and field != "created" and field != "modified":
-                    raise ValueError(f"Missing required field {field} for Todo")
-
-            if not filepath.endswith(f'{yaml_content["title"]}.md'):
-                raise ValueError(f"Filename mismatch: expected {yaml_content['title']}.md")
-
-            # Validate status, urgency, and importance
-            if yaml_content["status"] not in ['Not started', 'In progress', 'Blocked', 'Dependent', 'Redundant', 'Unknown', 'Not done', 'Done']:
-                yaml_content["status"] = config.get("todo_status", "Not started")
-
-            if yaml_content["urgency"] not in ['Urgent', 'Not urgent']:
-                yaml_content["urgency"] = config.get("todo_urgency", "Not urgent")
-
-            if yaml_content["importance"] not in ['Important', 'Not important']:
-                yaml_content["importance"] = config.get("todo_importance", "Important")
-
-            # Validate deadline format
-            if yaml_content.get("deadline") and not validate_datetime(yaml_content["deadline"]):
-                raise ValueError("Invalid deadline format")
-
-        # Event Validation
-        elif item_type == "Event":
-            for field in required_fields_event:
-                if field not in yaml_content and field != "created" and field != "modified":
-                    raise ValueError(f"Missing required field {field} for Event")
-
-            if not filepath.endswith(f'{yaml_content["title"]}.md'):
-                raise ValueError(f"Filename mismatch: expected {yaml_content['title']}.md")
-
-            # Validate start and end datetime
-            if not validate_datetime(yaml_content["start"]):
-                raise ValueError("Invalid start date format")
-            if yaml_content.get("end") and not validate_datetime(yaml_content["end"]):
-                yaml_content["end"] = "None"
-
+            title = yaml_content.get("title", None)
+            if title is None:
+                title = current_datetime(type='title')
+            new_filepath = check_duplicate_filename(filepath, title)
+            filepath = new_filepath
+            yaml_content["title"] = ensure_quotes(title)
+            log_error(f'title is: {yaml_content["title"]}')
         else:
-            raise ValueError("Unknown item type: must be Note, Todo, or Event")
+            title = yaml_content.get("title", "").strip()
+            if not title:
+                raise ValueError(f"Missing title for {item_type}. A title is required for todos and events.")
+            new_filepath = check_duplicate_filename(filepath, title)
+            filepath = new_filepath
+            yaml_content["title"] = ensure_quotes(title)
+
+        # Ensure tags exist, default to 'general' if missing
+        yaml_content["tags"] = ensure_quotes(yaml_content.get("tags", "general"))
+
+        # Ensure assignee exists, default to "None" if missing
+        yaml_content["assignee"] = ensure_quotes(yaml_content.get("assignee", "None"))
+
+        # Status logic
+        yaml_content["status"] = ensure_quotes(
+            yaml_content.get("status", config.get(f'{item_type.lower()}_status', "Not started"))
+        )
+        valid_statuses = ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']
+        if yaml_content["status"] is not None and yaml_content["status"].strip('"') not in valid_statuses:
+            raise ValueError(f"Invalid status '{yaml_content['status']}' for {item_type}. Expected one of {valid_statuses}.")
+
+        # Urgency and Importance (restore original logic)
+        if item_type == "Todo":
+            # Validate urgency
+            yaml_content["urgency"] = ensure_quotes(
+                yaml_content.get("urgency", config.get("todo_urgency", "Not urgent"))
+            )
+            if yaml_content["urgency"] is not None and yaml_content["urgency"].strip('"') not in ['Urgent', 'Not urgent']:
+                yaml_content["urgency"] = ensure_quotes(config.get("todo_urgency", "Not urgent"))
+
+            # Validate importance
+            yaml_content["importance"] = ensure_quotes(
+                yaml_content.get("importance", config.get("todo_importance", "Important"))
+            )
+            if yaml_content["importance"] is not None and yaml_content["importance"].strip('"') not in ['Important', 'Not important']:
+                yaml_content["importance"] = ensure_quotes(config.get("todo_importance", "Important"))
+
+        # Event specific validation for start and end
+        if item_type == "Event":
+            if not validate_datetime(yaml_content.get("start", "")):
+                raise ValueError(f"Invalid or missing start date for Event. It must be in 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM' format.")
+            
+            # Ensure end is present, and if not, make it the same as start
+            if not yaml_content.get("end"):
+                yaml_content["end"] = yaml_content["start"]
+            elif not validate_datetime(yaml_content["end"]):
+                raise ValueError("Invalid end date format. It must match 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM' format.")
+
+        # Todo specific validation
+        if item_type == "Todo":
+            # Ensure deadline format if present
+            if yaml_content.get("deadline") and not validate_datetime(yaml_content["deadline"]):
+                raise ValueError("Invalid deadline format. It must match 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM'.")
+
+        # Validate the filename matches the title (for notes, todos, and events)
+        if not filepath.endswith(f'{yaml_content["title"].strip("\"")}.md'):
+            raise ValueError(f"Filename mismatch: expected '{yaml_content['title'].strip('\"')}.md', got '{filepath}'.")
 
         # Handle item state: 'new' or 'existing'
+        current_time = ensure_quotes(current_datetime(type='full'))
         if item_state == 'new':
-            current_time = current_datetime()
             yaml_content["created"] = current_time
             yaml_content["modified"] = current_time
-            yaml_content["uid"] = os.urandom(8).hex()
+            yaml_content["uid"] = ensure_quotes(os.urandom(8).hex())
             # Update the markdown file with new YAML front matter
             update_yaml_frontmatter(filepath, yaml_content)
-        elif item_state == 'existing' or 'lapsed':
+        elif item_state in ['existing', 'lapsed']:
             stat_info = os.stat(filepath)
-            yaml_content["modified"] = datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime("%Y-%m-%d@%H:%M:%S")
+            yaml_content["modified"] = ensure_quotes(
+                datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime("%Y-%m-%d@%H:%M:%S")
+            )
             # Update the markdown file with updated YAML front matter
             update_yaml_frontmatter(filepath, yaml_content)
-            
-            index_name = ''
 
-            if item_state == 'existing':
-
-                index_name = 'index'
-
-            elif item_state == 'lapsed':
-
-                index_name = 'index_1'
+            index_name = 'index' if item_state == 'existing' else 'index_1'
 
             # Check created date with index.json
             with open(f'.org/{index_name}.json') as f:
@@ -174,23 +287,18 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
 
                 # Check if index_data is a list or dictionary
                 if isinstance(index_data, dict):
-                    # If it's a dictionary, proceed with the current logic
                     if index_data.get(filepath, {}).get("created") != yaml_content["created"]:
-                        yaml_content["created"] = index_data.get(filepath, {}).get("created")
+                        yaml_content["created"] = ensure_quotes(index_data.get(filepath, {}).get("created"))
                         update_yaml_frontmatter(filepath, yaml_content)
-                elif isinstance(index_data, list):
-                    # If it's a list, loop through the items to find the one that matches filepath
+                elif isinstance(index_data, list()):
                     for item in index_data:
                         if item.get("filepath") == filepath:
                             if item.get("created") != yaml_content["created"]:
-                                yaml_content["created"] = item.get("created")
+                                yaml_content["created"] = ensure_quotes(item.get("created"))
                                 update_yaml_frontmatter(filepath, yaml_content)
                             break
                 else:
                     raise ValueError("index.json format is not supported (neither list nor dictionary)")
-
-        else:
-            pass
 
         return 0, yaml_content
 
@@ -199,4 +307,3 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
         log_error(error_message)  # Log the error to debug.txt
         print("Validation failed:", error_message)
         return 1, None
-
