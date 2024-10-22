@@ -58,14 +58,15 @@ def fuzzy_search(entries, prop, search_term):
     search_term = search_term.lower().strip().strip('"')  # Strip surrounding quotes from the search term
     log_debug(f"Fuzzy searching for {search_term} in {prop}")
     
-    # Check if the property is tags or assignee and split by comma
+    # Check if the property is a list or a string and handle both cases
     def prop_contains_term(entry_prop):
-        if isinstance(entry_prop, str):
-            items = [item.strip().strip('"').lower() for item in entry_prop.split(",")]  # Strip quotes from items
-            return any(search_term in item for item in items)
-        return search_term in entry_prop.lower()
+        if isinstance(entry_prop, list):  # For list properties (e.g., tags in flow style)
+            return any(search_term in str(item).lower().strip().strip('"') for item in entry_prop)
+        elif isinstance(entry_prop, str):  # For simple string properties
+            return search_term in entry_prop.lower().strip().strip('"')
+        return False
 
-    # Apply the split and search logic to tags and assignee properties
+    # Apply the search logic to the relevant property
     return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
             if yaml_data.get(prop, 'n/a').lower() != 'n/a' and prop_contains_term(yaml_data.get(prop, ''))]
 
@@ -73,14 +74,15 @@ def exact_search(entries, prop, search_term):
     search_term = search_term.lower().strip().strip('"')  # Strip surrounding quotes from the search term
     log_debug(f"Exact searching for {search_term} in {prop}")
 
-    # Check if the property is tags or assignee and split by comma
+    # Check if the property is a list or a string and handle both cases
     def prop_contains_exact_term(entry_prop):
-        if isinstance(entry_prop, str):
-            items = [item.strip().strip('"').lower() for item in entry_prop.split(",")]  # Strip quotes from items
-            return search_term in items
-        return search_term == entry_prop.lower().strip().strip('"')
+        if isinstance(entry_prop, list):  # For list properties (e.g., tags in flow style)
+            return search_term in [str(item).lower().strip().strip('"') for item in entry_prop]
+        elif isinstance(entry_prop, str):  # For simple string properties
+            return search_term == entry_prop.lower().strip().strip('"')
+        return False
 
-    # Apply the split and search logic to tags and assignee properties
+    # Apply the search logic to the relevant property
     return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
             if yaml_data.get(prop, 'n/a').lower() != 'n/a' and prop_contains_exact_term(yaml_data.get(prop, ''))]
 

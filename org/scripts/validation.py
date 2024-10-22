@@ -151,7 +151,7 @@ def update_index(index, index_1):
 
                                     log_debug(f"{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}")
 
-                                    exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+                                    exit_code, yaml_data, file_path = validate_yaml(file_path, yaml_data, item_state)
                                     if exit_code == 1:
                                         raise ValueError('YAML validation failed')
                                     else:
@@ -169,12 +169,13 @@ def update_index(index, index_1):
 
                     elif item_state == 'new':
 
-                        exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+                        exit_code, yaml_data, file_path = validate_yaml(file_path, yaml_data, item_state)
                         if exit_code == 1:
                             raise ValueError('YAML validation failed')
                         else:
                             pass
 
+                        log_debug(f'{file_path}')
                         file_stat = os.stat(file_path)
 
                         # Add new entry
@@ -200,7 +201,7 @@ def update_index(index, index_1):
                                     log_debug(f'Lapsed file ({lapsed_file_path}) moved to archived area and index_1 updated')
 
                                     #  OFNOTE: The below cannot throw an exception, as this is running server-side. In theory, there should be no possibility for errors. A lapsed file would have already passed validation client side. The below basically has the sole function of ensuring correct created and modified times for YAML front matter before then updating the index
-                                    exit_code, yaml_data = validate_yaml(file_path, yaml_data, item_state)
+                                    exit_code, yaml_data, file_path = validate_yaml(file_path, yaml_data, item_state)
 
                                     file_stat = os.stat(file_path)
 
