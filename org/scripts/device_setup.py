@@ -121,12 +121,18 @@ def adjust_blank_lines():
     other_defaults = False
     note_status_found = False
     note_category_found = False
+    note_tags_found = False
+    note_assignee_found = False
     todo_status_found = False
     todo_urgency_found = False
     todo_importance_found = False
     todo_category_found = False
+    todo_tags_found = False
+    todo_assignee_found = False
     event_status_found = False
     event_category_found = False
+    event_tags_found = False
+    event_assignee_found = False
 
     if os.path.exists(ORGRC_PATH):
         with open(ORGRC_PATH, "r") as file:
@@ -143,6 +149,10 @@ def adjust_blank_lines():
                 note_status_found = True
             if "note_category" in line:
                 note_category_found = True
+            if "note_tags" in line:
+                note_tags_found = True
+            if "note_assignee" in line:
+                note_assignee_found = True
             if "todo_status" in line:
                 todo_status_found = True
             if "todo_urgency" in line:
@@ -151,15 +161,24 @@ def adjust_blank_lines():
                 todo_importance_found = True
             if "todo_category" in line:
                 todo_category_found = True
+            if "todo_tags" in line:
+                todo_tags_found = True
+            if "todo_assignee" in line:
+                todo_assignee_found = True
             if "event_status" in line:
                 event_status_found = True
             if "event_category" in line:
                 event_category_found = True
+            if "event_tags" in line:
+                event_tags_found = True
+            if "event_assignee" in line:
+                event_assignee_found = True
 
         # If any of the default variables exist, set the other_defaults flag to True
-        other_defaults = (note_status_found or note_category_found or todo_status_found or
-                          todo_urgency_found or todo_importance_found or todo_category_found or
-                          event_status_found or event_category_found)
+        other_defaults = (note_status_found or note_category_found or note_tags_found or note_assignee_found or
+                          todo_status_found or todo_urgency_found or todo_importance_found or todo_category_found or
+                          todo_tags_found or todo_assignee_found or event_status_found or event_category_found or
+                          event_tags_found or event_assignee_found)
 
         # Step 3: Skip all blank lines immediately following the first three lines
         i = 3
@@ -171,9 +190,10 @@ def adjust_blank_lines():
 
         # Step 5: Add the # OTHER DEFAULTS section and any missing default variables
         missing_defaults = False
-        if not note_status_found or not note_category_found or not todo_status_found or \
-           not todo_category_found or not todo_urgency_found or not todo_importance_found or \
-           not event_status_found or not event_category_found:
+        if not note_status_found or not note_category_found or not note_tags_found or not note_assignee_found or \
+           not todo_status_found or not todo_category_found or not todo_tags_found or not todo_assignee_found or \
+           not todo_urgency_found or not todo_importance_found or not event_status_found or not event_category_found or \
+           not event_tags_found or not event_assignee_found:
             missing_defaults = True
             new_content_lines.append("# OTHER DEFAULTS\n")
             
@@ -181,10 +201,18 @@ def adjust_blank_lines():
                 new_content_lines.append("note_status = 'Not started'\n")
             if not note_category_found:
                 new_content_lines.append("note_category = 'personal'\n")
+            if not note_tags_found:
+                new_content_lines.append("note_tags = 'general'\n")
+            if not note_assignee_found:
+                new_content_lines.append("note_assignee = 'None'\n")
             if not todo_status_found:
                 new_content_lines.append("todo_status = 'Not started'\n")
             if not todo_category_found:
                 new_content_lines.append("todo_category = 'personal'\n")
+            if not todo_tags_found:
+                new_content_lines.append("todo_tags = 'general'\n")
+            if not todo_assignee_found:
+                new_content_lines.append("todo_assignee = 'None'\n")
             if not todo_urgency_found:
                 new_content_lines.append("todo_urgency = 'Urgent'\n")
             if not todo_importance_found:
@@ -193,6 +221,10 @@ def adjust_blank_lines():
                 new_content_lines.append("event_status = 'Not started'\n")
             if not event_category_found:
                 new_content_lines.append("event_category = 'personal'\n")
+            if not event_tags_found:
+                new_content_lines.append("event_tags = 'general'\n")
+            if not event_assignee_found:
+                new_content_lines.append("event_assignee = 'None'\n")
 
         # Step 6: Add exactly one blank line after # OTHER DEFAULTS section if it exists
         if missing_defaults:

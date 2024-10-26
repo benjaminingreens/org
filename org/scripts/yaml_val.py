@@ -45,7 +45,7 @@ def current_datetime(type, filepath=None):
         
         # Convert the creation time to a formatted string
         created_datetime = datetime.datetime.fromtimestamp(created_time)
-        return created_datetime.strftime("%Y%m%d-%H%M%S.md")
+        return created_datetime.strftime("%Y%m%d-%H%M%S")
 
 # Helper function to validate datetime format with '@'
 def validate_datetime(value):
@@ -59,9 +59,11 @@ def validate_datetime(value):
     return False
 
 # Function to log validation errors to debug.txt
-def log_error(error_message):
+def log(message):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    script_name = os.path.basename(__file__)  # Get the name of the current script
     with open("debug.txt", "a") as f:
-        f.write(f"{current_datetime(type='full')} - {error_message}\n")
+        f.write(f"[{current_time}][{script_name}]: {message}\n")
 
 # Function to update the YAML front matter in the .md file
 def update_yaml_frontmatter(filepath, yaml_content):
@@ -98,13 +100,13 @@ def ensure_quotes(field_value):
         if not isinstance(field_value, str):
             return field_value  # Return as-is if it's not a string
 
-        log_error(f'field_value is: {field_value}')
+        log(f'field_value is: {field_value}')
 
         # Scenario 1: No quotation marks anywhere
         if not field_value.startswith('"') and not field_value.endswith('"'):
             return f'"{field_value.replace("\"", "\'")}"'  # Add quotes to start and end, convert internal to single
         
-        log_error(f'field_value after step1 is: {field_value}')
+        log(f'field_value after step1 is: {field_value}')
 
         # Scenario 2: Quotation mark at the beginning or end, but not both
         if field_value.startswith('"') and not field_value.endswith('"'):
@@ -112,26 +114,26 @@ def ensure_quotes(field_value):
         elif not field_value.startswith('"') and field_value.endswith('"'):
             return f'"{field_value}'  # Add missing quotation mark at the beginning
 
-        log_error(f'field_value after step2 is: {field_value}')
+        log(f'field_value after step2 is: {field_value}')
 
         # Scenario 3: Quotation mark at the beginning or end, but not both, with internal quotation marks
         if (field_value.startswith('"') and not field_value.endswith('"')) or \
            (not field_value.startswith('"') and field_value.endswith('"')):
             return f'"{field_value.strip("\"").replace("\"", "\'")}"'  # Add missing quote and convert internal to single
 
-        log_error(f'field_value after step3 is: {field_value}')
+        log(f'field_value after step3 is: {field_value}')
 
         # Scenario 4: Internal quotation marks but none at the beginning or end
         if '"' in field_value and not (field_value.startswith('"') and field_value.endswith('"')):
             return f'"{field_value.replace("\"", "\'")}"'  # Add quotes to start/end and convert internal to single
 
-        log_error(f'field_value after step4 is: {field_value}')
+        log(f'field_value after step4 is: {field_value}')
 
         # Scenario 5: Quotation marks at the beginning and end, with internal ones
         if field_value.startswith('"') and field_value.endswith('"') and '"' in field_value[1:-1]:
             return f'"{field_value[1:-1].replace("\"", "\'")}"'  # Convert internal quotes to single
 
-        log_error(f'field_value after step5 is: {field_value}')
+        log(f'field_value after step5 is: {field_value}')
 
         # Default: Return the field as-is if none of the above conditions match
         return field_value 
@@ -148,6 +150,9 @@ def reformat_filename(filename):
     return f"{formatted_name}{extension}"
 
 def check_duplicate_filename(filepath, new_filename=None):
+
+    new_file_inode = os.stat(filepath).st_ino  # Inode of the new file
+    
     # Extract the directory and filename from the given filepath
     directory, filename = os.path.split(filepath)
 
@@ -155,7 +160,7 @@ def check_duplicate_filename(filepath, new_filename=None):
 
     # If new_filename is provided, update the filename
     if new_filename:
-        new_filename = new_filename + '.md'
+        new_filename = new_filename
         new_filename = reformat_filename(new_filename)
         filename = new_filename
 
@@ -163,19 +168,42 @@ def check_duplicate_filename(filepath, new_filename=None):
     if not os.path.exists(directory):
         raise ValueError(f"Directory does not exist: {directory}")
     
+    # Get all files with the same name in the directory
+    matching_files = [f for f in os.listdir(directory) if f == filename]
+
     # Check if any file in the directory has the same name as the current or new filename
-    if filename in os.listdir(directory):
-        raise ValueError(f"A file with the name '{filename}' already exists in the directory '{directory}'")
+    for filename in matching_files:
+
+        existing_file_path = os.path.join(directory, filename)
+        existing_file_inode = os.stat(existing_file_path).st_ino
+
+        if existing_file_inode != new_file_inode:
+
+            raise ValueError(f"A file with the name '{filename}' already exists in the directory '{directory}'")
     
     # If new_filename is provided and no duplicate was found, rename the file
     if new_filename:
+        new_filename = new_filename + '.md'
         new_filepath = os.path.join(directory, new_filename)
         os.rename(filepath, new_filepath)
-        print(f"File renamed to '{new_filename}' in the directory '{directory}'.")
+        # print(f"File renamed to '{new_filename}' in the directory '{directory}'.")
         return new_filepath
     else:
         print(f"No duplicate found for '{filename}' in the directory '{directory}', safe to proceed.")
         return None
+
+def validate_item(yaml_content):
+
+    # Ensure item exists and is valid
+    item_type = ensure_quotes(yaml_content.get("item", ""))
+
+    if item_type is not None:
+        item_type = item_type.strip('"')
+
+    if item_type not in ["Note", "Todo", "Event"]:
+        raise ValueError(f"Invalid or missing item type. Expected 'Note', 'Todo', or 'Event', but got '{item_type}'.")
+
+    return item_type
 
 def validate_title(item_type, filepath, yaml_content):
 
@@ -191,7 +219,7 @@ def validate_title(item_type, filepath, yaml_content):
 
         yaml_content["title"] = ensure_quotes(title)
 
-        log_error(f'title is: {yaml_content["title"]}')
+        log(f'title is: {yaml_content["title"]}')
 
     elif item_type == 'Todo':
 
@@ -216,9 +244,9 @@ def validate_title(item_type, filepath, yaml_content):
     if title is not None:
         # (which it won't be due to the logic above)
         expected_filename = title.strip("\"").replace(" ", "_")
-        expected_filename = expected_filename + '.md'
+        expected_filename = expected_filename.lower() + '.md'
         dir, filename = os.path.split(filepath)
-        log_error(f'expected_filename is: {expected_filename}. this will be compared to: {filename}')
+        log(f'expected_filename is: {expected_filename}. this will be compared to: {filename}')
     else:
         raise ValueError('title is somehow None')
 
@@ -230,9 +258,58 @@ def validate_title(item_type, filepath, yaml_content):
 
     return filepath
 
+def validate_category(item_type, filepath, yaml_content, config):
+
+    # Set default category if not provided, based on the item type
+    category = yaml_content.get("category", None)
+
+    if category is None:
+        category = config.get(f'{item_type.lower()}_category')
+
+    if category is not None:
+        category = category.strip('"')
+
+    if not category:
+        raise ValueError(f"Category is missing for item type '{item_type}' and no default category found in config.")
+
+    # Check if the category matches the root folder
+    if extract_category(filepath) != category.lower():
+        raise ValueError(f"Category mismatch: {category} should be {extract_category(filepath)} - from {filepath}")
+
+    # All validation for category should now be complete, so ensure it is in quotes
+    yaml_content["category"] = ensure_quotes(category)
+
+
+def validate_tags(item_type, filepath, yaml_content, config):
+
+    tags = yaml_content.get("tags", None)
+
+    # If tags are None, load the default tags from config
+    if tags is None:
+        tags = config.get(f"{item_type.lower()}_tags")
+        log(f'tags is None, and now are: {tags}')
+
+    # If tags is a string, convert it to a list by splitting on commas
+    if isinstance(tags, str):
+        tags = [tag.strip() for tag in tags.split(",")]
+
+    # If tags is a list, validate that all elements are strings
+    elif isinstance(tags, list):
+        if not all(isinstance(tag, str) for tag in tags):
+            raise ValueError(f"Invalid tag list in {filepath}: all tags must be strings")
+
+    else:
+        raise ValueError(f"Invalid tags format in {filepath}: tags must be a string or list")
+
+    # Rewrite the validated tags back into yaml_content
+    yaml_content["tags"] = tags
+
+
 # Modify the validate_yaml_frontmatter function to use the update function
 def validate_yaml_frontmatter(filepath, yaml_content, item_state):
+
     try:
+
         config = load_config()
 
         # Define required fields for notes, todos, and events
@@ -240,34 +317,14 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
         required_fields_todo = ["item", "category", "title", "tags", "status", "assignee", "urgency", "importance"]
         required_fields_event = ["item", "category", "title", "tags", "status", "assignee", "start", "end"]
 
-        # Ensure item exists and is valid
-        item_type = ensure_quotes(yaml_content.get("item", ""))
-        if item_type is not None:
-            item_type = item_type.strip('"')
-        if item_type not in ["Note", "Todo", "Event"]:
-            raise ValueError(f"Invalid or missing item type. Expected 'Note', 'Todo', or 'Event', but got '{item_type}'.")
+        item_type = validate_item(yaml_content)
 
-        # Set default category if not provided, based on the item type
-        category = yaml_content.get("category", None)
-        if category is None:
-            category = config.get(f'{item_type.lower()}_category')
-        if category is not None:
-            category = category.strip('"')
-        if not category:
-            raise ValueError(f"Category is missing for item type '{item_type}' and no default category found in config.")
-
-        # Check if the category matches the root folder
-        if extract_category(filepath) != category.lower():
-            raise ValueError(f"Category mismatch: {category} should be {extract_category(filepath)} - from {filepath}")
-
-        # All validation for category should now be complete, so ensure it is in quotes
-        yaml_content["category"] = ensure_quotes(category)
+        validate_category(item_type, filepath, yaml_content, config)
 
         filepath = validate_title(item_type, filepath, yaml_content)
-        log_error(f'{filepath}')
+        log(f'{filepath}')
 
-        # Ensure tags exist, default to 'general' if missing
-        yaml_content["tags"] = ensure_quotes(yaml_content.get("tags", "general"))
+        validate_tags(item_type, filepath, yaml_content, config)
 
         # Ensure assignee exists, default to "None" if missing
         yaml_content["assignee"] = ensure_quotes(yaml_content.get("assignee", "None"))
@@ -350,11 +407,11 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
                 else:
                     raise ValueError("index.json format is not supported (neither list nor dictionary)")
 
-        log_error(f'filepath at the end of yaml_val: {filepath}')
+        log(f'filepath at the end of yaml_val: {filepath}')
         return 0, yaml_content, filepath
 
     except ValueError as e:
         error_message = str(e)
-        log_error(error_message)  # Log the error to debug.txt
+        log(error_message)  # Log the error to debug.txt
         print("Validation failed:", error_message)
         return 2, None, filepath

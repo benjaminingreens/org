@@ -121,6 +121,22 @@ def update_index(index, index_1):
         # Check if the path ends with 'notes', 'todos', or 'events'
         return subdir.endswith(('_org/notes', '_org/todos', '_org/events'))
 
+    # Helper function to construct file path from index data
+    def construct_file_path(item):
+        root_folder = item['root_folder']
+        item_type = item['item_type']
+        title = item['title'].lower().replace(' ', '_')
+        return os.path.join(SUPER_ROOT, root_folder, '_org', item_type, title + '.md')
+
+    # Step 1: Build a set of existing file paths from the index.json
+    existing_file_paths = {construct_file_path(item): item for item in index}
+
+    log_debug(f'EXISTING FILE PATHS: {existing_file_paths}')
+
+    """
+    Figure out why there is an error with the existing files processing. There is code in yaml_val which is throwing an error saying 'file already exists' for existing files. DUH! I must have written some code badly there. So check
+    """
+
     for root, dirs, files in os.walk(SUPER_ROOT):
         # Only process directories that match the pattern
         if is_valid_directory(root):
@@ -129,43 +145,56 @@ def update_index(index, index_1):
 
                     file_path = os.path.join(root, file)
                     file_stat = os.stat(file_path)
-                    yaml_data = read_yaml_from_file(file_path)
 
                     log_debug(f'file is: {file_path}')
                     log_debug(f'stat mod is: {file_stat[stat.ST_MTIME]}')
 
-                    item_state = 'existing' if any(i['uid'] == yaml_data.get('uid') for i in index) else 'new'
+                    item_state = None
+                    item = {}
+                    yaml_data = {}
 
-                    item_state = check_archive_lapse(item_state, yaml_data)
+                    # THIS IS NEVER BEING TRIGGERED FOR SOME REASON
+                    if file_path in existing_file_paths:
+
+                        item_state = 'existing'
+                        log_debug(f'EXISTING: {file_path}')
+
+                        # Retrieve the JSON properties for the existing item
+                        item = existing_file_paths[file_path]
+
+                    else:
+
+                        item_state = 'new'
+                        log_debug(f'NEW: {file_path}')
+
+                        # Check if item state is lapsed (this should only apply to files with 'new' item_state)
+                        yaml_data = read_yaml_from_file(file_path)
+                        item_state = check_archive_lapse(item_state, yaml_data)
 
                     if item_state == 'existing':
 
                         log_debug(f'existing file is: {file_path}')
                         log_debug(f'stat mod is: {file_stat[stat.ST_MTIME]}')
 
-                        for item in index:
+                        if item['stat_mod'] < file_stat[stat.ST_MTIME]:
 
-                            if item['uid'] == yaml_data.get('uid'):
+                            log_debug(f"{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}")
 
-                                if item['stat_mod'] < file_stat[stat.ST_MTIME]:
+                            exit_code, yaml_data, file_path = validate_yaml(file_path, yaml_data, item_state)
+                            if exit_code == 1:
+                                raise ValueError('YAML validation failed')
+                            else:
+                                pass
 
-                                    log_debug(f"{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}")
+                            file_stat = os.stat(file_path)
 
-                                    exit_code, yaml_data, file_path = validate_yaml(file_path, yaml_data, item_state)
-                                    if exit_code == 1:
-                                        raise ValueError('YAML validation failed')
-                                    else:
-                                        pass
+                            item.update(yaml_data)
+                            item['stat_access'] = file_stat[stat.ST_ATIME]
+                            item['stat_mod'] = file_stat[stat.ST_MTIME]
+                            item['root_folder'] = get_root_folder_name(root)
+                            item['item_type'] = os.path.basename(root)
 
-                                    file_stat = os.stat(file_path)
-
-                                    item.update(yaml_data)
-                                    item['stat_access'] = file_stat[stat.ST_ATIME]
-                                    item['stat_mod'] = file_stat[stat.ST_MTIME]
-                                    item['root_folder'] = get_root_folder_name(root)
-                                    item['item_type'] = os.path.basename(root)
-
-                                break
+                        break
 
                     elif item_state == 'new':
 
