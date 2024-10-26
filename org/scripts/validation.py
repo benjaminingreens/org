@@ -124,14 +124,15 @@ def update_index(index, index_1):
     # Helper function to construct file path from index data
     def construct_file_path(item):
         root_folder = item['root_folder']
+        root_folder = root_folder + '_org'
         item_type = item['item_type']
         title = item['title'].lower().replace(' ', '_')
-        return os.path.join(SUPER_ROOT, root_folder, '_org', item_type, title + '.md')
+        return os.path.join(SUPER_ROOT, root_folder, item_type, title + '.md')
 
     # Step 1: Build a set of existing file paths from the index.json
     existing_file_paths = {construct_file_path(item): item for item in index}
 
-    log_debug(f'EXISTING FILE PATHS: {existing_file_paths}')
+    # log_debug(f'EXISTING FILE PATHS: {existing_file_paths}')
 
     """
     Figure out why there is an error with the existing files processing. There is code in yaml_val which is throwing an error saying 'file already exists' for existing files. DUH! I must have written some code badly there. So check
@@ -152,6 +153,8 @@ def update_index(index, index_1):
                     item_state = None
                     item = {}
                     yaml_data = {}
+
+                    # log_debug(f'Checking if {file_path} is in {existing_file_paths}')
 
                     # THIS IS NEVER BEING TRIGGERED FOR SOME REASON
                     if file_path in existing_file_paths:
@@ -194,7 +197,6 @@ def update_index(index, index_1):
                             item['root_folder'] = get_root_folder_name(root)
                             item['item_type'] = os.path.basename(root)
 
-                        break
 
                     elif item_state == 'new':
 
@@ -240,14 +242,13 @@ def update_index(index, index_1):
                                     item['root_folder'] = get_root_folder_name(root)
                                     item['item_type'] = os.path.basename(root)
 
-                                    break
 
                                 else:
 
                                     # In this situation, the file has been archived server side, and the push from the user has the file in a non-archived state. Yet, the file has not been modified
                                     # In this case, just delete the  'lapsed' file. This situation should theoretically be impossible anyway, as the only reason a file would be in this situation is if it has been modified, and therefore this conditional block cannot be encountered
 
-                                    break
+                                    pass
 
                         else:
 
