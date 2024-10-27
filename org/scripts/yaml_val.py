@@ -18,6 +18,7 @@ def load_config():
         raise FileNotFoundError(".config/orgrc.py not found")
     return config
 
+# Extract category ('personal', 'work', etc.) from filepath
 def extract_category(filepath):
     # Get the last three parts of the filepath
     parts = Path(filepath).parts[-3:]
@@ -28,6 +29,7 @@ def extract_category(filepath):
     
     return first_part
 
+# Get current datetime for different purposes
 def current_datetime(type, filepath=None):
     if type == 'full':
         return datetime.datetime.now().strftime("%Y-%m-%d@%H:%M:%S")
@@ -92,6 +94,7 @@ def update_yaml_frontmatter(filepath, yaml_content):
     with open(filepath, "w") as f:
         f.write(updated_content)
 
+# Ensure quotes surround a string. I may be phasing this out
 def ensure_quotes(field_value):
     if False:
         if field_value is None:
@@ -139,6 +142,7 @@ def ensure_quotes(field_value):
         return field_value 
     return field_value
 
+# Reformat filename to make all letters lowercase and replace spaces with underscores
 def reformat_filename(filename):
     # Split the filename into the name and extension
     name, extension = os.path.splitext(filename)
@@ -149,6 +153,7 @@ def reformat_filename(filename):
     # Reattach the extension (keeping it unchanged)
     return f"{formatted_name}{extension}"
 
+# Check if a filename already exists in a directory
 def check_duplicate_filename(filepath, new_filename=None):
 
     new_file_inode = os.stat(filepath).st_ino  # Inode of the new file
@@ -191,6 +196,8 @@ def check_duplicate_filename(filepath, new_filename=None):
     else:
         print(f"No duplicate found for '{filename}' in the directory '{directory}', safe to proceed.")
         return None
+
+# VALIDATION LOGIC:
 
 def validate_item(yaml_content):
 
@@ -279,7 +286,6 @@ def validate_category(item_type, filepath, yaml_content, config):
     # All validation for category should now be complete, so ensure it is in quotes
     yaml_content["category"] = ensure_quotes(category)
 
-
 def validate_tags(item_type, filepath, yaml_content, config):
 
     tags = yaml_content.get("tags", None)
@@ -304,6 +310,42 @@ def validate_tags(item_type, filepath, yaml_content, config):
     # Rewrite the validated tags back into yaml_content
     yaml_content["tags"] = tags
 
+def validate_assignees(item_type, filepath, yaml_content, config):
+
+    assignees = yaml_content.get("assignee", None)
+
+    # If assignees is a string, convert it to a list by splitting on commas
+    if isinstance(assignees, str):
+        tags = [assignees.strip() for assignee in assignees.split(",")]
+
+    # If assignee is a list, validate that all elements are strings
+    elif isinstance(assignees, list):
+        if not all(isinstance(assignee, str) for assignee in assignees):
+            raise ValueError(f"Invalid assignee list in {filepath}: all assignees must be strings")
+
+    else:
+        raise ValueError(f"Invalid assignee format in {filepath}: assignees must be a string or list")
+
+    # Rewrite the validated tags back into yaml_content
+    yaml_content["assignee"] = assignees
+
+def validate_status(item_type, filepath, yaml_content, config):
+
+    valid_statuses = ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']
+
+    status = yaml_content.get("status", None)
+
+    if status == None:
+        statuses = config.get(f'{item_type.lower()}_status', None)                
+        if statuses == None:
+            log(f'No value found for status in config file.')
+            raise ValueError(f'No value for status found in config file.')
+
+    if status not in valid_statuses:
+        log(f'Unexpected status value ({status}). Expected one of: {valid_statuses}')
+        raise ValueError(f'Unexpected status value ({status}) for: {filepath}. Expected one of: {valid_statuses}')
+
+    yaml_content["status"] = status
 
 # Modify the validate_yaml_frontmatter function to use the update function
 def validate_yaml_frontmatter(filepath, yaml_content, item_state):
@@ -317,25 +359,15 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
         required_fields_todo = ["item", "category", "title", "tags", "status", "assignee", "urgency", "importance"]
         required_fields_event = ["item", "category", "title", "tags", "status", "assignee", "start", "end"]
 
+
         item_type = validate_item(yaml_content)
+        filepath = validate_title(item_type, filepath, yaml_content)
 
         validate_category(item_type, filepath, yaml_content, config)
-
-        filepath = validate_title(item_type, filepath, yaml_content)
-        log(f'{filepath}')
-
         validate_tags(item_type, filepath, yaml_content, config)
+        validate_assignees(item_type, filepath, yaml_content, config)
+        validate_status(item_type, filepath, yaml_content, config)
 
-        # Ensure assignee exists, default to "None" if missing
-        yaml_content["assignee"] = ensure_quotes(yaml_content.get("assignee", "None"))
-
-        # Status logic
-        yaml_content["status"] = ensure_quotes(
-            yaml_content.get("status", config.get(f'{item_type.lower()}_status', "Not started"))
-        )
-        valid_statuses = ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']
-        if yaml_content["status"] is not None and yaml_content["status"].strip('"') not in valid_statuses:
-            raise ValueError(f"Invalid status '{yaml_content['status']}' for {item_type}. Expected one of {valid_statuses}.")
 
         # Urgency and Importance (restore original logic)
         if item_type == "Todo":

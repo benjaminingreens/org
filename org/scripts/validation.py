@@ -22,7 +22,7 @@ INDEX_1_PATH = os.path.join(SUPER_ROOT, '.org', 'index_1.json')
 DEVICE_SETUP = os.path.join(SUPER_ROOT, 'scripts', 'device_setup.py')
 
 # Add debugging message
-def log_debug(message):
+def log(message):
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     script_name = os.path.basename(__file__)  # Get the name of the current script
     with open("debug.txt", "a") as f:
@@ -50,6 +50,7 @@ def load_or_initialize_index(I_PATH):
     with open(I_PATH, 'r') as index_file:
         return json.load(index_file)
 
+# Save the index.json
 def save_index(index, path):
     """Save the updated index to a JSON file."""
     def default_serializer(o):
@@ -69,12 +70,16 @@ def read_yaml_from_file(file_path):
             return yaml.safe_load(yaml_part)
     return {}
 
-# If a file state is 'new' (that is, there is no matching uid  in the index), but there is a matching uid in index_1, then the file is 'archive lapsed'
-# This  means that the file was archived server-side. But, before the user ran 'git pull' so that the file would be archived client-side, the user edited the file and pushed
-# This creates the illusion of a new file server side, because it is pushed the non-archive area, and the comparator functions do not find it as existing
-# Since the existing version is in the archive, finding the uid in index_1 reveals the file to be 'archive lapsed'
-# In thise case, the old file in the archive needs to be replaced by the new file (both the actual file and all the metadata). The restore_files function will take care of the rest
+# Check if a file is archive lapsed
 def check_archive_lapse(state, yaml):
+
+    """
+    If a file state is 'new' (that is, there is no matching uid  in the index), but there is a matching uid in index_1, then the file is 'archive lapsed'
+    This means that the file was archived server-side. But, before the user ran 'git pull' so that the file would be archived client-side, the user edited the file and pushed
+    This creates the illusion of a new file server side, because it is pushed the non-archive area, and the comparator functions do not find it as existing
+    Since the existing version is in the archive, finding the uid in index_1 reveals the file to be 'archive lapsed'
+    In thise case, the old file in the archive needs to be replaced by the new file (both the actual file and all the metadata). The restore_files function will take care of the rest    
+    """
 
     index_1 = load_or_initialize_index(INDEX_1_PATH)
 
@@ -84,6 +89,7 @@ def check_archive_lapse(state, yaml):
 
     return state
 
+# Rename a file
 def replace_file_content(new_file_path, old_file_path):
     # Read the contents of the new file
     with open(new_file_path, 'r') as new_file:
@@ -93,6 +99,7 @@ def replace_file_content(new_file_path, old_file_path):
     with open(old_file_path, 'w') as old_file:
         old_file.write(new_content)
 
+# Handle root archive filenames
 def insert_one_in_path(file_path):
     # Split the path by '/' to separate directories from the file part
     parts = file_path.split('/')
@@ -132,7 +139,7 @@ def update_index(index, index_1):
     # Step 1: Build a set of existing file paths from the index.json
     existing_file_paths = {construct_file_path(item): item for item in index}
 
-    # log_debug(f'EXISTING FILE PATHS: {existing_file_paths}')
+    # log(f'EXISTING FILE PATHS: {existing_file_paths}')
 
     """
     Figure out why there is an error with the existing files processing. There is code in yaml_val which is throwing an error saying 'file already exists' for existing files. DUH! I must have written some code badly there. So check
@@ -147,20 +154,20 @@ def update_index(index, index_1):
                     file_path = os.path.join(root, file)
                     file_stat = os.stat(file_path)
 
-                    log_debug(f'file is: {file_path}')
-                    log_debug(f'stat mod is: {file_stat[stat.ST_MTIME]}')
+                    log(f'file is: {file_path}')
+                    log(f'stat mod is: {file_stat[stat.ST_MTIME]}')
 
                     item_state = None
                     item = {}
                     yaml_data = {}
 
-                    # log_debug(f'Checking if {file_path} is in {existing_file_paths}')
+                    # log(f'Checking if {file_path} is in {existing_file_paths}')
 
                     # THIS IS NEVER BEING TRIGGERED FOR SOME REASON
                     if file_path in existing_file_paths:
 
                         item_state = 'existing'
-                        log_debug(f'EXISTING: {file_path}')
+                        log(f'EXISTING: {file_path}')
 
                         # Retrieve the JSON properties for the existing item
                         item = existing_file_paths[file_path]
@@ -168,7 +175,7 @@ def update_index(index, index_1):
                     else:
 
                         item_state = 'new'
-                        log_debug(f'NEW: {file_path}')
+                        log(f'NEW: {file_path}')
 
                         # Check if item state is lapsed (this should only apply to files with 'new' item_state)
                         yaml_data = read_yaml_from_file(file_path)
@@ -176,12 +183,12 @@ def update_index(index, index_1):
 
                     if item_state == 'existing':
 
-                        log_debug(f'existing file is: {file_path}')
-                        log_debug(f'stat mod is: {file_stat[stat.ST_MTIME]}')
+                        log(f'existing file is: {file_path}')
+                        log(f'stat mod is: {file_stat[stat.ST_MTIME]}')
 
                         if item['stat_mod'] < file_stat[stat.ST_MTIME]:
 
-                            log_debug(f"{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}")
+                            log(f"{item['stat_mod']} is less than {file_stat[stat.ST_MTIME]} for file: {file_path}")
 
                             exit_code, yaml_data, file_path = validate_yaml(file_path, yaml_data, item_state)
                             if exit_code == 1:
@@ -206,7 +213,7 @@ def update_index(index, index_1):
                         else:
                             pass
 
-                        log_debug(f'{file_path}')
+                        log(f'{file_path}')
                         file_stat = os.stat(file_path)
 
                         # Add new entry
@@ -229,7 +236,7 @@ def update_index(index, index_1):
                                     # Replace arhived file with archive lapsed file
                                     lapsed_file_path = insert_one_in_path(file_path)
                                     replace_file_content(file_path, lapsed_file_path)
-                                    log_debug(f'Lapsed file ({lapsed_file_path}) moved to archived area and index_1 updated')
+                                    log(f'Lapsed file ({lapsed_file_path}) moved to archived area and index_1 updated')
 
                                     #  OFNOTE: The below cannot throw an exception, as this is running server-side. In theory, there should be no possibility for errors. A lapsed file would have already passed validation client side. The below basically has the sole function of ensuring correct created and modified times for YAML front matter before then updating the index
                                     exit_code, yaml_data, file_path = validate_yaml(file_path, yaml_data, item_state)
@@ -252,7 +259,7 @@ def update_index(index, index_1):
 
                         else:
 
-                            log_debug('Supposed lapsed file not found in index_1')
+                            log('Supposed lapsed file not found in index_1')
 
         save_index(index, INDEX_PATH)
 
@@ -315,17 +322,6 @@ def restore_files(index, index_1):
     save_index(index, INDEX_PATH)
     save_index(index_1, INDEX_1_PATH)
 
-# Handle sparse checkout if required
-# REDUNDANT
-def handle_sparse_checkout():
-    global SPARSE_CHECKOUT_FLAG
-    if os.path.exists(os.path.join(SUPER_ROOT, '.git')):
-        os.system('git sparse-checkout init --cone')
-        print('Sparse checkout enabled')
-        # After initializing, set to include everything
-        os.system('git sparse-checkout set * */')
-        print('All paths included, user can manage sparse-checkout manually')
-
 def main():
 
     check_org_initialized()
@@ -344,13 +340,7 @@ def main():
         archive_files(index, index_1)
         restore_files(index, index_1)
 
-    log_debug('Validation just ran')
-
-    # Handle sparse checkout
-    # I think this is redundant - the user can use  git sparse-checkout by  themselves.
-    if False:
-        if config.get('sparse_checkout'):
-            handle_sparse_checkout()
+    log('Validation just ran')
 
 if __name__ == "__main__":
     main()
