@@ -11,6 +11,7 @@ import importlib.resources as pkg_resources
 from org.scripts import views
 from org.scripts.validation import main as run_validation  # Import the validation function
 from org.scripts.device_setup import main as device_setup
+from org.scripts.creation_val import validate_note, validate_todo, validate_event
 
 # Constants
 SUPER_ROOT = os.getcwd()
@@ -53,6 +54,14 @@ def log_debug(message):
     script_name = os.path.basename(__file__)
     with open(LOG_PATH, "a") as f:
         f.write(f"[{current_time}][{script_name}]: {message}\n")
+
+def load_config():
+    config = {}
+    try:
+        exec(open(".config/orgrc.py").read(), config)
+    except FileNotFoundError:
+        raise FileNotFoundError(".config/orgrc.py not found")
+    return config
 
 # Function to safely load the config file and get values
 def load_orgrc_values(config_file):
@@ -261,87 +270,115 @@ def display_graphical_view(file_type, search_prop=None, search_term=None, exact=
 
     curses.wrapper(inner)
 
+def current_datetime():
+    return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+def create_file(file_type, args):
+
+    config = load_config()
+
+    if file_type == 'note':
+        title, category, content = validate_note(args)
+        if category == None:
+            category = config.get("note_category")
+        else:
+            raise ValueError('cant get note category from config')
+
+    elif file_type == 'todo':
+        title, category, content = validate_todo(args)
+        if category == None:
+            category = config.get("todo_category")
+        else:
+            raise ValueError('cant get note category from config')
+
+    elif file_type == 'event':
+        title, category, content = validate_event(args)
+        if category == None:
+            category = config.get("event_category")
+        else:
+            raise ValueError('cant get note category from config')
+
+    else:
+        print(f"Unknown file type: {file_type}")
+        return
+
+    if title == None:
+        title = current_datetime()
+        title = title + '.md'
+    else:
+        title = title.strip("\"").replace(" ", "_")
+        title = title.lower() + '.md'
+
+    # Generate file name and write content
+    directory = os.path.join(SUPER_ROOT, category + '_org', file_type + 's')
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    filepath = os.path.join(directory, title)
+
+    with open(filepath, 'w') as f:
+        f.write(content)
+    print(f"Created {file_type} file at {filepath}")
+
 def main():
-
-    # Inform log of process start
     log_debug('Process start')
-
-    # Not sure what this does again
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
-    
-    # Add subcommands
     subparsers = parser.add_subparsers(dest='command')
 
-    # Add init subcommand
     init_parser = subparsers.add_parser('init', help='Initialize Org in the current directory')
 
-    # Add view subcommand for viewing notes, todos, events
     view_parser = subparsers.add_parser('view', help='View files of a specific type')
     view_parser.add_argument('file_type', choices=['notes', 'todos', 'events', 'all'], help='Type of file to view (notes, todos, events, or all)')
     view_parser.add_argument('search_command', nargs='?', choices=['s', 'es', 'o', 'r', 'a'], help='Search/sort/filter/reset command (optional)')
     view_parser.add_argument('search_prop', nargs='?', help='Property to search/sort (optional)')
     view_parser.add_argument('search_term', nargs='?', help='Term to search for (optional)')
 
-    # Add validation subcommand
     val_parser = subparsers.add_parser('val', help='Run validation scripts')
 
-    # Parse the arguments
+    create_note_parser = subparsers.add_parser('note', help='Create a new note')
+    create_note_parser.add_argument('args', nargs=argparse.REMAINDER)
+
+    create_todo_parser = subparsers.add_parser('todo', help='Create a new todo')
+    create_todo_parser.add_argument('args', nargs=argparse.REMAINDER)
+
+    create_event_parser = subparsers.add_parser('event', help='Create a new event')
+    create_event_parser.add_argument('args', nargs=argparse.REMAINDER)
+
     args = parser.parse_args()
-
-    # Dispatch commands
     if args.command == 'init':
-
         log_debug('`org init` command received')
         device_setup()
         init()
         log_debug('Initiation process complete')
-
     elif args.command == 'view':
-
-        # First, run validation before proceeding with view commands
         run_validation()
-
-        # Handle the 'view' command with various options
         if args.search_command == 's' and args.search_prop and args.search_term:
-            # Fuzzy search and graphical view
             display_graphical_view(args.file_type, search_prop=args.search_prop, search_term=args.search_term)
         elif args.search_command == 'es' and args.search_prop and args.search_term:
-            # Exact search and graphical view
             display_graphical_view(args.file_type, search_prop=args.search_prop, search_term=args.search_term, exact=True)
         elif args.search_command == 'o' and args.search_prop:
-            # Sort and graphical view
             display_graphical_view(args.file_type, sort_prop=args.search_prop)
         elif args.search_command == 'r' and args.search_prop:
-            # Reverse sort and graphical view
             display_graphical_view(args.file_type, sort_prop=args.search_prop, reverse=True)
         elif args.search_command == 'a':
-            # Reset/clear filters and graphical view
             display_graphical_view(args.file_type)
         else:
-            # Simple view without filters in the graphical view
             display_graphical_view(args.file_type)
-
     elif args.command == 'val':
-
-        log_debug('`org  val` command received')
+        log_debug('`org val` command received')
         run_validation()
         log_debug('Validation complete')
-
+    elif args.command in ['note', 'todo', 'event']:
+        log_debug(f"`org {args.command}` command received")
+        create_file(args.command, args.args)
+        log_debug(f"{args.command.capitalize()} creation process complete")
     else:
-
-        # Check if .org file exists before running commands
         current_dir = os.getcwd()
         org_file_path = os.path.join(current_dir, '.org')
-        
         if not os.path.exists(org_file_path):
             print(f"Error: '.org' file not found in {current_dir}. This directory is not initialized for org.")
             return
-
         device_setup()
-
-        # Wrap views.main() with curses.wrapper() to handle stdscr argument
         curses.wrapper(views.main)
-
     log_debug('Process end')
 
 if __name__ == "__main__":

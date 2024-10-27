@@ -171,6 +171,7 @@ def update_index(index, index_1):
 
                         # Retrieve the JSON properties for the existing item
                         item = existing_file_paths[file_path]
+                        log(item)
 
                     else:
 
@@ -182,6 +183,8 @@ def update_index(index, index_1):
                         item_state = check_archive_lapse(item_state, yaml_data)
 
                     if item_state == 'existing':
+
+                        yaml_data = item
 
                         log(f'existing file is: {file_path}')
                         log(f'stat mod is: {file_stat[stat.ST_MTIME]}')

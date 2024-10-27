@@ -204,6 +204,8 @@ def validate_item(yaml_content):
     # Ensure item exists and is valid
     item_type = ensure_quotes(yaml_content.get("item", ""))
 
+    log(item_type)
+
     if item_type is not None:
         item_type = item_type.strip('"')
 
@@ -350,6 +352,14 @@ def validate_status(item_type, filepath, yaml_content, config):
 # Modify the validate_yaml_frontmatter function to use the update function
 def validate_yaml_frontmatter(filepath, yaml_content, item_state):
 
+    def remove_keys_from_dict(data):
+        keys_to_remove = ['item_type', 'root_folder', 'stat_access', 'stat_mod']
+        for key in keys_to_remove:
+            data.pop(key, None)  # Using None as a default prevents KeyError if key doesn't exist
+        return data
+
+    yaml_content = remove_keys_from_dict(yaml_content)
+
     try:
 
         config = load_config()
@@ -365,8 +375,10 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
 
         validate_category(item_type, filepath, yaml_content, config)
         validate_tags(item_type, filepath, yaml_content, config)
-        validate_assignees(item_type, filepath, yaml_content, config)
-        validate_status(item_type, filepath, yaml_content, config)
+
+        if item_type != 'Note':
+            validate_assignees(item_type, filepath, yaml_content, config)
+            validate_status(item_type, filepath, yaml_content, config)
 
 
         # Urgency and Importance (restore original logic)
@@ -429,7 +441,7 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
                     if index_data.get(filepath, {}).get("created") != yaml_content["created"]:
                         yaml_content["created"] = ensure_quotes(index_data.get(filepath, {}).get("created"))
                         update_yaml_frontmatter(filepath, yaml_content)
-                elif isinstance(index_data, list()):
+                elif isinstance(index_data, list):
                     for item in index_data:
                         if item.get("filepath") == filepath:
                             if item.get("created") != yaml_content["created"]:
