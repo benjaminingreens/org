@@ -278,36 +278,35 @@ def create_file(file_type, args):
     config = load_config()
 
     if file_type == 'note':
+        # Validate arguments directly, no need to parse again
         title, category, content = validate_note(args)
-        if category == None:
+        if category is None:
             category = config.get("note_category")
         else:
-            raise ValueError('cant get note category from config')
+            raise ValueError('Cannot get note category from config')
 
     elif file_type == 'todo':
         title, category, content = validate_todo(args)
-        if category == None:
+        if category is None:
             category = config.get("todo_category")
         else:
-            raise ValueError('cant get note category from config')
+            raise ValueError('Cannot get todo category from config')
 
     elif file_type == 'event':
         title, category, content = validate_event(args)
-        if category == None:
+        if category is None:
             category = config.get("event_category")
         else:
-            raise ValueError('cant get note category from config')
+            raise ValueError('Cannot get event category from config')
 
     else:
         print(f"Unknown file type: {file_type}")
         return
 
-    if title == None:
-        title = current_datetime()
-        title = title + '.md'
+    if title is None:
+        title = current_datetime() + '.md'
     else:
-        title = title.strip("\"").replace(" ", "_")
-        title = title.lower() + '.md'
+        title = title.strip("\"").replace(" ", "_").lower() + '.md'
 
     # Generate file name and write content
     directory = os.path.join(SUPER_ROOT, category + '_org', file_type + 's')
@@ -315,9 +314,13 @@ def create_file(file_type, args):
         os.makedirs(directory)
     filepath = os.path.join(directory, title)
 
-    with open(filepath, 'w') as f:
-        f.write(content)
-    print(f"Created {file_type} file at {filepath}")
+    if not os.path.exists(filepath):
+        with open(filepath, 'w') as f:
+            f.write(content)
+        print(f"Created {file_type} file at {filepath}. Running validation")
+        run_validation()
+    else:
+        raise ValueError('FILE ALREADY EXISTS')
 
 def main():
     log_debug('Process start')
@@ -334,14 +337,31 @@ def main():
 
     val_parser = subparsers.add_parser('val', help='Run validation scripts')
 
+    # Modify create_note_parser to accept specific arguments
     create_note_parser = subparsers.add_parser('note', help='Create a new note')
-    create_note_parser.add_argument('args', nargs=argparse.REMAINDER)
+    create_note_parser.add_argument('-t', '--title', type=str, help='Title of the note')
+    create_note_parser.add_argument('-tg', '--tags', type=str, help='Tags for the note, separated by /')
+    create_note_parser.add_argument('-c', '--category', type=str, help='Category for the note')
+    create_note_parser.add_argument('content', nargs=argparse.REMAINDER, help='Content of the note')
 
     create_todo_parser = subparsers.add_parser('todo', help='Create a new todo')
-    create_todo_parser.add_argument('args', nargs=argparse.REMAINDER)
+    create_todo_parser.add_argument('-u', '--urgent', action='store_true', help='Mark the todo as urgent')
+    create_todo_parser.add_argument('-i', '--important', action='store_true', help='Mark the todo as important')
+    create_todo_parser.add_argument('-tg', '--tags', type=str, help='Tags for the todo, separated by /')
+    create_todo_parser.add_argument('-c', '--category', type=str, help='Category for the todo')
+    create_todo_parser.add_argument('-a', '--assignee', type=str, help='Assignee for the todo')
+    create_todo_parser.add_argument('-d', '--deadline', type=str, help='Deadline for the todo (YYYY-MM-DD or YYYY-MM-DD@HH:MM)')
+    create_todo_parser.add_argument('-s', '--status', type=str, help='Status of the todo')
+    create_todo_parser.add_argument('title', nargs='+', help='Title of the todo')
 
     create_event_parser = subparsers.add_parser('event', help='Create a new event')
-    create_event_parser.add_argument('args', nargs=argparse.REMAINDER)
+    create_event_parser.add_argument('-tg', '--tags', type=str, help='Tags for the event, separated by /')
+    create_event_parser.add_argument('-c', '--category', type=str, help='Category for the event')
+    create_event_parser.add_argument('-st', '--start', type=str, required=True, help='Start time for the event (YYYY-MM-DD or YYYY-MM-DD@HH:MM)')
+    create_event_parser.add_argument('-ed', '--end', type=str, help='End time for the event (YYYY-MM-DD or YYYY-MM-DD@HH:MM)')
+    create_event_parser.add_argument('-a', '--assignee', type=str, help='Assignee for the event')
+    create_event_parser.add_argument('-s', '--status', type=str, help='Status of the event')
+    create_event_parser.add_argument('title', nargs='+', help='Title of the event')
 
     args = parser.parse_args()
     if args.command == 'init':
@@ -369,7 +389,12 @@ def main():
         log_debug('Validation complete')
     elif args.command in ['note', 'todo', 'event']:
         log_debug(f"`org {args.command}` command received")
-        create_file(args.command, args.args)
+        if args.command == 'note':
+            create_file('note', args)
+        elif args.command == 'todo':
+            create_file('todo', args)
+        elif args.command == 'event':
+            create_file('event', args)
         log_debug(f"{args.command.capitalize()} creation process complete")
     else:
         current_dir = os.getcwd()
@@ -383,3 +408,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

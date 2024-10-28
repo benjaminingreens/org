@@ -163,7 +163,6 @@ def update_index(index, index_1):
 
                     # log(f'Checking if {file_path} is in {existing_file_paths}')
 
-                    # THIS IS NEVER BEING TRIGGERED FOR SOME REASON
                     if file_path in existing_file_paths:
 
                         item_state = 'existing'

@@ -6,6 +6,7 @@ import re
 import yaml
 import datetime
 import stat
+import copy
 from pathlib import Path
 import json
 
@@ -51,6 +52,10 @@ def current_datetime(type, filepath=None):
 
 # Helper function to validate datetime format with '@'
 def validate_datetime(value):
+    # Ensure value is a string
+    if not isinstance(value, str):
+        value=str(value)
+
     try:
         if re.match(r"\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2}", value):
             return True
@@ -316,17 +321,19 @@ def validate_assignees(item_type, filepath, yaml_content, config):
 
     assignees = yaml_content.get("assignee", None)
 
-    # If assignees is a string, convert it to a list by splitting on commas
-    if isinstance(assignees, str):
-        tags = [assignees.strip() for assignee in assignees.split(",")]
+    if assignees is not None:
 
-    # If assignee is a list, validate that all elements are strings
-    elif isinstance(assignees, list):
-        if not all(isinstance(assignee, str) for assignee in assignees):
-            raise ValueError(f"Invalid assignee list in {filepath}: all assignees must be strings")
+        # If assignees is a string, convert it to a list by splitting on commas
+        if isinstance(assignees, str):
+            assignees = [assignee.strip() for assignee in assignees.split(",")]
 
-    else:
-        raise ValueError(f"Invalid assignee format in {filepath}: assignees must be a string or list")
+        # If assignee is a list, validate that all elements are strings
+        elif isinstance(assignees, list):
+            if not all(isinstance(assignee, str) for assignee in assignees):
+                raise ValueError(f"Invalid assignee list in {filepath}: all assignees must be strings")
+
+        else:
+            raise ValueError(f"Invalid assignee format in {filepath}: assignees must be a string or list")
 
     # Rewrite the validated tags back into yaml_content
     yaml_content["assignee"] = assignees
@@ -337,11 +344,15 @@ def validate_status(item_type, filepath, yaml_content, config):
 
     status = yaml_content.get("status", None)
 
+    log(f'status is: {status}')
+
     if status == None:
-        statuses = config.get(f'{item_type.lower()}_status', None)                
-        if statuses == None:
+        status = config.get(f'{item_type.lower()}_status', None)                
+        if status == None:
             log(f'No value found for status in config file.')
             raise ValueError(f'No value for status found in config file.')
+
+    log(f'status is: {status}')
 
     if status not in valid_statuses:
         log(f'Unexpected status value ({status}). Expected one of: {valid_statuses}')
@@ -399,12 +410,18 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
 
         # Event specific validation for start and end
         if item_type == "Event":
-            if not validate_datetime(yaml_content.get("start", "")):
+            start = yaml_content.get("start")
+            if start:
+                value = validate_datetime(start)
+                if not value:
+                    raise ValueError('Validation for START failed')
+            else:
                 raise ValueError(f"Invalid or missing start date for Event. It must be in 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM' format.")
             
             # Ensure end is present, and if not, make it the same as start
             if not yaml_content.get("end"):
-                yaml_content["end"] = yaml_content["start"]
+                # The 'str' below stops YAML using aliases (*id001, for example)
+                yaml_content["end"] = copy.deepcopy(yaml_content["start"])
             elif not validate_datetime(yaml_content["end"]):
                 raise ValueError("Invalid end date format. It must match 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM' format.")
 
