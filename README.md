@@ -11,6 +11,7 @@ It is designed to be simple, and to provide a 'suckless', open-source, and local
 It is not a replacement for the rich feature-set of Notion, but rather a non-proprietary alternative to the most basic features of a 'second-brain' application: organisation of notes, todos, and events, with the ability to view and query key aspects of your workspace in different ways.
 
 The following principles are key to the philosophy of Org:
+
     - **Local Storage**: Your data should be owned by you and controlled by you, and should primarily be stored locally on user-owned machines (or, if beyond, entirely at the user's discretion)
     - **Accessible Formats**: Data should be stored in an efficient format which works for humans but also can be manipulated by computers (i.e. the likes of simple .txt and/or .md files)
     - **Simple Querying**: Your data should be easily traversable by humans and machines, with simple and efficient mechanisms for important and required data to be front-and-centre without much or any effort (i.e. simple querying mechanisms)
