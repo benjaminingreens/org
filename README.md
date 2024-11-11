@@ -30,10 +30,8 @@ At this early stage of development, I have only tested Org on Linux, though it s
 1. Create an empty directory. This will be the home of your instance of Org.
 2. Within your Org home directory, create one or more workspace sub-directories with the `_org` suffix (e.g. `personal_org` or `work_org`). Org will treat these sub-directories as distinct workspaces with their own `/notes`, `/todos`, and `/events` sub-directories.
 
-    `Note`: Creating multiple workspace sub-directories is useful for distinguishing files that belong to separate parts of your life which you would rather not mix. Otherwise, I recommend using other features (such as `tags` to distinguish files. Such functionality is explained further below).
-
-    *Note: [Make a note for those who may have notes in the Org format already]*
-
+    `Note`: Creating multiple workspace sub-directories is useful for distinguishing files that belong to separate parts of your life which you would rather not mix. Otherwise, I recommend using other features (such as `tags` to distinguish files. Such functionality is explained further below).  
+    *Note: [Make a note for those who may have notes in the Org format already]*  
     TODO: Consider migration of data in a future version of Org
 
 3. Run `org init` in the Org home directory. This will initialise your directory with Org and all its required files, and it will create the `/note`, `/todo`, and `/event` subdirectories within each off your workspace directories.
@@ -55,11 +53,11 @@ org_home_directory
 
 If you just want a quick preview of how Org and its key commands work, here you go:
 
-`org init`
-`org create note {note content}`
-`org create toddo {todo content}`
-`org create event {event content}`
-`org view`: `notes`, `todos`, `events`
+`org init`  
+`org create note {note content}`  
+`org create toddo {todo content}`  
+`org create event {event content}`  
+`org view`: `notes`, `todos`, `events`  
 `org val`
 
 For a more in-depth understanding of how to use Org, please read on:
@@ -76,7 +74,7 @@ All Org files are markdown text files (.md) with YAML front-matter for metadata.
 
 ### `org create note`
 
-Minimum required syntax:
+Minimum required syntax:  
 `org create note`
 
 `org create note`: This will create an empty note markdown file with the following YAML front matter:
@@ -93,18 +91,17 @@ uid: {hash_of_title_and_created}
 ---
 ```
 
-
 Optional arguments/flags for `org create note` are:
 
-`-t`, `--title`: Title of the note
-`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory
+`-t`, `--title`: Title of the note  
+`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
 `-tg`, `--tags`: Tags for the note, with `/` as a delimiter
 
 Any text placed at the end of the argument will be treated as note `content`. For example, `org create note this is the text` will create a note with 'this is the text' as its content. `org create note -t "Staff Meeting" Jerry got fired` will create a note with the title 'Staff Meeting' and the content 'Jerry got fired'.
 
 ### `org create todo...`
 
-Minimum required syntax:
+Minimum required syntax:  
 `org create todo` `content`
 
 `org create todo buy some milk`: This will create a todo markdown file with the following YAML front matter:
@@ -130,19 +127,19 @@ uid: {hash_of_title_and_created}
 
 Optional arguments/flags for `org create note` are:
 
-`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory
-`-tg`, `--tags`: Tags for the note, with `/` as a delimiter
-`-s`, `--status`: The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']
-`-d`, `--deadline`: The deadline, if it exists, for the todo item. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]
-`-a`, `--assignee`: One or more assignees for the todo item, with `/` as a delimiter.
-`-u`, `--urgency`: An urgency level for the todo item. Must be one of: ['Urgent', 'Not urgent']
+`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
+`-tg`, `--tags`: Tags for the note, with `/` as a delimiter  
+`-s`, `--status`: The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']  
+`-d`, `--deadline`: The deadline, if it exists, for the todo item. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]  
+`-a`, `--assignee`: One or more assignees for the todo item, with `/` as a delimiter  
+`-u`, `--urgency`: An urgency level for the todo item. Must be one of: ['Urgent', 'Not urgent']  
 `-i`, `--important`: An importance level for the todo item. Must be one of ['Important', 'Not important']
 
 Here is another example for creating a todo item: `org create todo -s "In progress" -tg writing/thesis Finish writing fifth chapter`
 
 ### `org create event...`
 
-Minimum required syntax:
+Minimum required syntax:  
 `org create event` `-st YYYY-MM-DD` or `-st YYYY-MM-DD@HH:MM` `content`
 
 `org create event -st 2025-03-12 nathans wedding`: This will create an event markdown file with the following YAML front matter:
@@ -167,11 +164,11 @@ Similarly to `org create todo` arguments, `org create event` arguments cannot be
 
 Optional arguments/flags for `org create event` are:
 
-`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory
-`-tg`, `--tags`: Tags for the note, with `/` as a delimiter
-`-s`, `--status`: The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']
-`-a`, `--assignee`: One or more assignees for the todo item, with `/` as a delimiter.
-`-st`, `--start`: The start date or date-time for the event. **This is a requirement for event items**. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]
+`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
+`-tg`, `--tags`: Tags for the note, with `/` as a delimiter  
+`-s`, `--status`: The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']  
+`-a`, `--assignee`: One or more assignees for the todo item, with `/` as a delimiter  
+`-st`, `--start`: The start date or date-time for the event. **This is a requirement for event items**. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]  
 `-ed`, `--end`: The end date or date-time for the event. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]
 
 ### `org view`: viewing and querying files
@@ -179,4 +176,3 @@ Optional arguments/flags for `org create event` are:
 ## Configuration / Defaults
 
 ## Validation
-
