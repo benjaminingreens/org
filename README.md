@@ -49,14 +49,14 @@ org_home_directory
 
 ## Quick-start
 
-If you just want a quick preview of how Org and its key commands work, here you go:
+If you just want a quick preview of Org's key commands, here you go:
 
-`org init`  
-`org create note {note content}`  
-`org create toddo {todo content}`  
-`org create event -st [start_date] {event content}`  
-`org view`: `notes`, `todos`, `events`  
-`org val`
+- `org init`  
+- `org create note {note content}`  
+- `org create toddo {todo content}`  
+- `org create event -st [start_date] {event content}`  
+- `org view`: `notes`, `todos`, `events`  
+- `org val`
 
 For a more in-depth understanding of how to use Org, please read on:
 
@@ -103,9 +103,15 @@ This specifies the workspace destination for the note. For example, using `perso
 
 Tags for the note, with `/` as a delimiter
 
-Any text placed at the end of the argument will be treated as note `content`. For example, `org create note this is the text` will create a note with 'this is the text' as its content. `org create note -t "Staff Meeting" Jerry got fired` will create a note with the title 'Staff Meeting' and the content 'Jerry got fired'.
+### Other info
 
-## `org create todo...`
+Any text placed at the end of the argument will be treated as note `content`. For example:
+
+`org create note this is the text` will create a note with 'this is the text' as its content.
+
+`org create note -t "Staff Meeting" Jerry got fired` will create a note with the title 'Staff Meeting' and the content 'Jerry got fired'.
+
+## `org create todo`
 
 Minimum required syntax:  
 `org create todo` `content`
@@ -129,7 +135,11 @@ uid: {hash_of_title_and_created}
 ---
 ```
 
-`org create todo` arguments cannot be left empty as with `org create note` arguments. `org create todo` arguments *must* end with some text which specifies the thing to be done (as with `org create todo buy some milk`). By default, the content of an `org create todo` argument populates the `title` property in the YAML front-matter. Therefore, there is no `-t`/`--title` argument for `org create todo`.
+`org create todo` arguments cannot be left empty as with `org create note` arguments.
+
+`org create todo` arguments *must* end with some text which specifies the thing to be done (as with `org create todo buy some milk`).
+
+By default, the content of an `org create todo` argument populates the `title` property in the YAML front-matter. Therefore, there is no `-t`/`--title` argument for `org create todo`.
 
 Optional arguments/flags for `org create note` are:
 
@@ -161,9 +171,13 @@ An urgency level for the todo item. Must be one of: ['Urgent', 'Not urgent']
 
 An importance level for the todo item. Must be one of ['Important', 'Not important']
 
-Here is another example for creating a todo item: `org create todo -s "In progress" -tg writing/thesis Finish writing fifth chapter`
+### Other info
 
-## `org create event...`
+Here is another example for creating a todo item:
+
+`org create todo -s "In progress" -tg writing/thesis Finish writing fifth chapter`
+
+## `org create event`
 
 Minimum required syntax:  
 `org create event` `-st YYYY-MM-DD` or `-st YYYY-MM-DD@HH:MM` `content`
@@ -186,7 +200,13 @@ uid: {hash_of_title_and_created}
 ---
 ```
 
-Similarly to `org create todo` arguments, `org create event` arguments cannot be left empty. `org create event` arguments *must* end with some text which specifies the event. Additionally, however, they *must* contain the `-st`/`--start` argument (more detail below). By default, the content of an `org create event` argument populates the `title` property in the YAML front-matter. Therefore, there is no `-t`/`--title` argument for `org create todo`.
+Similarly to `org create todo` arguments, `org create event` arguments cannot be left empty.
+
+`org create event` arguments *must* end with some text which specifies the event.
+
+Additionally, however, they *must* contain the `-st`/`--start` argument (more detail below).
+
+By default, the content of an `org create event` argument populates the `title` property in the YAML front-matter. Therefore, there is no `-t`/`--title` argument for `org create todo`.
 
 Optional arguments/flags for `org create event` are:
 
