@@ -54,7 +54,7 @@ If you just want a quick preview of how Org and its key commands work, here you 
 `org init`  
 `org create note {note content}`  
 `org create toddo {todo content}`  
-`org create event {event content}`  
+`org create event -st [start_date] {event content}`  
 `org view`: `notes`, `todos`, `events`  
 `org val`
 
@@ -64,11 +64,11 @@ For a more in-depth understanding of how to use Org, please read on:
 
 Org has two main functionalities, both of which can be used on the command line: `create` and `view`. These  are outlined below.
 
-## `org create`
+## `org create {item}`
 
-`org create` is the simplest way to create note, todo, or event files in your workspace. It is generally safer than creating the file manually, as `org create` will take care of file format for you (though you can still create files manually. Org will check and validate every file in your workspace).
+`org create {item}` is the simplest way to create note, todo, or event files in your workspace. It is generally safer than creating the file manually, as `org create` will take care of file format for you (though you can still create files manually. Org will check and validate every file in your workspace).
 
-All Org files are markdown text files (.md) with YAML front-matter for metadata. Each file-type (note, todo, or event) has its own YAML format.
+All Org files are markdown text files (`.md`) with YAML front-matter for metadata. Each file-type (note, todo, or event) has its own YAML format.
 
 ## `org create note`
 
@@ -91,9 +91,17 @@ uid: {hash_of_title_and_created}
 
 Optional arguments/flags for `org create note` are:
 
-`-t`, `--title`: Title of the note  
-`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
-`-tg`, `--tags`: Tags for the note, with `/` as a delimiter
+### `-t`, `--title`
+
+Title of the note  
+
+### `-c`, `--category`
+
+This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
+
+### `-tg`, `--tags`
+
+Tags for the note, with `/` as a delimiter
 
 Any text placed at the end of the argument will be treated as note `content`. For example, `org create note this is the text` will create a note with 'this is the text' as its content. `org create note -t "Staff Meeting" Jerry got fired` will create a note with the title 'Staff Meeting' and the content 'Jerry got fired'.
 
@@ -125,13 +133,33 @@ uid: {hash_of_title_and_created}
 
 Optional arguments/flags for `org create note` are:
 
-`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
-`-tg`, `--tags`: Tags for the note, with `/` as a delimiter  
-`-s`, `--status`: The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']  
-`-d`, `--deadline`: The deadline, if it exists, for the todo item. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]  
-`-a`, `--assignee`: One or more assignees for the todo item, with `/` as a delimiter  
-`-u`, `--urgency`: An urgency level for the todo item. Must be one of: ['Urgent', 'Not urgent']  
-`-i`, `--important`: An importance level for the todo item. Must be one of ['Important', 'Not important']
+### `-c`, `--category`
+
+This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
+
+### `-tg`, `--tags`
+
+Tags for the note, with `/` as a delimiter  
+
+### `-s`, `--status`
+
+The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']  
+
+### `-d`, `--deadline`
+
+The deadline, if it exists, for the todo item. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]  
+
+### `-a`, `--assignee`
+
+One or more assignees for the todo item, with `/` as a delimiter  
+
+### `-u`, `--urgency`
+
+An urgency level for the todo item. Must be one of: ['Urgent', 'Not urgent']  
+
+### `-i`, `--important`
+
+An importance level for the todo item. Must be one of ['Important', 'Not important']
 
 Here is another example for creating a todo item: `org create todo -s "In progress" -tg writing/thesis Finish writing fifth chapter`
 
@@ -162,12 +190,29 @@ Similarly to `org create todo` arguments, `org create event` arguments cannot be
 
 Optional arguments/flags for `org create event` are:
 
-`-c`, `--category`: This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
-`-tg`, `--tags`: Tags for the note, with `/` as a delimiter  
-`-s`, `--status`: The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']  
-`-a`, `--assignee`: One or more assignees for the todo item, with `/` as a delimiter  
-`-st`, `--start`: The start date or date-time for the event. **This is a requirement for event items**. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]  
-`-ed`, `--end`: The end date or date-time for the event. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]
+### `-c`, `--category`
+
+This specifies the workspace destination for the note. For example, using `personal` will place the note in the `personal_org/notes` sub-directory  
+
+### `-tg`, `--tags`
+
+Tags for the note, with `/` as a delimiter  
+
+### `-s`, `--status`
+
+The status of the todo item. Must be one of: ['Not started', 'Done', 'In progress', 'Dependent', 'Blocked', 'Unknown', 'Redundant', 'Not done']  
+
+### `-a`, `--assignee`
+
+One or more assignees for the todo item, with `/` as a delimiter  
+
+### `-st`, `--start`
+
+The start date or date-time for the event. **This is a requirement for event items**. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]  
+
+### `-ed`, `--end`
+
+The end date or date-time for the event. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]
 
 ## `org view`
 
