@@ -60,15 +60,17 @@ If you just want a quick preview of how Org and its key commands work, here you 
 
 For a more in-depth understanding of how to use Org, please read on:
 
-## Using Org: `org create`
+## Using Org
 
 Org has two main functionalities, both of which can be used on the command line: `create` and `view`. These  are outlined below.
+
+## `org create`
 
 `org create` is the simplest way to create note, todo, or event files in your workspace. It is generally safer than creating the file manually, as `org create` will take care of file format for you (though you can still create files manually. Org will check and validate every file in your workspace).
 
 All Org files are markdown text files (.md) with YAML front-matter for metadata. Each file-type (note, todo, or event) has its own YAML format.
 
-## Using Org: `org create note`
+## `org create note`
 
 Minimum required syntax:  
 `org create note`
@@ -95,7 +97,7 @@ Optional arguments/flags for `org create note` are:
 
 Any text placed at the end of the argument will be treated as note `content`. For example, `org create note this is the text` will create a note with 'this is the text' as its content. `org create note -t "Staff Meeting" Jerry got fired` will create a note with the title 'Staff Meeting' and the content 'Jerry got fired'.
 
-## Using Org: `org create todo...`
+## `org create todo...`
 
 Minimum required syntax:  
 `org create todo` `content`
@@ -133,7 +135,7 @@ Optional arguments/flags for `org create note` are:
 
 Here is another example for creating a todo item: `org create todo -s "In progress" -tg writing/thesis Finish writing fifth chapter`
 
-## Using Org: `org create event...`
+## `org create event...`
 
 Minimum required syntax:  
 `org create event` `-st YYYY-MM-DD` or `-st YYYY-MM-DD@HH:MM` `content`
@@ -167,7 +169,7 @@ Optional arguments/flags for `org create event` are:
 `-st`, `--start`: The start date or date-time for the event. **This is a requirement for event items**. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]  
 `-ed`, `--end`: The end date or date-time for the event. Must be in one of the following formats: [YYYY-MM-DD, YYYY-MM-DD@HH:MM]
 
-## Using Org: `org view`
+## `org view`
 
 ## Configuration / Defaults
 
