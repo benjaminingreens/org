@@ -11,7 +11,7 @@ import datetime
 import subprocess
 from pathlib import Path
 from datetime import date
-from org.scripts.yaml_val import validate_yaml_frontmatter as validate_yaml 
+from org.scripts.validation.yaml_val import validate_yaml_frontmatter as validate_yaml 
 from org.scripts.device_setup import main as device_setup
 
 # Constants
