@@ -12,10 +12,10 @@ It is not a replacement for the rich feature-set of Notion, but rather a non-pro
 
 The following principles are key to the philosophy of Org:
 
-    - **Local Storage**: Your data should be owned by you and controlled by you, and should primarily be stored locally on user-owned machines (or, if beyond, entirely at the user's discretion)
-    - **Accessible Formats**: Data should be stored in an efficient format which works for humans but also can be manipulated by computers (i.e. the likes of simple .txt and/or .md files)
-    - **Simple Querying**: Your data should be easily traversable by humans and machines, with simple and efficient mechanisms for important and required data to be front-and-centre without much or any effort (i.e. simple querying mechanisms)
-    - **Simple Structure**: This is linked to the previous point. A simple structure enables easy querying of the data, but it should also maintain simplicity so that *you* should be able to use and navigate your data without any additional software (including Org). The structure of your data should also be compatible with both *NO* and *OTHER* software (i.e. your data should be free from constraints and portable)
+- **Local Storage**: Your data should be owned by you and controlled by you, and should primarily be stored locally on user-owned machines (or, if beyond, entirely at the user's discretion)
+- **Accessible Formats**: Data should be stored in an efficient format which works for humans but also can be manipulated by computers (i.e. the likes of simple .txt and/or .md files)
+- **Simple Querying**: Your data should be easily traversable by humans and machines, with simple and efficient mechanisms for important and required data to be front-and-centre without much or any effort (i.e. simple querying mechanisms)
+- **Simple Structure**: This is linked to the previous point. A simple structure enables easy querying of the data, but it should also maintain simplicity so that *you* should be able to use and navigate your data without any additional software (including Org). The structure of your data should also be compatible with both *NO* and *OTHER* software (i.e. your data should be free from constraints and portable)
 
 ## Installation
 
@@ -29,9 +29,11 @@ At this early stage of development, I have only tested Org on Linux, though it s
 
 1. Create an empty directory. This will be the home of your instance of Org.
 2. Within your Org home directory, create one or more workspace sub-directories with the `_org` suffix (e.g. `personal_org` or `work_org`). Org will treat these sub-directories as distinct workspaces with their own `/notes`, `/todos`, and `/events` sub-directories.
+
     `Note`: Creating multiple workspace sub-directories is useful for distinguishing files that belong to separate parts of your life which you would rather not mix. Otherwise, I recommend using other features (such as `tags` to distinguish files. Such functionality is explained further below).
 
     *Note: [Make a note for those who may have notes in the Org format already]*
+
     TODO: Consider migration of data in a future version of Org
 
 3. Run `org init` in the Org home directory. This will initialise your directory with Org and all its required files, and it will create the `/note`, `/todo`, and `/event` subdirectories within each off your workspace directories.
