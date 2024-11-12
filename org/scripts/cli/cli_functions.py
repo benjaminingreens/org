@@ -1,3 +1,10 @@
+## ==============================
+## cli_functions.py
+## ==============================
+
+## ==============================
+## Imports
+## ==============================
 import sys
 import os
 import curses
@@ -6,17 +13,42 @@ import datetime
 import shutil
 import importlib.resources as pkg_resources
 
-from org.scripts import views
+## ==============================
+## Module imports
+## ==============================
+from org.scripts.views import views
 from org.scripts.validation.validation import (
     main as run_validation,
-)  # Import the validation function
-from org.scripts.creation.creation_val import validate_note, validate_todo, validate_event
+)
+from org.scripts.creation.creation_val import (
+    construct_note,
+    construct_todo,
+    construct_event,
+)
 
-# Constants
-SUPER_ROOT = os.getcwd()
-MARKER = "_org"  # Customize the marker you want to use for valid subdirectories
-LOG_PATH = os.path.join(os.getcwd(), "debug.txt")
-# DEVICE_SETUP = os.path.join(SUPER_ROOT, 'scripts', 'device_setup.py')
+## ==============================
+## Constants
+## ==============================
+# OFNOTE: Do I need to amend this?
+ORG_HOME = os.getcwd()
+SUBDIR_MARKER = "_org"
+LOG_PATH = os.path.join(os.getcwd(), "log.txt")
+
+
+## ==============================
+## Basic functions
+## ==============================
+# Logging function
+def log(message):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    script_name = os.path.basename(__file__)
+    with open(LOG_PATH, "a") as f:
+        f.write(f"[{current_time}][{script_name}]: {message}\n")
+
+
+# Function for getting datetime
+def current_datetime():
+    return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 # Generic function to get the hook file path within the package
@@ -52,13 +84,7 @@ def copy_post_receive_hook():
     copy_hook("post-receive")
 
 
-def log_debug(message):
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    script_name = os.path.basename(__file__)
-    with open(LOG_PATH, "a") as f:
-        f.write(f"[{current_time}][{script_name}]: {message}\n")
-
-
+# Function for loading the config file
 def load_config():
     config = {}
     try:
@@ -88,8 +114,10 @@ def load_orgrc_values(config_file):
     return device, permissions
 
 
+## ==============================
+## Initialisation function
+## ==============================
 def init():
-
     # Establish current directory
     current_dir = os.getcwd()
 
@@ -117,7 +145,7 @@ def init():
     for subfolder in os.listdir(current_dir):
         subfolder_path = os.path.join(current_dir, subfolder)
         # Check if the subfolder has the marker and is a directory
-        if os.path.isdir(subfolder_path) and MARKER in subfolder:
+        if os.path.isdir(subfolder_path) and SUBDIR_MARKER in subfolder:
             for folder in ["notes", "todos", "events"]:
                 folder_path = os.path.join(subfolder_path, folder)
                 if not os.path.exists(folder_path):
@@ -166,34 +194,6 @@ def init():
 
         copy_pre_commit_hook()
 
-        if False:
-            # Get the absolute path to the directory where the current script resides
-            package_dir = os.path.dirname(os.path.realpath(__file__))
-            # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
-            pre_commit_src = os.path.join(package_dir, "hooks", "pre-commit")
-
-            pre_commit_dest = os.path.join(git_dir_path, "hooks", "pre-commit")
-
-            # Check if the source pre-commit file exists
-            if os.path.exists(pre_commit_src):
-                try:
-                    # Create the hooks directory if it doesn't exist
-                    hooks_dir = os.path.join(git_dir_path, "hooks")
-                    os.makedirs(hooks_dir, exist_ok=True)
-
-                    # Copy the pre-commit hook
-                    shutil.copyfile(pre_commit_src, pre_commit_dest)
-
-                    # Make the pre-commit hook executable
-                    os.chmod(pre_commit_dest, 0o755)
-                    print(
-                        f"Moved pre-commit hook to {pre_commit_dest} and made it executable."
-                    )
-                except Exception as e:
-                    print(f"Error while moving pre-commit hook: {e}")
-            else:
-                print(f"Pre-commit hook not found at {pre_commit_src}. Exiting.")
-                sys.exit(1)
     else:
         print(
             f".git directory not found in {current_dir}. Exiting pre-commit hook setup."
@@ -213,36 +213,6 @@ def init():
 
             copy_post_receive_hook()
 
-            if False:
-                # Get the absolute path to the directory where the current script resides
-                package_dir = os.path.dirname(os.path.realpath(__file__))
-                # Construct the path to the file you want to copy (e.g., 'project_file.txt' inside the 'resources' folder)
-                post_receive_src = os.path.join(package_dir, "hooks", "post-receive")
-
-                post_receive_dest = os.path.join(git_dir_path, "hooks", "post-receive")
-
-                # Check if the source post-receive file exists
-                if os.path.exists(post_receive_src):
-                    try:
-                        # Create the hooks directory if it doesn't exist
-                        hooks_dir = os.path.join(git_dir_path, "hooks")
-                        os.makedirs(hooks_dir, exist_ok=True)
-
-                        # Copy the post-receive hook
-                        shutil.copyfile(post_receive_src, post_receive_dest)
-
-                        # Make the post-receive hook executable
-                        os.chmod(post_receive_dest, 0o755)
-                        print(
-                            f"Moved post-receive hook to {post_receive_dest} and made it executable."
-                        )
-                    except Exception as e:
-                        print(f"Error while moving post-receive hook: {e}")
-                else:
-                    print(
-                        f"Post-receive hook not found at {post_receive_src}. Exiting."
-                    )
-                    sys.exit(1)
         else:
             print(
                 f".git directory not found in {current_dir}. Exiting post-receive hook setup."
@@ -254,6 +224,123 @@ def init():
         )
 
 
+## ==============================
+## Creation function
+## ==============================
+def create_file(file_type, args):
+    """
+    Construct the bare bones of the file content, create it,
+    and initiate validation to flesh out the remainder of the file.
+
+    Args:
+        file_type (str): The type of file to create (e.g., 'note').
+        args (dict): Arguments provided on the command line.
+
+    Returns:
+        bool: True if the file was created successfully, False otherwise.
+
+    Raises:
+        ValueError: If the file_type is not supported. Or bare bones
+        creation is interrupted.
+    """
+    log(f"Creating file of '{file_type}' type")
+
+    config = load_config()
+
+    if file_type == "note":
+        title, category, content = construct_note(args)
+        if category is None:
+            log("'Category' was not given as an argument")
+            category = config.get("note_category")
+            if category is None:
+                log("Cannot get note category from config. Raising Value Error")
+                raise ValueError("Cannot get note category from config")
+            else:
+                log(f"Category will be set to config default: {category}")
+        else:
+            category = category
+            log(f"Category was provided as an argument: '{category}'")
+
+    elif file_type == "todo":
+        title, category, content = construct_todo(args)
+        if category is None:
+            log("'Category' was not given as an argument")
+            category = config.get("todo_category")
+            if category is None:
+                log("Cannot get todo category from config. Raising Value Error")
+                raise ValueError("Cannot get todo category from config")
+            else:
+                log(f"Category will be set to config default: {category}")
+        else:
+            category = category
+            log(f"Category was provided as an argument: '{category}'")
+
+    elif file_type == "event":
+        title, category, content = construct_event(args)
+        if category is None:
+            log("'Category' was not given as an argument")
+            category = config.get("event_category")
+            if category is None:
+                log("Cannot get event category from config. Raising Value Error")
+                raise ValueError("Cannot get event category from config")
+            else:
+                log(f"Category will be set to config default: {category}")
+        else:
+            category = category
+            log(f"Category was provided as an argument: '{category}'")
+
+    else:
+        log(f"Unknown file type: {file_type}. Raising Value Error")
+        raise ValueError(f"Unknown file type: {file_type}")
+
+    # Create the name of the file
+    if title is None:
+        # Datetime if no title is provided
+        log("No title specified for file. Creating datetime title")
+        title = current_datetime() + ".md"
+        log(f"Title is: {title}")
+    else:
+        # Otherwise, replace spaces with underscore
+        # and remove surrounding quotes
+        log(f"Title specified for file ({title}), creating filename")
+        title = title.strip('"').replace(" ", "_").lower() + ".md"
+        log(f"Title is: {title}")
+
+    # Generate the drectory file path
+    log("Creating directory filepath")
+    directory = os.path.join(ORG_HOME, category + "_org", file_type + "s")
+    log("Directory is: {directory}")
+
+    # If the file path doesn't exist, create it
+    if not os.path.exists(directory):
+        log(f"Directory file path doesn't exist. Creating path: {directory}")
+        os.makedirs(directory)
+    else:
+        log("Directory file path exists")
+
+    # Generate the full file path
+    filepath = os.path.join(directory, title)
+    log(f"Full file path: {filepath}")
+
+    # Check if the file path already exists
+    if not os.path.exists(filepath):
+        log("Creating file")
+        with open(filepath, "w") as f:
+            f.write(content)
+        log(f"Created {file_type} file at {filepath}. Now running validation")
+
+        # Run validation to properly flesh out
+        # and finalise the file
+        run_validation()
+
+    else:
+        log(f"File path already exists. Raising Value Error")
+        raise ValueError(f"File path already exists: {filepath}")
+
+
+## ==============================
+## View function
+## ==============================
 def display_graphical_view(
     file_type,
     search_prop=None,
@@ -295,58 +382,3 @@ def display_graphical_view(
         views.display_files_with_view(stdscr, entries, file_type)
 
     curses.wrapper(inner)
-
-
-def current_datetime():
-    return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-
-
-def create_file(file_type, args):
-
-    config = load_config()
-
-    if file_type == "note":
-        # Validate arguments directly, no need to parse again
-        title, category, content = validate_note(args)
-        if category is None:
-            category = config.get("note_category")
-        else:
-            raise ValueError("Cannot get note category from config")
-
-    elif file_type == "todo":
-        title, category, content = validate_todo(args)
-        if category is None:
-            category = config.get("todo_category")
-        else:
-            raise ValueError("Cannot get todo category from config")
-
-    elif file_type == "event":
-        title, category, content = validate_event(args)
-        if category is None:
-            category = config.get("event_category")
-        else:
-            raise ValueError("Cannot get event category from config")
-
-    else:
-        print(f"Unknown file type: {file_type}")
-        return
-
-    if title is None:
-        title = current_datetime() + ".md"
-    else:
-        title = title.strip('"').replace(" ", "_").lower() + ".md"
-
-    # Generate file name and write content
-    directory = os.path.join(SUPER_ROOT, category + "_org", file_type + "s")
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    filepath = os.path.join(directory, title)
-
-    if not os.path.exists(filepath):
-        with open(filepath, "w") as f:
-            f.write(content)
-        print(f"Created {file_type} file at {filepath}. Running validation")
-        run_validation()
-    else:
-        raise ValueError("FILE ALREADY EXISTS")
-

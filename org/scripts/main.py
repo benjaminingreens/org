@@ -19,13 +19,14 @@ from org.scripts.validation.validation import main as run_validation
 ## ==============================
 ## Constants
 ## ==============================
-LOG_PATH = os.path.join(os.getcwd(), "debug.txt")
+LOG_PATH = os.path.join(os.getcwd(), "log.txt")
 
 
 ## ==============================
-## Required functions
+## Basic functions
 ## ==============================
-def log_debug(message):
+# Logging function
+def log(message):
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     script_name = os.path.basename(__file__)
     with open(LOG_PATH, "a") as f:
@@ -36,14 +37,13 @@ def log_debug(message):
 ## Main function
 ## ==============================
 def main():
-    log_debug("Process start")
+    log("Process start")
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     subparsers = parser.add_subparsers(dest="command")
 
     ## ------------------------------
     ## 'view' command logic
     ## ------------------------------
-
     # Main command
     view_parser = subparsers.add_parser("view", help="View files of a specific type")
 
@@ -71,7 +71,6 @@ def main():
     ## ------------------------------
     ## 'create' command logic
     ## ------------------------------
-
     # Create NOTE main command
     create_note_parser = subparsers.add_parser("note", help="Create a new note")
 
@@ -155,16 +154,16 @@ def main():
 
     # INIT command
     if args.command == "init":
-        log_debug("`org init` command received")
+        log("`org init` command received")
         device_setup()
         init()
-        log_debug("Initiation process complete")
+        log("Initiation process complete")
 
     # VALIDATION command
     elif args.command == "val":
-        log_debug("`org val` command received")
+        log("`org val` command received")
         run_validation()
-        log_debug("Validation complete")
+        log("Validation complete")
 
     # VIEW command
     elif args.command == "view":
@@ -195,14 +194,14 @@ def main():
 
     # CREATE commands
     elif args.command in ["note", "todo", "event"]:
-        log_debug(f"`org {args.command}` command received")
+        log(f"`org {args.command}` command received")
         if args.command == "note":
             create_file("note", args)
         elif args.command == "todo":
             create_file("todo", args)
         elif args.command == "event":
             create_file("event", args)
-        log_debug(f"{args.command.capitalize()} creation process complete")
+        log(f"{args.command.capitalize()} creation process complete")
 
     # ORG command
     else:
@@ -214,7 +213,7 @@ def main():
             )
             return
         device_setup()
-    log_debug("Process end")
+    log("Process end")
 
 
 ## ==============================
