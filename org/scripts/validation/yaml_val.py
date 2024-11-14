@@ -35,6 +35,10 @@ from org.scripts.validation.yaml_val_functions import (
     validate_status,
     validate_category,
     validate_assignees,
+    validate_urgency,
+    validate_importance,
+    validate_start_and_end_dates,
+    validate_deadline,
 )
 
 ## ==============================
@@ -65,9 +69,7 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
     def remove_keys_from_dict(data):
         keys_to_remove = ["item_type", "root_folder", "stat_access", "stat_mod"]
         for key in keys_to_remove:
-            data.pop(
-                key, None
-            )
+            data.pop(key, None)
         return data
 
     # Remove keys from the yaml_content dictionary.
@@ -79,12 +81,7 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
     # Define required fields for notes, todos, and events.
     # Even though these aren't being used, I am keeping them
     # Because they are useful as a reference.
-    required_fields_note = [
-        "item",
-        "category",
-        "title",
-        "tags"
-    ]
+    required_fields_note = ["item", "category", "title", "tags"]
     required_fields_todo = [
         "item",
         "category",
@@ -127,78 +124,47 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
             validate_assignees(item_type, filepath, yaml_content, config)
             validate_status(item_type, filepath, yaml_content, config)
 
-        # Urgency and Importance (restore original logic)
+        # Urgency and Importance validation for Todo files
         if item_type == "Todo":
-            # Validate urgency
-            yaml_content["urgency"] = ensure_quotes(
-                yaml_content.get("urgency", config.get("todo_urgency", "Not urgent"))
-            )
-            if yaml_content["urgency"] is not None and yaml_content["urgency"].strip(
-                '"'
-            ) not in ["Urgent", "Not urgent"]:
-                yaml_content["urgency"] = ensure_quotes(
-                    config.get("todo_urgency", "Not urgent")
-                )
-
-            # Validate importance
-            yaml_content["importance"] = ensure_quotes(
-                yaml_content.get(
-                    "importance", config.get("todo_importance", "Important")
-                )
-            )
-            if yaml_content["importance"] is not None and yaml_content[
-                "importance"
-            ].strip('"') not in ["Important", "Not important"]:
-                yaml_content["importance"] = ensure_quotes(
-                    config.get("todo_importance", "Important")
-                )
+            validate_urgency(item_type, filepath, yaml_content, config)
+            validate_importance(item_type, filepath, yaml_content, config)
+            validate_deadline(item_type, filepath, yaml_content, config)
 
         # Event specific validation for start and end
         if item_type == "Event":
-            start = yaml_content.get("start")
-            if start:
-                value = validate_datetime(start)
-                if not value:
-                    raise ValueError("Validation for START failed")
-            else:
-                raise ValueError(
-                    f"Invalid or missing start date for Event. It must be in 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM' format."
-                )
+            validate_start_and_end_dates(item_type, filepath, yaml_content, config)
 
-            # Ensure end is present, and if not, make it the same as start
-            if not yaml_content.get("end"):
-                # The 'str' below stops YAML using aliases (*id001, for example)
-                yaml_content["end"] = copy.deepcopy(yaml_content["start"])
-            elif not validate_datetime(yaml_content["end"]):
-                raise ValueError(
-                    "Invalid end date format. It must match 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM' format."
-                )
+        # ------------------------------
+        # Update auto properties
+        # ------------------------------
 
-        # Todo specific validation
-        if item_type == "Todo":
-            # Ensure deadline format if present
-            if yaml_content.get("deadline") and not validate_datetime(
-                yaml_content["deadline"]
-            ):
-                raise ValueError(
-                    "Invalid deadline format. It must match 'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM'."
-                )
+        # Get current datetime
+        current_time = current_datetime(type="full")
 
-        # Handle item state: 'new' or 'existing'
-        current_time = ensure_quotes(current_datetime(type="full"))
+        # Auto props. for new items
+        # ------------------------------
         if item_state == "new":
+
             yaml_content["created"] = current_time
             yaml_content["modified"] = current_time
-            yaml_content["uid"] = ensure_quotes(os.urandom(8).hex())
+            yaml_content["uid"] = os.urandom(8).hex()
+
             # Update the markdown file with new YAML front matter
             update_yaml_frontmatter(filepath, yaml_content)
+
+        # Auto props. for ex/lp items
+        # ------------------------------
         elif item_state in ["existing", "lapsed"]:
-            stat_info = os.stat(filepath)
-            yaml_content["modified"] = ensure_quotes(
-                datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime(
+
+            # OFNOTE2: I added in here the conversion to string
+            # which removed the pyright error lol.
+            # Just keep an eye on it in case it causes any further issues.
+            stat_info = os.stat(str(filepath))
+
+            yaml_content["modified"] = datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime(
                     "%Y-%m-%d@%H:%M:%S"
-                )
             )
+
             # Update the markdown file with updated YAML front matter
             update_yaml_frontmatter(filepath, yaml_content)
 

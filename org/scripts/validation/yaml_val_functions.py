@@ -2,12 +2,20 @@
 ## yaml_val_functions.py
 ## ==============================
 
+# OFNOTE2: There are a lot of places in this function
+# where the property is written back to yaml_content.
+# However, I am confused as to why, because this isn't reused
+# anywhere.
+# I am too scared to remove those instances. I need
+# to inspect them properly.
+
 ## ==============================
 ## Imports
 ## ==============================
 import os
 import re
 import yaml
+import copy
 import datetime
 from pathlib import Path
 
@@ -75,21 +83,73 @@ def current_datetime(type, filepath=None):
 
 
 # Helper function to validate datetime format with '@'
-def validate_datetime(value):
+def validate_datetime(filepath, yaml_content, required, property_string=""):
+
+    value = yaml_content.get(f"{property_string}")
+
+    if required and not value:
+
+        log(
+            f"Missing {property_string} date for file: {filepath}. Expected format: "
+            + "'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM'. Raising Value Error"
+        )
+        raise ValueError(
+            f"Missing {property_string} date for file: {filepath}. Expected format: "
+            + "'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM'"
+        )
+
+    elif not required and not value:
+
+        # OFNOTE4: Pretty sure there are no issues
+        # here, but earlier something intuitive just told
+        # me that this might be a problem, so I have flagged it.
+        # It had something to do with the fact that not all properties
+        # need to have a value, and I had only realised that after
+        # modifying some conditions which has already factored this in.
+        # So, hopefully, this will suffice for those datetime strings
+        # which don't need to be returned. I think everything else
+        # has a default value in the config, so this shouldn't be
+        # as big of an issue as it feels it might.
+        return None
+
+    else:
+
+        log(f"{property_string} date for file: {filepath} is: {value}")
+
     # Ensure value is a string
     if not isinstance(value, str):
         value = str(value)
 
     try:
+
+        log(f"Checking {property_string} date format")
+
         if re.match(r"\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2}", value):
-            return True
+            return value
         if re.match(
             r"\d{2}-\d{2}-\d{4}@\d{2}:\d{2}|\d{4}-\d{2}-\d{2}@\d{2}:\d{2}", value
         ):
-            return True
-    except ValueError:
-        return False
-    return False
+            return value
+
+    except:
+
+        log(
+            f"{property_string} datetime validation failed for file: {filepath}. "
+            + f"{property_string} datetime: {value}. Raising Value Error"
+        )
+        raise ValueError(
+            f"{property_string} datetime validation failed for file: {filepath}. "
+            + f"{property_string} datetime: {value}"
+        )
+
+    log(
+        f"{property_string} datetime validation failed for file: {filepath}. "
+        + f"{property_string} datetime: {value}. Raising Value Error"
+    )
+    raise ValueError(
+        f"{property_string} datetime validation failed for file: {filepath}. "
+        + f"{property_string} datetime: {value}"
+    )
 
 
 # Function to update the YAML front matter in the .md file
@@ -181,6 +241,62 @@ def check_duplicate_filename(filepath, new_filename=None):
         return None
 
 
+def get_property_value(item_type, filepath, yaml_content, config, property_string=""):
+
+    # Get property from yaml_content
+    property = yaml_content.get(f"{property_string}", None)
+
+    # If property is None, get default value from config
+    if property is None:
+        log(
+            f"{property_string} is None for file: {filepath}. Looking for default value in config"
+        )
+        property = config.get(f"{item_type.lower()}_{property_string}")
+
+    # Raise error if property is still None
+    if not property:
+        log(
+            f"{property_string} is None for file: {filepath}, and no default value "
+            + "was found in config. Raising Value Error"
+        )
+        raise ValueError(
+            f"{property_string} is None for file: {filepath}, and no default value "
+            + "was found in config"
+        )
+    else:
+        log(f"{property_string} found in config for file: {filepath}: {property}")
+
+    # Check that property is string
+    if not isinstance(property, str):
+        log(
+            f"{property_string} for file: {filepath} is not a string. "
+            + "Raising Value Error"
+        )
+        raise ValueError(f"{property_string} for file: {filepath} is not a string.")
+
+    # Strip property of any quotation marks
+    if property is not None:
+        property = property.strip('"')
+
+    return property
+
+
+def check_property_against_valid_list(
+    filepath, property, property_list, property_string=""
+):
+
+    # Check that property is one of the valid properties
+    if property not in property_list:
+        log(
+            f"Unexpected {property_string} value ({property}) for file: {filepath}. "
+            + f"Expected one of: {property_list}. Raising Value Error"
+        )
+        raise ValueError(
+            f"Unexpected {property_string} value ({property}) for file: {filepath}. "
+            + f"Expected one of: {property_list}"
+        )
+
+
 ## ==============================
 ## Property validation functions
 ## ==============================
@@ -220,7 +336,7 @@ def validate_title(item_type, filepath, yaml_content):
     title = yaml_content.get("title", None)
 
     # Flag to assist log with providing correct information
-    # regarding filepath changes.
+    # regarding filepath changes for Note.
     filepath_change_flag = False
 
     # ------------------------------
@@ -229,6 +345,8 @@ def validate_title(item_type, filepath, yaml_content):
     if item_type == "Note":
 
         if title is None:
+            # Set the title to default (datetime string)
+            # if title is None.
             title = current_datetime(type="title", filepath=filepath)
             log(f"Title for file: {filepath} is None. Default title assigned ({title})")
             log(f"Filepath will now be updated due to title change")
@@ -269,21 +387,28 @@ def validate_title(item_type, filepath, yaml_content):
         # does not meet validation so the user can change it themselves.
         yaml_content["title"] = title
 
-        log(f"Title for file: {filepath} validated as: {title}")
-
     # ------------------------------
     # Title val. for type Todo
     # ------------------------------
     elif item_type == "Todo":
 
         if not title:
+            log(
+                f"No title found for file: {filepath} of type: {item_type}. "
+                + "Todo items must have a title. Raising Value Error"
+            )
             raise ValueError(
-                f"Missing title for {item_type}. A title is required for todos and events."
+                f"No title found for file: {filepath} of type: {item_type}. "
+                + "Todo items must have a title."
             )
 
+        # Generate optimised filepath
         new_filepath = check_duplicate_filename(filepath, title)
         filepath = new_filepath
+        log(f"Optimised filepath is: {filepath}")
 
+        # OFNOTE3: As with title validation for Note,
+        # I am not sure why this is necessary or what it is doing.
         yaml_content["title"] = title
 
     # ------------------------------
@@ -292,147 +417,363 @@ def validate_title(item_type, filepath, yaml_content):
     elif item_type == "Event":
 
         if not title:
+            log(
+                f"No title found for file: {filepath} of type: {item_type}. "
+                + "Event items must have a title. Raising Value Error"
+            )
             raise ValueError(
-                f"Missing title for {item_type}. A title is required for todos and events."
+                f"No title found for file: {filepath} of type: {item_type}. "
+                + "Event items must have a title."
             )
 
+        # Generate optimised filepath
         new_filepath = check_duplicate_filename(filepath, title)
         filepath = new_filepath
+        log(f"Optimised filepath is: {filepath}")
 
+        # OFNOTE3: As with title validation for Note & Todo,
+        # I am not sure why this is necessary or what it is doing.
         yaml_content["title"] = title
 
+    # ------------------------------
+    # Check filename is as expected
+    # ------------------------------
     if title is not None:
-        # (which it won't be due to the logic above)
+        # Build expected_filename for comparison to real filename
+        # just to ensure that something hasn't gone wrong along the way.
         expected_filename = title.strip('"').replace(" ", "_")
         expected_filename = expected_filename.lower() + ".md"
-        dir, filename = os.path.split(filepath)
-        log(
-            f"expected_filename is: {expected_filename}. this will be compared to: {filename}"
-        )
-    else:
-        raise ValueError("title is somehow None")
 
-    if filename is not None:
-        # (which it won't be due to the logic above)
-        if not filename.endswith(expected_filename):
+        # Have explicitly converted filepath to string to ensure
+        # there are no errors.
+        dir, filename = os.path.split(str(filepath))
 
-            raise ValueError(
-                f"Filename mismatch: expected '{expected_filename}', got '{filename}'."
+        if filename is not None:
+            # Compare the actual filename with the expected_filename
+            # to see if they match.
+            if not filename.endswith(expected_filename):
+                log(
+                    f"The filename for file: {filepath} does not match "
+                    + f"the expected filename: {expected_filename}. Raising Value Error"
+                )
+                raise ValueError(
+                    f"The filename for file: {filepath} does not match "
+                    + f"the expected filename: {expected_filename}"
+                )
+        else:
+            # This should be impossible, but it doesn't hurt
+            # to include the possibility in my code I guess.
+            log(
+                f"The filename for file: {filepath} is somehow None. Raising Value Error"
             )
+            raise ValueError(f"The filename for file: {filepath} is somehow None")
+
+    else:
+        # This should also be impossible, but it doesn't hurt
+        # to include the possibility in my code I guess.
+        log(f"Title for file: {filepath} is None after validation. Raising Value Error")
+        raise ValueError(f"Title for file: {filepath} is None after validation")
+
+    log(f"Title for file: {filepath} validated as: {title}")
 
     return filepath
 
 
+## ------------------------------
+## Validate category
+## ------------------------------
 def validate_category(item_type, filepath, yaml_content, config):
 
-    # Set default category if not provided, based on the item type
-    category = yaml_content.get("category", None)
+    log(f"Validating category for file: {filepath}")
 
-    if category is None:
-        category = config.get(f"{item_type.lower()}_category")
+    # Get and validate the property string itself
+    category = get_property_value(
+        item_type, filepath, yaml_content, config, property_string="category"
+    )
 
-    if category is not None:
-        category = category.strip('"')
-
-    if not category:
-        raise ValueError(
-            f"Category is missing for item type '{item_type}' and no default category found in config."
-        )
-
-    # Check if the category matches the root folder
+    # Check if the category matches the name of the workspace folder
     if extract_category(filepath) != category.lower():
+        log(
+            f"Category for file {filepath} does not match the worskapce folder name. "
+            + "Raising Value Error"
+        )
         raise ValueError(
-            f"Category mismatch: {category} should be {extract_category(filepath)} - from {filepath}"
+            f"Category for file {filepath} does not match the worskapce folder name."
         )
 
-    # All validation for category should now be complete, so ensure it is in quotes
-    yaml_content["category"] = ensure_quotes(category)
+    # Again, not sure what this is doing,
+    # but I am scared to remove it.
+    yaml_content["category"] = category
+
+    log(f"Category for file: {filepath} validated as: {category}")
 
 
+## ------------------------------
+## Validate tags
+## ------------------------------
 def validate_tags(item_type, filepath, yaml_content, config):
 
+    log(f"Validating tags for file: {filepath}")
+
+    # Get tags from yaml_content
     tags = yaml_content.get("tags", None)
 
-    # If tags are None, load the default tags from config
+    # If tags are None, get default value from config
     if tags is None:
+        log(f"Tags are None for file: {filepath}. Looking for default value in config")
         tags = config.get(f"{item_type.lower()}_tags")
-        log(f"tags is None, and now are: {tags}")
+
+    # Raise error if tags is still None
+    if not tags:
+        log(
+            f"Tags is None for file: {filepath}, and no default value "
+            + "was found in config. Raising Value Error"
+        )
+        raise ValueError(
+            f"Tags is None for file: {filepath}, and no default value "
+            + "was found in config"
+        )
+    else:
+        log(f"Tags found in config for file: {filepath}: {tags}")
 
     # If tags is a string, convert it to a list by splitting on commas
+    #
+    # OFNOTE2: When a user uses tags as an argument on the command line
+    # the delimiter used is '/'. Here, the it is assumed that the delimiter
+    # is ','. It is possible that it is converted from '/' to ',' along the way
+    # somewhere, or that some other operations sorts this out.
+    # I need to check, but I am raising this as an area of suspiscion.
     if isinstance(tags, str):
         tags = [tag.strip() for tag in tags.split(",")]
 
     # If tags is a list, validate that all elements are strings
     elif isinstance(tags, list):
         if not all(isinstance(tag, str) for tag in tags):
+            log(
+                f"Invalid tag list for file: {filepath}. All tag items must be strings. "
+                + "Raising Value Error"
+            )
             raise ValueError(
-                f"Invalid tag list in {filepath}: all tags must be strings"
+                f"Invalid tag list for file: {filepath}. All tag items must be strings."
             )
 
+    # This runs if the tags type is neigher a string nor a list
     else:
+        log(
+            f"Invalid tags format for file: {filepath}. "
+            + "Tags must be a string or a list. Raising Value Error."
+        )
         raise ValueError(
-            f"Invalid tags format in {filepath}: tags must be a string or list"
+            f"Invalid tags format for file: {filepath}. "
+            + "Tags must be a string or a list."
         )
 
-    # Rewrite the validated tags back into yaml_content
+    # AGAIN--not sure what this is doing.
     yaml_content["tags"] = tags
 
+    log(f"Tags for file: {filepath} validated as: {tags}")
 
+
+## ------------------------------
+## Validate assignees (non-Note)
+## ------------------------------
+## OFNOTE2: I have been steadily transitioning from this property
+## holding only one assignee to holding multiple assignees.
+## Consequently, there may be places where there is some lag
+## between the old implementation and new implementation.
+## Good to be mindful of this.
+## ------------------------------
 def validate_assignees(item_type, filepath, yaml_content, config):
 
+    log(f"Validating assignees for file: {filepath}")
+
+    # Get assignees from yaml_content
+    #
+    # OFNOTE3: I want to change 'assignee' to 'assignees'.
+    # I may need to change a few things in other scripts for this to not break.
+    # Should be relatively easy to spot where this is an issue though.
+    # Just do due diligence before changing it.
     assignees = yaml_content.get("assignee", None)
 
-    if assignees is not None:
-
-        # If assignees is a string, convert it to a list by splitting on commas
-        if isinstance(assignees, str):
-            assignees = [assignee.strip() for assignee in assignees.split(",")]
-
-        # If assignee is a list, validate that all elements are strings
-        elif isinstance(assignees, list):
-            if not all(isinstance(assignee, str) for assignee in assignees):
-                raise ValueError(
-                    f"Invalid assignee list in {filepath}: all assignees must be strings"
-                )
-
-        else:
-            raise ValueError(
-                f"Invalid assignee format in {filepath}: assignees must be a string or list"
-            )
-
-    # Rewrite the validated tags back into yaml_content
-    yaml_content["assignee"] = assignees
-
-
-def validate_status(item_type, filepath, yaml_content, config):
-
-    valid_statuses = [
-        "Not started",
-        "Done",
-        "In progress",
-        "Dependent",
-        "Blocked",
-        "Unknown",
-        "Redundant",
-        "Not done",
-    ]
-
-    status = yaml_content.get("status", None)
-
-    log(f"status is: {status}")
-
-    if status == None:
-        status = config.get(f"{item_type.lower()}_status", None)
-        if status == None:
-            log(f"No value found for status in config file.")
-            raise ValueError(f"No value for status found in config file.")
-
-    log(f"status is: {status}")
-
-    if status not in valid_statuses:
-        log(f"Unexpected status value ({status}). Expected one of: {valid_statuses}")
-        raise ValueError(
-            f"Unexpected status value ({status}) for: {filepath}. Expected one of: {valid_statuses}"
+    # If assignees are None, get default value from config
+    if assignees is None:
+        log(
+            f"Assignees is None for file: {filepath}. Looking for default value in config"
         )
 
+        # OFNOTE3: Here is another place where I want to change
+        # 'assignee' to 'assignees'. Again, do due diligence before changing.
+        assignees = config.get(f"{item_type.lower()}_assignee")
+
+    # Raise error if assignees is still None
+    if not assignees:
+        log(
+            f"Assigness is None for file: {filepath}, and no default value "
+            + "was found in config. Raising Value Error"
+        )
+        raise ValueError(
+            f"Assignees is None for file: {filepath}, and no default value "
+            + "was found in config"
+        )
+    else:
+        log(f"Assignees found in config for file: {filepath}: {assignees}")
+
+    # If assignees is a string, convert it to a list by splitting on commas
+    #
+    # OFNOTE2: When a user uses assignees as an argument on the command line
+    # the delimiter used is '/'. Here, the it is assumed that the delimiter
+    # is ','. It is possible that it is converted from '/' to ',' along the way
+    # somewhere, or that some other operations sorts this out.
+    # I need to check, but I am raising this as an area of suspiscion.
+    if isinstance(assignees, str):
+        assignees = [assignee.strip() for assignee in assignees.split(",")]
+
+    # If assignees is a list, validate that all elements are strings
+    elif isinstance(assignees, list):
+        if not all(isinstance(assignee, str) for assignee in assignees):
+            log(
+                f"Invalid assignee list for file: {filepath}. All assignee items must be strings. "
+                + "Raising Value Error"
+            )
+            raise ValueError(
+                f"Invalid assignee list for file: {filepath}. All assignee items must be strings."
+            )
+
+    # This runs if the assignees type is neigher a string nor a list
+    else:
+        log(
+            f"Invalid assignees format for file: {filepath}. "
+            + "assignees must be a string or a list. Raising Value Error."
+        )
+        raise ValueError(
+            f"Invalid assignees format for file: {filepath}. "
+            + "assignees must be a string or a list."
+        )
+
+    # Same comment as in other functions
+    yaml_content["assignee"] = assignees
+
+    log(f"Assignees for file: {filepath} validated as: {assignees}")
+
+
+## ------------------------------
+## Validate status (non-Note)
+## ------------------------------
+def validate_status(item_type, filepath, yaml_content, config):
+
+    log(f"Validating status for file: {filepath}")
+
+    # Initialise list of valid statuses
+    valid_statuses = [
+        # Active statuses
+        "Not started",
+        "In progress",
+        # 'Active, but' statuses
+        "Dependent",
+        "Blocked",
+        # Inactivate statuses
+        "Done",
+        "Not done",
+        "Redundant",
+        "Unknown",
+    ]
+
+    # Get and validate the property string itself
+    status = get_property_value(
+        item_type, filepath, yaml_content, config, property_string="status"
+    )
+
+    check_property_against_valid_list(
+        filepath, status, valid_statuses, property_string="status"
+    )
+
+    # Same comment as in other functions
     yaml_content["status"] = status
+
+    log(f"Status for file: {filepath} validated as: {status}")
+
+
+## ------------------------------
+## Validate urgency (Todo only)
+## ------------------------------
+def validate_urgency(item_type, filepath, yaml_content, config):
+
+    log(f"Validating urgency for file: {filepath}")
+
+    # Initialise list of valid urgency statuses
+    valid_urgency_status = [
+        "Urgent",
+        "Not urgent",
+    ]
+
+    # Get and validate property string itself
+    urgency = get_property_value(
+        item_type, filepath, yaml_content, config, property_string="urgency"
+    )
+
+    check_property_against_valid_list(
+        filepath, urgency, valid_urgency_status, property_string="urgency"
+    )
+
+    log(f"Urgency for file: {filepath} validated as: {urgency}")
+
+
+## ------------------------------
+## Valdte. importance (Todo only)
+## ------------------------------
+def validate_importance(item_type, filepath, yaml_content, config):
+
+    log(f"Validating importance for file: {filepath}")
+
+    # Initialise list of valid importance statuses
+    valid_urgency_status = [
+        "Important",
+        "Not important",
+    ]
+
+    # Get and validate property string itself
+    importance = get_property_value(
+        item_type, filepath, yaml_content, config, property_string="importance"
+    )
+
+    check_property_against_valid_list(
+        filepath, importance, valid_urgency_status, property_string="importance"
+    )
+
+    log(f"Urgency for file: {filepath} validated as: {importance}")
+
+
+## ------------------------------
+## Val. deadline (Todo only)
+## ------------------------------
+def validate_deadline(item_type, filepath, yaml_content, config):
+
+    log(f"Validating deadline for file: {filepath}")
+
+    # Get and validate format of datestring
+    deadline = validate_datetime(filepath, yaml_content, required = False, property_string="deadline")
+
+    log(f"Deadline for file: {filepath} validated as: {deadline}")
+
+
+## ------------------------------
+## Val. start & end (Event only)
+## ------------------------------
+def validate_start_and_end_dates(item_type, filepath, yaml_content, config):
+
+    log(f"Validating start and end dates for file: {filepath}")
+
+    # Get and validate format of datestring
+    start = validate_datetime(filepath, yaml_content, required = True, property_string="start")
+
+    # Ensure end is present, and if not, make it the same as start
+    if not yaml_content.get("end"):
+        yaml_content["end"] = copy.deepcopy(yaml_content["start"])
+        end = yaml_content.get(f"end")
+
+    else:
+        end = validate_datetime(filepath, yaml_content, required = False, property_string="end")
+
+    log(
+        f"Start and end dates for file: {filepath} validated as: Start: {start}, End: {end}"
+    )
