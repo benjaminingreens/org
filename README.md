@@ -64,9 +64,9 @@ For a more in-depth understanding of how to use Org, please read on:
 
 Org has two main functionalities, both of which can be used on the command line: `create` and `view`. These  are outlined below.
 
-## `org create {item}`
+## `org create`
 
-`org create {item}` is the simplest way to create note, todo, or event files in your workspace. It is generally safer than creating the file manually, as `org create` will take care of file format for you (though you can still create files manually. Org will check and validate every file in your workspace).
+`org create` is the simplest way to create note, todo, or event files in your workspace. It is generally safer than creating the file manually, as `org create` will take care of file format for you (though you can still create files manually. Org will check and validate every file in your workspace).
 
 All Org files are markdown text files (`.md`) with YAML front-matter for metadata. Each file-type (note, todo, or event) has its own YAML format.
 
@@ -236,6 +236,27 @@ The end date or date-time for the event. Must be in one of the following formats
 
 ## `org view`
 
+## Validation
+
+### TUI
+
+### Command Line
+
 ## Configuration / Defaults
 
-## Validation
+## Routine Management
+
+## Tag Management
+
+## TODO
+
+- Create command line views
+- Properly finish TUI views
+- Standardise configuration handling
+  - Including re-initialisation for config re-writes
+- Create routine management
+- Create tag management
+
+## ISSUES
+
+- If someone clones an org repo, or a portion of it, org may not be initialised. User has to be careful. Could push invalid changes to server. Think about mitigation of this.
