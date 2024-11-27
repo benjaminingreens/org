@@ -9,7 +9,7 @@ setup(
     author="Benjamin Hammond",
     author_email="benjaminphammond@gmail.com",
     url="https://github.com/benjaminingreens/org",
-    packages=find_packages(include=['cli', 'creation', 'validation', 'hooks', 'views']),
+    packages=find_packages(include=['main', 'cli', 'creation', 'validation', 'hooks', 'views']),
     include_package_data=True,
     package_data={
         'hooks': ['*'],  # Ensure your hooks are included
@@ -20,7 +20,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'org = bin.cli:main',  # Update to the new script location
+            'org = main:main',  # Update to the new script location
         ],
     },
     classifiers=[
