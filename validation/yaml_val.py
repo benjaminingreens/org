@@ -145,6 +145,8 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
         # ------------------------------
         if item_state == "new":
 
+            log(f"Updating automatic properties for new item")
+
             yaml_content["created"] = current_time
             yaml_content["modified"] = current_time
             yaml_content["uid"] = os.urandom(8).hex()
@@ -156,53 +158,96 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
         # ------------------------------
         elif item_state in ["existing", "lapsed"]:
 
+            if item_state == "existing":
+                log(f"Updating automatic properties for existing item")
+            elif item_state == "lapsed":
+                log(f"Updating automatic properties for lapsed item")
+
             # OFNOTE2: I added in here the conversion to string
-            # which removed the pyright error lol.
+            # which removed the pyright error lol
             # Just keep an eye on it in case it causes any further issues.
+            #
+            # Get the stat info for the file
             stat_info = os.stat(str(filepath))
 
-            yaml_content["modified"] = datetime.datetime.fromtimestamp(stat_info[stat.ST_MTIME]).strftime(
-                    "%Y-%m-%d@%H:%M:%S"
-            )
+            # Get the modified stat time
+            yaml_content["modified"] = datetime.datetime.fromtimestamp(
+                stat_info[stat.ST_MTIME]
+            ).strftime("%Y-%m-%d@%H:%M:%S")
 
-            # Update the markdown file with updated YAML front matter
+            # Update YAML front matter with modified stat time
             update_yaml_frontmatter(filepath, yaml_content)
 
+            log("Double checking that created time is correct")
+
+            # The following logic opens up the relevant index for the file
+            # and checks if the created time in the YAML for the file
+            # matches the created time for the file stored in the index.
+            # If there is no match, then the created time stored in the index
+            # takes precedence, and is pushed to the YAML front matter.
             index_name = "index" if item_state == "existing" else "index_1"
 
-            # Check created date with index.json
-            with open(f".org/{index_name}.json") as f:
-                index_data = json.load(f)
+            log(f"Reading file data from index (index name: {index_name})")
 
-                # Check if index_data is a list or dictionary
+            try:
+                # Open the relevant index
+                # (index_1 for lapsed files)
+                with open(f".org/{index_name}.json") as f:
+                    index_data = json.load(f)
+
+                # If index_data is a dictionary, carry out logic explained
                 if isinstance(index_data, dict):
                     if (
                         index_data.get(filepath, {}).get("created")
                         != yaml_content["created"]
                     ):
-                        yaml_content["created"] = ensure_quotes(
-                            index_data.get(filepath, {}).get("created")
+                        yaml_content["created"] = index_data.get(filepath, {}).get(
+                            "created"
                         )
                         update_yaml_frontmatter(filepath, yaml_content)
+
+                # If index_data is a list, carry out logic explained
                 elif isinstance(index_data, list):
+
                     for item in index_data:
                         if item.get("filepath") == filepath:
+
                             if item.get("created") != yaml_content["created"]:
-                                yaml_content["created"] = ensure_quotes(
-                                    item.get("created")
-                                )
+                                yaml_content["created"] = item.get("created")
                                 update_yaml_frontmatter(filepath, yaml_content)
+
                             break
+
                 else:
+
+                    # OFNOTE3: The ValueError here shouldn't be a problem
+                    # when it comes to server-side, I don't think.
+                    # As with other errors in other validation scripts (all
+                    # of which will be running server-side), they are safe
+                    # because the validation will have run client-side before
+                    # a push to server. This error is included in those.
+                    # However, I still want to flag this.
+                    log(
+                        f"File data from index is not in dict or list format. "
+                        + "Raising Value Error"
+                    )
                     raise ValueError(
-                        "index.json format is not supported (neither list nor dictionary)"
+                        f"File data from index is not in dict or " + "list format."
                     )
 
-        log(f"filepath at the end of yaml_val: {filepath}")
+            except Exception as e:
+                log(
+                    f"There was an issue opening the index file. "
+                    + "Raising Value Error"
+                )
+                raise ValueError(
+                    f"There was an issue opening the index file: " + f"{e}"
+                )
+
+        log(f"Filepath at the end of YAML validation is: {filepath}")
         return 0, yaml_content, filepath
 
+    # Validation failure message:
     except ValueError as e:
-        error_message = str(e)
-        log(error_message)  # Log the error to debug.txt
-        print("Validation failed:", error_message)
+        log(f"YAML validation failed due to: {e}")
         return 2, None, filepath

@@ -1,7 +1,16 @@
-# creation_val.py
+## ==============================
+## creation_val.py
+## ==============================
+
+## ==============================
+## Imports
+## ==============================
 import datetime
 
 
+## ==============================
+## Functions
+## ==============================
 # Validate and construct YAML content for a note
 def construct_note(args):
     # Prepare YAML content based on the parsed args

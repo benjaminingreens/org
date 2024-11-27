@@ -16,7 +16,7 @@
 # if previous validation steps found issues. So, regardless,
 # the validation steps may need to interrupt the program.
 # This should be fine, as I have implemented security features including
-# the pre-committ git hook, which will prevent any such issues
+# the pre-commit git hook, which will prevent any such issues
 # from being pushed to a server. Though I still need to
 # review the handling of 'lapsed' files for potential server-side issues.
 

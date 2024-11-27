@@ -236,11 +236,11 @@ The end date or date-time for the event. Must be in one of the following formats
 
 ## `org view`
 
-## Validation
-
 ### TUI
 
 ### Command Line
+
+## Validation
 
 ## Configuration / Defaults
 
@@ -260,3 +260,4 @@ The end date or date-time for the event. Must be in one of the following formats
 ## ISSUES
 
 - If someone clones an org repo, or a portion of it, org may not be initialised. User has to be careful. Could push invalid changes to server. Think about mitigation of this.
+- Ensure server-side logic is secure. There are a few places where things feel a bit risky.
