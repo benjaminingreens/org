@@ -1,2 +1,7 @@
+fuzzywuzzy==0.18.0
+Levenshtein==0.26.1
+-e git+ssh://git@github.com/benjaminingreens/org.git@3ddc266fda8bd2244535bbb457b0df318adc6a33#egg=org
+python-Levenshtein==0.26.1
 PyYAML==6.0.2
-setuptools==75.1.0
+RapidFuzz==3.10.1
+setuptools==75.6.0

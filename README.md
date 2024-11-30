@@ -251,11 +251,14 @@ The end date or date-time for the event. Must be in one of the following formats
 ## TODO
 
 - Create command line views
-- Properly finish TUI views
 - Standardise configuration handling
   - Including re-initialisation for config re-writes
+  - Urgency decay as an option?
+- Open file when created (include options in config)
 - Create routine management
 - Create tag management
+- Org command currently setup to work only in org dirs. Fix
+- Improve messages for errors etc. (replace ValueErrors with print statements and exit the script)
 
 ## ISSUES
 

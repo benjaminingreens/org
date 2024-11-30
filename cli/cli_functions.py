@@ -16,11 +16,11 @@ import importlib.resources as pkg_resources
 ## ==============================
 ## Module imports
 ## ==============================
-from org.scripts.views import views
-from org.scripts.validation.validation import (
+from views import views
+from validation.validation import (
     main as run_validation,
 )
-from org.scripts.creation.creation_val import (
+from creation.creation_val import (
     construct_note,
     construct_todo,
     construct_event,
@@ -54,7 +54,7 @@ def current_datetime():
 # Generic function to get the hook file path within the package
 def get_hook_path(hook_name):
     # Assuming 'my_package' is the name of your package
-    with pkg_resources.path("org.scripts.hooks", hook_name) as hook_path:
+    with pkg_resources.path("hooks", hook_name) as hook_path:
         return hook_path
 
 
@@ -349,36 +349,13 @@ def display_graphical_view(
     sort_prop=None,
     reverse=False,
 ):
-    """Handle graphical view display with optional filters and sorting."""
-
-    # Start curses graphical view with filters and sorting applied
-    def inner(stdscr):
-        entries = []
-
-        if file_type == "notes":
-            entries = views.load_files_from_subdir("notes")
-        elif file_type == "todos":
-            entries = views.load_files_from_subdir("todos")
-        elif file_type == "events":
-            entries = views.load_files_from_subdir("events")
-        elif file_type == "all":
-            notes = views.load_files_from_subdir("notes")
-            todos = views.load_files_from_subdir("todos")
-            events = views.load_files_from_subdir("events")
-            entries = notes + todos + events
-
-        # Apply search/filter if specified
-        if search_prop and search_term:
-            if exact:
-                entries = views.exact_search(entries, search_prop, search_term)
-            else:
-                entries = views.fuzzy_search(entries, search_prop, search_term)
-
-        # Apply sorting if specified
-        if sort_prop:
-            entries = views.sort_items(entries, prop=sort_prop, reverse=reverse)
-
-        # Display the entries in the graphical interface
-        views.display_files_with_view(stdscr, entries, file_type)
-
-    curses.wrapper(inner)
+    """Handle terminal-based view display with optional filters and sorting."""
+    search_command = "es" if exact else "s" if search_prop and search_term else None
+    views.main(
+        file_type=file_type,
+        search_command=search_command,
+        search_prop=search_prop,
+        search_term=search_term,
+        sort_prop=sort_prop,
+        reverse=reverse,
+    )

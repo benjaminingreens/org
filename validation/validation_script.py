@@ -1,5 +1,5 @@
 ## ==============================
-## validation.py
+## validation_script.py
 ## ==============================
 
 ## ==============================
@@ -11,8 +11,8 @@ import datetime
 ## ==============================
 ## Module Imports
 ## ==============================
-from org.scripts.device_setup import main as device_setup
-from org.scripts.validation.validation_functions import (
+from main.device_setup import main as device_setup
+from validation.validation_functions import (
     check_org_initialized,
     load_config,
     load_or_initialize_index,

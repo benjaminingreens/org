@@ -37,7 +37,7 @@ from datetime import date
 ## ==============================
 ## Module Imports
 ## ==============================
-from org.scripts.validation.yaml_val import validate_yaml_frontmatter as validate_yaml
+from validation.yaml_val import validate_yaml_frontmatter as validate_yaml
 
 ## ==============================
 ## Constants
@@ -264,11 +264,19 @@ def update_index(index, index_1):
                 if item["stat_mod"] < file_stat[stat.ST_MTIME]:
                     log(f"Index not up to date for file: {file_path}")
 
+                    # I have modified this to get the yaml from the
+                    # markdown rather than from the index.
+                    # The index will not contain modifications the user
+                    # may have made to existing files, so it makes
+                    # more sense to do it this way.
                     log(f"Validating YAML before updating index")
-                    # JSON data *IS* YAML data for existing items
-                    # This is just to make it clear for readability
-                    yaml_data = item
+                    # yaml_data = item
+                    yaml_data = read_yaml_from_file(file_path)
 
+                    # OFNOTE1: yaml_data here needs to be the yaml from the markdown
+                    # since the user could have edited the markdown.
+                    # I just realised this may not be captured.
+                    #
                     # Pass file path, YAML data, and item state to validation function
                     # This is where the REAL validation happens
                     exit_code, yaml_data, file_path = validate_yaml(
@@ -293,6 +301,8 @@ def update_index(index, index_1):
 
                     # Actually update the index with the file metadata
                     log(f"Updating index for file: {file_path}")
+                    log(f"yml data: {yaml_data}")
+                    log(f"item: {item}")
                     item.update(yaml_data)
                     item["stat_access"] = file_stat[stat.ST_ATIME]
                     item["stat_mod"] = file_stat[stat.ST_MTIME]

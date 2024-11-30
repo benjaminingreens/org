@@ -8,13 +8,15 @@
 import os
 import datetime
 import argparse
+import curses
 
 ## ==============================
 ## Module imports
 ## ==============================
-from org.scripts.device_setup import main as device_setup
-from org.scripts.cli.cli_functions import init, display_graphical_view, create_file
-from org.scripts.validation.validation import main as run_validation
+from main.device_setup import main as device_setup
+from cli.cli_functions import init, display_graphical_view, create_file
+from validation.validation import main as run_validation
+from views.views import main as initiate_tui
 
 ## ==============================
 ## Constants
@@ -40,6 +42,18 @@ def main():
     log("Process start")
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     subparsers = parser.add_subparsers(dest="command")
+
+    ## ------------------------------
+    ## 'init' command logic
+    ## ------------------------------
+    # Init command
+    init_parser = subparsers.add_parser("init", help="Initialize the org setup")
+
+    ## ------------------------------
+    ## 'val' command logic
+    ## ------------------------------
+    # Validation command
+    val_parser = subparsers.add_parser("val", help="Run validation")
 
     ## ------------------------------
     ## 'view' command logic
@@ -213,6 +227,7 @@ def main():
             )
             return
         device_setup()
+        curses.wrapper(initiate_tui)
     log("Process end")
 
 

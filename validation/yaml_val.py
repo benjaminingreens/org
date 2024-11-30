@@ -22,12 +22,12 @@ import json
 ## ==============================
 ## Module imports
 ## ==============================
-from org.scripts.validation.yaml_val_functions import (
+from validation.yaml_val_functions import (
     update_yaml_frontmatter,
     current_datetime,
     load_config,
 )
-from org.scripts.validation.yaml_val_functions import (
+from validation.yaml_val_functions import (
     validate_datetime,
     validate_item,
     validate_tags,
@@ -106,148 +106,143 @@ def validate_yaml_frontmatter(filepath, yaml_content, item_state):
     ## ------------------------------
     ## Run property val. functions
     ## ------------------------------
-    try:
 
-        # OFNOTE3: The filepath used in validate_item has not yet
-        # been cleaned by validate_title. This may not be a problem,
-        # but observe the logs to see if the output makes sense
-        # to the user.
-        item_type = validate_item(filepath, yaml_content)
-        filepath = validate_title(item_type, filepath, yaml_content)
+    # OFNOTE3: The filepath used in validate_item has not yet
+    # been cleaned by validate_title. This may not be a problem,
+    # but observe the logs to see if the output makes sense
+    # to the user.
+    item_type = validate_item(filepath, yaml_content)
+    filepath = validate_title(item_type, filepath, yaml_content)
 
-        validate_category(item_type, filepath, yaml_content, config)
-        validate_tags(item_type, filepath, yaml_content, config)
+    validate_category(item_type, filepath, yaml_content, config)
+    validate_tags(item_type, filepath, yaml_content, config)
 
-        # At this point in the script, all files of item type Note
-        # Will have been validated.
-        if item_type != "Note":
-            validate_assignees(item_type, filepath, yaml_content, config)
-            validate_status(item_type, filepath, yaml_content, config)
+    # At this point in the script, all files of item type Note
+    # Will have been validated.
+    if item_type != "Note":
+        validate_assignees(item_type, filepath, yaml_content, config)
+        validate_status(item_type, filepath, yaml_content, config)
 
-        # Urgency and Importance validation for Todo files
-        if item_type == "Todo":
-            validate_urgency(item_type, filepath, yaml_content, config)
-            validate_importance(item_type, filepath, yaml_content, config)
-            validate_deadline(item_type, filepath, yaml_content, config)
+    # Urgency and Importance validation for Todo files
+    if item_type == "Todo":
+        validate_urgency(item_type, filepath, yaml_content, config)
+        validate_importance(item_type, filepath, yaml_content, config)
+        validate_deadline(item_type, filepath, yaml_content, config)
 
-        # Event specific validation for start and end
-        if item_type == "Event":
-            validate_start_and_end_dates(item_type, filepath, yaml_content, config)
+    # Event specific validation for start and end
+    if item_type == "Event":
+        validate_start_and_end_dates(item_type, filepath, yaml_content, config)
 
-        # ------------------------------
-        # Update auto properties
-        # ------------------------------
+    # ------------------------------
+    # Update auto properties
+    # ------------------------------
 
-        # Get current datetime
-        current_time = current_datetime(type="full")
+    # Get current datetime
+    current_time = current_datetime(type="full")
 
-        # Auto props. for new items
-        # ------------------------------
-        if item_state == "new":
+    # Auto props. for new items
+    # ------------------------------
+    if item_state == "new":
 
-            log(f"Updating automatic properties for new item")
+        log(f"Updating automatic properties for new item")
 
-            yaml_content["created"] = current_time
-            yaml_content["modified"] = current_time
-            yaml_content["uid"] = os.urandom(8).hex()
+        yaml_content["created"] = current_time
+        yaml_content["modified"] = current_time
+        yaml_content["uid"] = os.urandom(8).hex()
 
-            # Update the markdown file with new YAML front matter
-            update_yaml_frontmatter(filepath, yaml_content)
+        # Update the markdown file with new YAML front matter
+        update_yaml_frontmatter(filepath, yaml_content)
 
-        # Auto props. for ex/lp items
-        # ------------------------------
-        elif item_state in ["existing", "lapsed"]:
+    # Auto props. for ex/lp items
+    # ------------------------------
+    elif item_state in ["existing", "lapsed"]:
 
-            if item_state == "existing":
-                log(f"Updating automatic properties for existing item")
-            elif item_state == "lapsed":
-                log(f"Updating automatic properties for lapsed item")
+        if item_state == "existing":
+            log(f"Updating automatic properties for existing item")
+        elif item_state == "lapsed":
+            log(f"Updating automatic properties for lapsed item")
 
-            # OFNOTE2: I added in here the conversion to string
-            # which removed the pyright error lol
-            # Just keep an eye on it in case it causes any further issues.
-            #
-            # Get the stat info for the file
-            stat_info = os.stat(str(filepath))
+        # OFNOTE2: I added in here the conversion to string
+        # which removed the pyright error lol
+        # Just keep an eye on it in case it causes any further issues.
+        #
+        # Get the stat info for the file
+        stat_info = os.stat(str(filepath))
 
-            # Get the modified stat time
-            yaml_content["modified"] = datetime.datetime.fromtimestamp(
-                stat_info[stat.ST_MTIME]
-            ).strftime("%Y-%m-%d@%H:%M:%S")
+        # Get the modified stat time
+        yaml_content["modified"] = datetime.datetime.fromtimestamp(
+            stat_info[stat.ST_MTIME]
+        ).strftime("%Y-%m-%d@%H:%M:%S")
 
-            # Update YAML front matter with modified stat time
-            update_yaml_frontmatter(filepath, yaml_content)
+        # Update YAML front matter with modified stat time
+        update_yaml_frontmatter(filepath, yaml_content)
 
-            log("Double checking that created time is correct")
+        log("Double checking that created time is correct")
 
-            # The following logic opens up the relevant index for the file
-            # and checks if the created time in the YAML for the file
-            # matches the created time for the file stored in the index.
-            # If there is no match, then the created time stored in the index
-            # takes precedence, and is pushed to the YAML front matter.
-            index_name = "index" if item_state == "existing" else "index_1"
+        # The following logic opens up the relevant index for the file
+        # and checks if the created time in the YAML for the file
+        # matches the created time for the file stored in the index.
+        # If there is no match, then the created time stored in the index
+        # takes precedence, and is pushed to the YAML front matter.
+        index_name = "index" if item_state == "existing" else "index_1"
 
-            log(f"Reading file data from index (index name: {index_name})")
+        log(f"Reading file data from index (index name: {index_name})")
 
-            try:
-                # Open the relevant index
-                # (index_1 for lapsed files)
-                with open(f".org/{index_name}.json") as f:
-                    index_data = json.load(f)
+        try:
+            # Open the relevant index
+            # (index_1 for lapsed files)
+            with open(f".org/{index_name}.json") as f:
+                index_data = json.load(f)
 
-                # If index_data is a dictionary, carry out logic explained
-                if isinstance(index_data, dict):
-                    if (
-                        index_data.get(filepath, {}).get("created")
-                        != yaml_content["created"]
-                    ):
-                        yaml_content["created"] = index_data.get(filepath, {}).get(
-                            "created"
-                        )
-                        update_yaml_frontmatter(filepath, yaml_content)
-
-                # If index_data is a list, carry out logic explained
-                elif isinstance(index_data, list):
-
-                    for item in index_data:
-                        if item.get("filepath") == filepath:
-
-                            if item.get("created") != yaml_content["created"]:
-                                yaml_content["created"] = item.get("created")
-                                update_yaml_frontmatter(filepath, yaml_content)
-
-                            break
-
-                else:
-
-                    # OFNOTE3: The ValueError here shouldn't be a problem
-                    # when it comes to server-side, I don't think.
-                    # As with other errors in other validation scripts (all
-                    # of which will be running server-side), they are safe
-                    # because the validation will have run client-side before
-                    # a push to server. This error is included in those.
-                    # However, I still want to flag this.
-                    log(
-                        f"File data from index is not in dict or list format. "
-                        + "Raising Value Error"
+            # If index_data is a dictionary, carry out logic explained
+            if isinstance(index_data, dict):
+                if (
+                    index_data.get(filepath, {}).get("created")
+                    != yaml_content["created"]
+                ):
+                    yaml_content["created"] = index_data.get(filepath, {}).get(
+                        "created"
                     )
-                    raise ValueError(
-                        f"File data from index is not in dict or " + "list format."
-                    )
+                    update_yaml_frontmatter(filepath, yaml_content)
 
-            except Exception as e:
+            # If index_data is a list, carry out logic explained
+            elif isinstance(index_data, list):
+
+                for item in index_data:
+                    if item.get("filepath") == filepath:
+
+                        if item.get("created") != yaml_content["created"]:
+                            yaml_content["created"] = item.get("created")
+                            update_yaml_frontmatter(filepath, yaml_content)
+
+                        break
+
+            else:
+
+                # OFNOTE3: The ValueError here shouldn't be a problem
+                # when it comes to server-side, I don't think.
+                # As with other errors in other validation scripts (all
+                # of which will be running server-side), they are safe
+                # because the validation will have run client-side before
+                # a push to server. This error is included in those.
+                # However, I still want to flag this.
                 log(
-                    f"There was an issue opening the index file. "
+                    f"File data from index is not in dict or list format. "
                     + "Raising Value Error"
                 )
                 raise ValueError(
-                    f"There was an issue opening the index file: " + f"{e}"
+                    f"File data from index is not in dict or " + "list format."
                 )
 
-        log(f"Filepath at the end of YAML validation is: {filepath}")
-        return 0, yaml_content, filepath
+        except Exception as e:
+            log(
+                f"There was an issue opening the index file. "
+                + "Raising Value Error"
+            )
+            raise ValueError(
+                f"There was an issue opening the index file: " + f"{e}"
+            )
 
-    # Validation failure message:
-    except ValueError as e:
-        log(f"YAML validation failed due to: {e}")
-        return 2, None, filepath
+    log(f"Filepath at the end of YAML validation is: {filepath}")
+    return 0, yaml_content, filepath
+

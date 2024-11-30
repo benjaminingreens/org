@@ -245,6 +245,7 @@ def get_property_value(item_type, filepath, yaml_content, config, property_strin
 
     # Get property from yaml_content
     property = yaml_content.get(f"{property_string}", None)
+    log(f"{property_string} is: {property}")
 
     # If property is None, get default value from config
     if property is None:

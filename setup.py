@@ -20,7 +20,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'org = main:main',  # Update to the new script location
+            'org = main.main:main',  # Update to the new script location
         ],
     },
     classifiers=[

@@ -1,397 +1,196 @@
-# views.py
-# run_validation slows down opening the main menu. think of solutions (perhaps threading?)
-
 import os
 import json
-import yaml
-import curses
 import subprocess
-from org.scripts.validation.validation import main as run_validation
+import datetime
+from fuzzywuzzy import fuzz
 
-# Dynamically set SUPER_ROOT to the directory where the 'borg' command is run
+# Constants
 SUPER_ROOT = os.getcwd()
-DEBUG_LOG = os.path.join(SUPER_ROOT, "debug.txt")
 INDEX_JSON_PATH = os.path.join(SUPER_ROOT, ".org/index.json")
+OPEN_COMMAND = "nvim {filepath}"  # Default command to open files
+LOG_PATH = os.path.join(os.getcwd(), "log.txt")
 
-# Log debug output to a file
-def log_debug(message):
-    with open(DEBUG_LOG, "a") as f:
-        f.write(message + "\n")
+# Logging function
+def log(message):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    script_name = os.path.basename(__file__)
+    with open(LOG_PATH, "a") as f:
+        f.write(f"[{current_time}][{script_name}]: {message}\n")
 
-# Load JSON data from index.json
+
+# Load JSON data from the index
 def load_index_json():
-    log_debug(f"Loading data from {INDEX_JSON_PATH}...")
-    with open(INDEX_JSON_PATH, 'r') as file:
+    """Load items from index.json."""
+    if not os.path.exists(INDEX_JSON_PATH):
+        raise FileNotFoundError(f"Index file not found: {INDEX_JSON_PATH}")
+    with open(INDEX_JSON_PATH, "r") as file:
         return json.load(file)
 
-# Load all files from the index.json filtered by item_type
-def load_files_from_subdir(item_type):
-    entries = []
-    log_debug(f"Loading files of type {item_type} from index.json...")
-    
-    # Load the full index.json data
-    json_data = load_index_json()
 
-    # Filter based on the item_type (e.g., notes, todos, events)
-    for entry in json_data:
-        if entry["item_type"] == item_type:
-            entries.append((entry["uid"], entry, item_type))
-            log_debug(f"Loaded {entry['title']} from index.json")
-    
-    return entries
+# Fuzzy search function
+def fuzzy_match(items, prop, search_term):
+    """Perform a fuzzy search on the items."""
+    return [
+        item for item in items
+        if fuzz.partial_ratio(item.get(prop, "").lower(), search_term.lower()) > 75
+    ]
 
-# Function to split long lines at '//' instead of cutting mid-word
-def wrap_text_smart(text, width):
-    lines = []
-    while len(text) > width:
-        split_idx = text[:width].rfind('//')
-        if split_idx == -1:
-            split_idx = width
-        lines.append(text[:split_idx])
-        text = text[split_idx:].lstrip()
-        if not text.startswith('//'):
-            text = '//' + text
-    lines.append(text)
-    return lines
 
-def fuzzy_search(entries, prop, search_term):
-    search_term = search_term.lower().strip().strip('"')  # Strip surrounding quotes from the search term
-    log_debug(f"Fuzzy searching for {search_term} in {prop}")
-    
-    # Check if the property is a list or a string and handle both cases
-    def prop_contains_term(entry_prop):
-        if isinstance(entry_prop, list):  # For list properties (e.g., tags in flow style)
-            return any(search_term in str(item).lower().strip().strip('"') for item in entry_prop)
-        elif isinstance(entry_prop, str):  # For simple string properties
-            return search_term in entry_prop.lower().strip().strip('"')
-        return False
+# Exact search function
+def exact_match(items, prop, search_term):
+    """Perform an exact search on the items."""
+    return [
+        item for item in items
+        if item.get(prop, "").lower() == search_term.lower()
+    ]
 
-    # Apply the search logic to the relevant property
-    return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
-            if yaml_data.get(prop, 'n/a').lower() != 'n/a' and prop_contains_term(yaml_data.get(prop, ''))]
 
-def exact_search(entries, prop, search_term):
-    search_term = search_term.lower().strip().strip('"')  # Strip surrounding quotes from the search term
-    log_debug(f"Exact searching for {search_term} in {prop}")
+# Sorting function
+def sort_items(items, prop, reverse=False):
+    """Sort items by a given property."""
+    return sorted(
+        items,
+        key=lambda item: item.get(prop, ""),
+        reverse=reverse
+    )
 
-    # Check if the property is a list or a string and handle both cases
-    def prop_contains_exact_term(entry_prop):
-        if isinstance(entry_prop, list):  # For list properties (e.g., tags in flow style)
-            return search_term in [str(item).lower().strip().strip('"') for item in entry_prop]
-        elif isinstance(entry_prop, str):  # For simple string properties
-            return search_term == entry_prop.lower().strip().strip('"')
-        return False
 
-    # Apply the search logic to the relevant property
-    return [(file_path, yaml_data, item_type) for file_path, yaml_data, item_type in entries 
-            if yaml_data.get(prop, 'n/a').lower() != 'n/a' and prop_contains_exact_term(yaml_data.get(prop, ''))]
+# Construct filepath for an item
+def construct_filepath(item):
+    """Construct the filepath for an item."""
+    try:
+        item_type = item["item_type"]
+        root_folder = f"{item["root_folder"]}_org"
+        title = item["title"].lower().replace(" ", "_")
+        filepath = os.path.join(SUPER_ROOT, root_folder, item_type, f"{title}.md")
+        return filepath
+    except KeyError as e:
+        log(f"Error constructing filepath: Missing key {e}")
+        return None
 
-def sort_items(entries, prop=None, reverse=False):
-    log_debug(f"Sorting by {prop}")
 
-    def sort_key(entry):
-        # Fetch the property value, default to 'n/a' if not found
-        value = entry[1].get(prop, 'n/a').strip().strip('"')  # Strip quotes before sorting
-        # If the value is 'n/a', treat it as greater than any other value
-        return (value == 'n/a', value)
-    
-    # Sort the entries using the sort_key, placing 'n/a' at the bottom
-    return sorted(entries, key=sort_key, reverse=reverse)
+# Open item using the custom command
+def open_item(filepath):
+    """Open a file using the user-defined command."""
+    if not filepath:
+        print(f"Error: Filepath is None. Cannot open the file.")
+        return
 
-def display_input(stdscr, prompt):
-    h, w = stdscr.getmaxyx()
-    stdscr.addstr(h - 1, 0, prompt.ljust(w - 1))
-    stdscr.refresh()
-    
-    input_str = []
-    stdscr.nodelay(False)  # Blocking input mode to correctly detect Esc
-    while True:
-        key = stdscr.getch()
-        if key == 27:  # Esc key
-            return None  # Return None to indicate Esc was pressed
-        elif key in (10, 13):  # Enter key
+    if os.path.exists(filepath):
+        # Replace {filepath} in the OPEN_COMMAND with the actual filepath
+        command = OPEN_COMMAND.format(filepath=filepath)
+        try:
+            subprocess.run(command, shell=True)
+        except Exception as e:
+            print(f"Error running command: {e}")
+    else:
+        print(f"Error: File not found at {filepath}")
+
+
+# Display a single page of items
+def display_page(items, page_number, page_size, file_type):
+    """Display a single page of items."""
+    start_idx = page_number * page_size
+    end_idx = min(start_idx + page_size, len(items))  # Ensure end_idx does not exceed items length
+    total_pages = (len(items) + page_size - 1) // page_size
+
+    # Use ANSI escape codes to clear the screen and move the cursor to the top
+    print("\033[H\033[J", end="")
+
+    # Ensure valid range for start and end indices
+    if start_idx >= len(items):
+        print("No items to display.")
+        return
+
+    # Display items for the current page
+    for idx, item in enumerate(items[start_idx:end_idx], start=start_idx + 1):
+        prefix = {"notes": "N:", "todos": "T:", "events": "E:"}.get(item.get("item_type"), "X:")
+        title = item.get("title", "Untitled")
+        print(f"{idx:>3}. {prefix} {title}")
+
+    # Calculate footer position
+    _, terminal_height = os.get_terminal_size()
+    footer_position = terminal_height - 2  # Reserve lines for footer and input
+
+    # Move the cursor to the footer position
+    print(f"\033[{footer_position};0H", end="")
+
+    # Display pagination info and command options
+    print(f"Page {page_number + 1}/{total_pages}".ljust(40), end="")
+    print("\nPress 'n' for next page, 'p' for previous page, 'q' to quit, or enter a number to open an item.")
+
+def handle_pagination(items, file_type):
+    """Handle paginated display of items."""
+    terminal_width, terminal_height = os.get_terminal_size()
+
+    # Account for situations where font size or terminal height is small
+    page_size = max(1, terminal_height - 5)  # At least 1 item per page, accounting for headers and footers
+    page_number = 0
+    total_pages = (len(items) + page_size - 1) // page_size
+
+    while page_number < total_pages:
+        # Ensure page_number is within valid bounds
+        page_number = max(0, min(page_number, total_pages - 1))
+
+        # Display the current page
+        display_page(items, page_number, page_size, file_type)
+        print("\033[2K>>> ", end="", flush=True)  # Move cursor to bottom, clear line, and display input prompt
+
+        # Get user input
+        try:
+            command = input().strip().lower()
+        except KeyboardInterrupt:
+            print("\nExiting...")
             break
-        elif key == 127 or key == curses.KEY_BACKSPACE:  # Handle backspace
-            if input_str:
-                input_str.pop()
-                stdscr.addstr(h - 1, len(prompt) + len(input_str), ' ')
-                stdscr.move(h - 1, len(prompt) + len(input_str))
-        else:
-            input_str.append(chr(key))
-            stdscr.addch(h - 1, len(prompt) + len(input_str) - 1, chr(key))
-        stdscr.refresh()
 
-    # Check if the input is None before calling strip
-    result = ''.join(input_str).strip() if input_str else ""
-    return result
-
-# Function to display messages at the bottom without clearing the screen
-def display_message(stdscr, message):
-    h, w = stdscr.getmaxyx()  # Get current terminal height and width
-    log_debug(f"Displaying message: {message}")
-    
-    # Split the message into chunks that fit within the terminal width
-    lines = []
-    while len(message) > w - 1:
-        split_idx = message[:w - 1].rfind(' ')  # Try to break at the last space within the width
-        if split_idx == -1:
-            split_idx = w - 1  # No spaces found, break at width
-        lines.append(message[:split_idx])  # Add the portion that fits
-        message = message[split_idx:].lstrip()  # Continue with the rest of the message
-
-    lines.append(message)  # Add the final part of the message
-    lines.append("Press any key to continue.")
-
-    # Clear the bottom rows where we will display the wrapped message
-    for i in range(len(lines)):
-        stdscr.move(h - len(lines) + i, 0)
-        stdscr.clrtoeol()  # Clear the line where the message will be displayed
-
-    # Add each line of the message to the bottom of the screen
-    for i, line in enumerate(lines):
-        stdscr.addstr(h - len(lines) + i, 0, line)
-    
-    stdscr.refresh()
-    stdscr.getch()  # Wait for a key press to continue
-
-def display_files_with_view(stdscr, entries, view_filter=None, file_type="todo"):
-    current_selection = 0
-    original_entries = list(entries)
-
-    curses.curs_set(0)
-    curses.use_default_colors()
-    stdscr.keypad(True)
-
-    # Define headers for individual views
-    headers = {
-        "todo": "Title // Status // Urgency // Importance // Assignee // Deadline // Created // Modified // UID",
-        "note": "Title // Tags // Created // Modified // UID",
-        "event": "Title // Status // Start // End // Assignee // Created // Modified // UID",
-        "all": "Title // Status // Urgency // Importance // Assignee // Deadline // Tags // Start // End // Created // Modified // UID"
-    }
-
-    # Ensure the correct header is selected based on file_type
-    unified_header = headers.get(file_type, headers["all"])
-
-    while True:
-        h, w = stdscr.getmaxyx()  # Get screen height and width
-
-        stdscr.clear()
-
-        # Display the header at the top
-        wrapped_header = wrap_text_smart(unified_header, w)
-        row_idx = 0  # Start row index at the top of the screen
-
-        for header_line in wrapped_header:
-            stdscr.addstr(row_idx, 0, header_line[:w])  # Print the header
-            row_idx += 1
-
-        # Display each row as a CSV-style line with ' // ' as the separator
-        for idx, (file_uid, json_data, item_type) in enumerate(entries):
-            if row_idx >= h - 1:  # Ensure we don't overflow the screen
-                break
-
-            log_debug(f'item type is: {item_type}')
-
-            # Create a row with only relevant fields for each item type
-            if item_type == "todos":
-                title = json_data.get('title', 'Untitled')
-                status = json_data.get('status', 'n/a')
-                urgency = json_data.get('urgency', 'n/a')
-                importance = json_data.get('importance', 'n/a')
-                assignee = json_data.get('assignee', 'n/a')
-                deadline = json_data.get('deadline', 'n/a')  # Added deadline handling
-                created = json_data.get('created', 'n/a')
-                modified = json_data.get('modified', 'n/a')
-                uid = json_data.get('uid', 'n/a')
-                line = f"{title} // {status} // {urgency} // {importance} // {assignee} // {deadline} // {created} // {modified} // {uid}"
-            elif item_type == "notes":
-                title = json_data.get('title', 'Untitled')
-                tags = json_data.get('tags', 'n/a')
-                created = json_data.get('created', 'n/a')
-                modified = json_data.get('modified', 'n/a')
-                uid = json_data.get('uid', 'n/a')
-                line = f"{title} // {tags} // {created} // {modified} // {uid}"
-            elif item_type == "events":
-                title = json_data.get('title', 'Untitled')
-                status = json_data.get('status', 'n/a')
-                start = json_data.get('start', 'n/a')
-                end = json_data.get('end', 'n/a')
-                assignee = json_data.get('assignee', 'n/a')
-                created = json_data.get('created', 'n/a')
-                modified = json_data.get('modified', 'n/a')
-                uid = json_data.get('uid', 'n/a')
-                line = f"{title} // {status} // {start} // {end} // {assignee} // {created} // {modified} // {uid}"
-
-            # Wrap the line to fit within the terminal width
-            wrapped_lines = wrap_text_smart(line, w)
-
-            for wrapped_line in wrapped_lines:
-                if row_idx >= h - 1:  # Ensure we don't overflow the screen
-                    break
-
-                if idx == current_selection:
-                    stdscr.attron(curses.A_REVERSE)
-                    stdscr.addstr(row_idx, 0, wrapped_line[:w])  # Reverse highlight the selected item
-                    stdscr.attroff(curses.A_REVERSE)
-                else:
-                    stdscr.addstr(row_idx, 0, wrapped_line[:w])
-
-                row_idx += 1
-
-        stdscr.refresh()
-
-        key = stdscr.getch()
-
-        # Vertical navigation
-        if key == ord('k') and current_selection > 0:
-            current_selection -= 1
-        elif key == ord('j') and current_selection < len(entries) - 1:
-            current_selection += 1
-
-        # Filter by property using Vim-like ':s' command (fuzzy search)
-        elif key == ord(':'):
-            command = display_input(stdscr, ":")
-            if command is None:
-                continue  # Handle Esc key, return to the main view
-            elif command.startswith('s'):
-                search_prop = display_input(stdscr, "Property: ")
-                search_prop = search_prop.strip() if search_prop else ""  # Handle None case
-                if not search_prop:
-                    continue  # Handle Esc key, return to the main view
-
-                search_term = display_input(stdscr, f"Search {search_prop}: ")
-                search_term = search_term.strip() if search_term else ""  # Handle None case
-                if not search_term:
-                    continue  # Handle Esc key, return to the main view
-
-                new_entries = fuzzy_search(entries, search_prop.lower(), search_term)
-                if new_entries:
-                    entries = new_entries
-                    display_message(stdscr, f"Filtering by {search_prop.lower()}: {search_term}")
-                else:
-                    display_message(stdscr, f"No results found for {search_term}")
-                log_debug(f"Fuzzy search: {len(new_entries)} results")
-
-            elif command.startswith('es'):
-                search_prop = display_input(stdscr, "Property: ")
-                search_prop = search_prop.strip() if search_prop else ""  # Handle None case
-                if not search_prop:
-                    continue  # Handle Esc key, return to the main view
-
-                search_term = display_input(stdscr, f"Exact search {search_prop}: ")
-                search_term = search_term.strip() if search_term else ""  # Handle None case
-                if not search_term:
-                    continue  # Handle Esc key, return to the main view
-
-                new_entries = exact_search(entries, search_prop.lower(), search_term)
-                if new_entries:
-                    entries = new_entries
-                    display_message(stdscr, f"Exact filtering by {search_prop.lower()}: {search_term}")
-                else:
-                    display_message(stdscr, f"No results found for {search_term}")
-                log_debug(f"Exact search: {len(new_entries)} results")
-
-            elif command == 'o':
-                sort_prop = display_input(stdscr, "Sort by property: ")
-                if sort_prop is None:
-                    continue  # Check for Esc key
-                sort_prop = sort_prop.strip()  # Handle the strip only if it's not None
-                entries = sort_items(entries, sort_prop.lower())
-                display_message(stdscr, f"Sorted by {sort_prop.lower()}")
-                log_debug(f"Sorted by {sort_prop}")
-
-            elif command == 'r':
-                sort_prop = display_input(stdscr, "Reverse sort by property: ")
-                if sort_prop is None:
-                    continue  # Check for Esc key
-                sort_prop = sort_prop.strip()  # Handle the strip only if it's not None
-                entries = sort_items(entries, sort_prop.lower(), reverse=True)
-                display_message(stdscr, f"Reverse sorted by {sort_prop.lower()}")
-                log_debug(f"Reverse sorted by {sort_prop}")
-
-            elif command == 'a':
-                entries = list(original_entries)
-                display_message(stdscr, "Cleared all filters and searches.")
-                log_debug("Cleared all filters and searches.")
-
-            elif command == 'q':
-                break
-
-        elif key == curses.KEY_RESIZE:
-            h, w = stdscr.getmaxyx()  # Get screen height and width
-
-# Display a menu with j/k navigation, centered in the terminal
-def display_menu(stdscr, items):
-    current_selection = 0
-
-    while True:
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
-
-        # Calculate the vertical and horizontal starting points for centering the menu
-        menu_height = len(items)
-        menu_width = max(len(item) for item in items)
-        start_y = (h - menu_height) // 2
-        start_x = (w - menu_width) // 2
-
-        # Display the menu items, centered in the terminal
-        for idx, item in enumerate(items):
-            x = start_x
-            y = start_y + idx
-            if idx == current_selection:
-                stdscr.attron(curses.A_REVERSE)
-                stdscr.addstr(y, x, item)
-                stdscr.attroff(curses.A_REVERSE)
+        # Handle input commands
+        if command == "q":  # Quit
+            break
+        elif command == "n":  # Next page
+            if page_number + 1 < total_pages:
+                page_number += 1
+        elif command == "p":  # Previous page
+            if page_number > 0:
+                page_number -= 1
+        elif command.isdigit():  # Open specific item
+            item_number = int(command)
+            if 1 <= item_number <= len(items):
+                item = items[item_number - 1]
+                filepath = construct_filepath(item)
+                log(f"Opening filepath: {filepath}")
+                open_item(filepath)
             else:
-                stdscr.addstr(y, x, item)
+                print("\033[2K", end="\r", flush=True)  # Clear invalid input
+        else:
+            print("\033[2K", end="\r", flush=True)  # Clear invalid input
 
-        stdscr.refresh()
-        key = stdscr.getch()
+# Main entry point for viewing items
+def main(file_type, search_command=None, search_prop=None, search_term=None, sort_prop=None, reverse=False):
+    """Main entry point for viewing items."""
+    try:
+        all_items = load_index_json()
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        return
 
-        # Navigation
-        if key == ord('k') and current_selection > 0:
-            current_selection -= 1
-        elif key == ord('j') and current_selection < len(items) - 1:
-            current_selection += 1
-        elif key == ord('\n'):
-            return current_selection
-        elif key == ord(':'):
-            command = display_input(stdscr, ":")
-            if command is None or command == 'q':  # Handle Esc key or ':q' to quit
-                return -1
+    # Filter by file type
+    if file_type != "all":
+        items = [item for item in all_items if item["item_type"] == file_type]
+    else:
+        items = all_items
 
-# App logic
-def main(stdscr):
+    # Apply search logic
+    if search_command == "s" and search_prop and search_term:
+        items = fuzzy_match(items, search_prop, search_term)
+    elif search_command == "es" and search_prop and search_term:
+        items = exact_match(items, search_prop, search_term)
 
-    curses.curs_set(0)
-    curses.use_default_colors()
-    stdscr.keypad(True)
+    # Apply sorting
+    if sort_prop or not search_command:  # Default to sorting by modified if no search
+        items = sort_items(items, sort_prop or "modified", reverse or True)
 
-    run_validation()    
-
-    menu_items = ['View Notes', 'View Todos', 'View Events', 'View All']
-    while True:
-        choice = display_menu(stdscr, menu_items)
-        if choice == -1:
-            break
-        elif choice == 0:
-            notes = load_files_from_subdir('notes')
-            display_files_with_view(stdscr, notes, file_type="note")
-        elif choice == 1:
-            todos = load_files_from_subdir('todos')
-            display_files_with_view(stdscr, todos, file_type="todo")
-        elif choice == 2:
-            events = load_files_from_subdir('events')
-            display_files_with_view(stdscr, events, file_type="event")
-        elif choice == 3:
-            # Load all items from notes, todos, and events and display them together
-            notes = load_files_from_subdir('notes')
-            todos = load_files_from_subdir('todos')
-            events = load_files_from_subdir('events')
-            all_items = notes + todos + events
-            display_files_with_view(stdscr, all_items, file_type="all")
-
-if __name__ == "__main__":
-    open(DEBUG_LOG, "w").close()
-    curses.wrapper(main)
+    # Display items
+    if not items:
+        print("No items found.")
+    else:
+        handle_pagination(items, file_type)
