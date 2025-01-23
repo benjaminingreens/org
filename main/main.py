@@ -15,7 +15,7 @@ import curses
 ## ==============================
 from main.device_setup import main as device_setup
 from cli.cli_functions import init, display_graphical_view, create_file
-from validation.validation import main as run_validation
+from validation.validation_script import main as run_validation
 from views.views import main as initiate_tui
 
 ## ==============================
@@ -85,80 +85,36 @@ def main():
     ## ------------------------------
     ## 'create' command logic
     ## ------------------------------
-    # Create NOTE main command
-    create_note_parser = subparsers.add_parser("note", help="Create a new note")
+    # Create main 'create' command
+    create_parser = subparsers.add_parser("create", help="Create a new note, todo, or event")
+    create_subparsers = create_parser.add_subparsers(dest="create_type", required=True)
 
-    # Create NOTE arguments
+    # Create NOTE subcommand
+    create_note_parser = create_subparsers.add_parser("note", help="Create a new note")
     create_note_parser.add_argument("-t", "--title", type=str, help="Title of the note")
-    create_note_parser.add_argument(
-        "-tg", "--tags", type=str, help="Tags for the note, separated by /"
-    )
-    create_note_parser.add_argument(
-        "-c", "--category", type=str, help="Category for the note"
-    )
-    create_note_parser.add_argument(
-        "content", nargs=argparse.REMAINDER, help="Content of the note"
-    )
+    create_note_parser.add_argument("-tg", "--tags", type=str, help="Tags for the note, separated by /")
+    create_note_parser.add_argument("-c", "--category", type=str, help="Category for the note")
+    create_note_parser.add_argument("content", nargs=argparse.REMAINDER, help="Content of the note")
 
-    # Create  TODO main command
-    create_todo_parser = subparsers.add_parser("todo", help="Create a new todo")
-
-    # Create TODO arguments
-    create_todo_parser.add_argument(
-        "-u", "--urgent", action="store_true", help="Mark the todo as urgent"
-    )
-    create_todo_parser.add_argument(
-        "-i", "--important", action="store_true", help="Mark the todo as important"
-    )
-    create_todo_parser.add_argument(
-        "-tg", "--tags", type=str, help="Tags for the todo, separated by /"
-    )
-    create_todo_parser.add_argument(
-        "-c", "--category", type=str, help="Category for the todo"
-    )
-    create_todo_parser.add_argument(
-        "-a", "--assignee", type=str, help="Assignee for the todo"
-    )
-    create_todo_parser.add_argument(
-        "-d",
-        "--deadline",
-        type=str,
-        help="Deadline for the todo (YYYY-MM-DD or YYYY-MM-DD@HH:MM)",
-    )
-    create_todo_parser.add_argument(
-        "-s", "--status", type=str, help="Status of the todo"
-    )
+    # Create TODO subcommand
+    create_todo_parser = create_subparsers.add_parser("todo", help="Create a new todo")
+    create_todo_parser.add_argument("-u", "--urgent", action="store_true", help="Mark the todo as urgent")
+    create_todo_parser.add_argument("-i", "--important", action="store_true", help="Mark the todo as important")
+    create_todo_parser.add_argument("-tg", "--tags", type=str, help="Tags for the todo, separated by /")
+    create_todo_parser.add_argument("-c", "--category", type=str, help="Category for the todo")
+    create_todo_parser.add_argument("-a", "--assignee", type=str, help="Assignee for the todo")
+    create_todo_parser.add_argument("-d", "--deadline", type=str, help="Deadline for the todo (YYYY-MM-DD or YYYY-MM-DD@HH:MM)")
+    create_todo_parser.add_argument("-s", "--status", type=str, help="Status of the todo")
     create_todo_parser.add_argument("title", nargs="+", help="Title of the todo")
 
-    # Create EVENT main command
-    create_event_parser = subparsers.add_parser("event", help="Create a new event")
-
-    # Create EVENT arguments
-    create_event_parser.add_argument(
-        "-tg", "--tags", type=str, help="Tags for the event, separated by /"
-    )
-    create_event_parser.add_argument(
-        "-c", "--category", type=str, help="Category for the event"
-    )
-    create_event_parser.add_argument(
-        "-st",
-        "--start",
-        type=str,
-        required=True,
-        help="Start time for the event (YYYY-MM-DD or YYYY-MM-DD@HH:MM)",
-    )
-    create_event_parser.add_argument(
-        "-ed",
-        "--end",
-        type=str,
-        help="End time for the event (YYYY-MM-DD or YYYY-MM-DD@HH:MM)",
-    )
-    create_event_parser.add_argument(
-        "-a", "--assignee", type=str, help="Assignee for the event"
-    )
-    create_event_parser.add_argument(
-        "-s", "--status", type=str, help="Status of the event"
-    )
+    # Create EVENT subcommand
+    create_event_parser = create_subparsers.add_parser("event", help="Create a new event")
+    create_event_parser.add_argument("-tg", "--tags", type=str, help="Tags for the event, separated by /")
+    create_event_parser.add_argument("-c", "--category", type=str, help="Category for the event")
+    create_event_parser.add_argument("-st", "--start", type=str, required=True, help="Start time for the event (YYYY-MM-DD or YYYY-MM-DD@HH:MM)")
+    create_event_parser.add_argument("-ed", "--end", type=str, help="End time for the event (YYYY-MM-DD or YYYY-MM-DD@HH:MM)")
+    create_event_parser.add_argument("-a", "--assignee", type=str, help="Assignee for the event")
+    create_event_parser.add_argument("-s", "--status", type=str, help="Status of the event")
     create_event_parser.add_argument("title", nargs="+", help="Title of the event")
 
     ## ------------------------------
@@ -206,16 +162,16 @@ def main():
         else:
             display_graphical_view(args.file_type)
 
-    # CREATE commands
-    elif args.command in ["note", "todo", "event"]:
-        log(f"`org {args.command}` command received")
-        if args.command == "note":
+    # CREATE command
+    elif args.command == "create":
+        log(f"`org create {args.create_type}` command received")
+        if args.create_type == "note":
             create_file("note", args)
-        elif args.command == "todo":
+        elif args.create_type == "todo":
             create_file("todo", args)
-        elif args.command == "event":
+        elif args.create_type == "event":
             create_file("event", args)
-        log(f"{args.command.capitalize()} creation process complete")
+        log(f"{args.create_type.capitalize()} creation process complete")
 
     # ORG command
     else:

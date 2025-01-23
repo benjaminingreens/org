@@ -53,7 +53,7 @@ If you just want a quick preview of Org's key commands, here you go:
 
 - `org init`  
 - `org create note {note content}`  
-- `org create toddo {todo content}`  
+- `org create todo {todo content}`  
 - `org create event -st [start_date] {event content}`  
 - `org view`: `notes`, `todos`, `events`  
 - `org val`
@@ -250,15 +250,29 @@ The end date or date-time for the event. Must be in one of the following formats
 
 ## TODO
 
+- Refresh memory on:
+  - How to remove testing environment files
+  - How to recreate testing environment files
+    - Off the back of this I can create the standardised example library
+  - How to upload to AUR
+
 - Create command line views
+  - Add o and r, and allow combined commands
+  - Have them refresh after returning after editing note
+- Order the properties in a specific manner
 - Standardise configuration handling
   - Including re-initialisation for config re-writes
   - Urgency decay as an option?
 - Open file when created (include options in config)
 - Create routine management
 - Create tag management
+- Handle special characters in org create
+- Create standardised example library
+
 - Org command currently setup to work only in org dirs. Fix
 - Improve messages for errors etc. (replace ValueErrors with print statements and exit the script)
+  - Improve other general messages too - messages that say, for example, that note was created
+- Not entirely convinced that there will be no errors server-side. Check possibilities
 
 ## ISSUES
 

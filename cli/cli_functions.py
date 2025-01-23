@@ -17,7 +17,7 @@ import importlib.resources as pkg_resources
 ## Module imports
 ## ==============================
 from views import views
-from validation.validation import (
+from validation.validation_script import (
     main as run_validation,
 )
 from creation.creation_val import (

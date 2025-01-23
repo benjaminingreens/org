@@ -33,6 +33,7 @@ import sys
 import datetime
 from pathlib import Path
 from datetime import date
+from collections import OrderedDict
 
 ## ==============================
 ## Module Imports
@@ -159,6 +160,61 @@ def get_root_folder_name(root):
     basename = os.path.basename(parent_dir)  # Get the base directory name
     return basename.replace("_org", "")  # Remove '_org' from the base name
 
+# Add a custom representer for OrderedDict
+def represent_ordereddict(dumper, data):
+    return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+
+# Register the custom representer
+yaml.add_representer(OrderedDict, represent_ordereddict)
+
+def reorder_yaml(file_path, yaml_data, item_type, field_order):
+    """
+    Reorder the YAML fields in the front matter to match the predefined order.
+
+    Args:
+        file_path (str): Path to the markdown file.
+        yaml_data (dict): Parsed YAML data from the file.
+        item_type (str): Type of the item ('note', 'todo', 'event').
+        field_order (dict): A dictionary containing field orders for each item type.
+
+    Returns:
+        None: Writes the reordered YAML back to the file.
+    """
+    log("Beginning reorder process")
+
+    # Get the correct field order for the item type
+    if item_type not in field_order:
+        log(f"Unknown item type: {item_type}. Skipping reordering.")
+        return
+
+    ordered_fields = field_order[item_type]
+
+    # Reorder YAML fields using an OrderedDict
+    reordered_yaml = OrderedDict((key, yaml_data[key]) for key in ordered_fields if key in yaml_data)
+    log(f"Reordered YAML: {reordered_yaml}")
+
+    # Read the full file content
+    with open(file_path, "r") as file:
+        content = file.read()
+
+    # Locate the front matter boundaries
+    yaml_start = content.find("---")
+    yaml_end = content.find("---", yaml_start + 3)
+
+    if yaml_start == -1 or yaml_end == -1:
+        log(f"Invalid YAML front matter in {file_path}. Skipping reordering.")
+        return
+
+    # Prepare new content with reordered YAML
+    new_front_matter = "---\n" + yaml.dump(reordered_yaml, default_flow_style=False, sort_keys=False) + "---\n"
+    new_content = new_front_matter + '\n' + content[yaml_end + 3:].lstrip()
+
+    # Write the updated content back to the file
+    with open(file_path, "w") as file:
+        file.write(new_content)
+
+    log(f"Reordered YAML front matter for {file_path}")
+
 
 ## ==============================
 ## Update index
@@ -206,6 +262,42 @@ def update_index(index, index_1):
         title = item["title"].lower().replace(" ", "_")
         return os.path.join(ORG_HOME, root_folder, item_type, title + ".md")
 
+    # Order of items in YAML front-matter
+    required_fields_note = ["item", "category", "title", "tags", "created", "modified", "uid",]
+    required_fields_todo = [
+        "item",
+        "category",
+        "title",
+        "tags",
+        "status",
+        "assignee",
+        "urgency",
+        "importance",
+        "created",
+        "modified",
+        "uid",
+    ]
+    required_fields_event = [
+        "item",
+        "category",
+        "title",
+        "tags",
+        "status",
+        "assignee",
+        "start",
+        "end",
+        "created",
+        "modified",
+        "uid",
+    ]
+
+    # Define field order as a dictionary
+    field_order = {
+        "note": required_fields_note,
+        "todo": required_fields_todo,
+        "event": required_fields_event,
+    }
+
     ## ------------------------------
     ## Define file states
     ## ------------------------------
@@ -217,7 +309,11 @@ def update_index(index, index_1):
     log("Walking through files")
     for root, dirs, files in os.walk(ORG_HOME):
         if not is_valid_directory(root):
-            log(f"Non-org directory found in Org home: {root}")
+
+            # Not sure the below log is a useful message.
+            # I have consequently commented it out.
+            # log(f"Non-org directory found in Org home: {root}")
+
             continue
 
         markdown_files = (file for file in files if file.endswith(".md"))
@@ -308,6 +404,7 @@ def update_index(index, index_1):
                     item["stat_mod"] = file_stat[stat.ST_MTIME]
                     item["root_folder"] = get_root_folder_name(root)
                     item["item_type"] = os.path.basename(root)
+
                     log(f"Index successfully updated for file: {file_path}")
 
                 else:
@@ -351,6 +448,12 @@ def update_index(index, index_1):
                         **yaml_data,
                     }
                 )
+
+                # Reorder the markdown YAML
+                item_type = os.path.basename(root)
+                item_type = os.path.basename(root).rstrip('s')
+                reorder_yaml(file_path, yaml_data, item_type, field_order)
+
                 log(f"Index successfully updated for file: {file_path}")
 
             # Handling for 'lapsed' files
