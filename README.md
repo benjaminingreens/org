@@ -251,10 +251,11 @@ The end date or date-time for the event. Must be in one of the following formats
 ## TODO
 
 - Refresh memory on:
-  - How to remove testing environment files
-  - How to recreate testing environment files
+  [X] How to remove testing environment files (`rm -rf .config .org org-egg.info venv`)
+  [X] How to recreate testing environment files (`python -m venv venv`, `source venv/bin/activate`, `pip install -e .`)
     - Off the back of this I can create the standardised example library
   - How to upload to AUR
+- Figure out what is going on with `fuzzywuzzy`. Is it not being installed from `requirements.txt`
 
 - Create command line views
   - Add o and r, and allow combined commands
