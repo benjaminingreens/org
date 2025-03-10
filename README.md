@@ -258,19 +258,24 @@ The end date or date-time for the event. Must be in one of the following formats
   - How to upload to AUR
 - Figure out what is going on with `fuzzywuzzy`. Is it not being installed from `requirements.txt`
 
-- Create command line views
+
+- Create routine management
+- Create tag management
+
+- ~Create command line views~
   - Add o and r, and allow combined commands
   - Have them refresh after returning after editing note
 - Order the properties in a specific manner
-- Nested _org folders is allowed - might this cause issues? what if the folder is moved? might be easier to ensure they are top level
+- ~Nested _org folders is allowed - might this cause issues? what if the folder is moved? might be easier to ensure they are top level~
 - Standardise configuration handling
   - Including re-initialisation for config re-writes
   - Urgency decay as an option?
 - Open file when created (include options in config)
-- Create routine management
-- Create tag management
 - Handle special characters in org create
-- Create standardised example library
+- doc updates
+- standardised code across board
+- flow chart
+- ~Create standardised example library~
 
 - Org command currently setup to work only in org dirs. Fix
 - Improve messages for errors etc. (replace ValueErrors with print statements and exit the script)

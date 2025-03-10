@@ -3973,3 +3973,1117 @@
 [2025-03-10 18:13:19][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_1.md
 [2025-03-10 18:13:19][validation_script.py]: Repository validation just ran
 [2025-03-10 18:13:35][main.py]: Process end
+[2025-03-10 21:46:01][main.py]: Process start
+[2025-03-10 21:46:01][main.py]: `org init` command received
+[2025-03-10 21:46:02][main.py]: Initiation process complete
+[2025-03-10 21:46:02][main.py]: Process end
+[2025-03-10 21:46:06][main.py]: Process start
+[2025-03-10 21:46:06][validation_script.py]: Repository validation now running
+[2025-03-10 21:46:06][validation_functions.py]: Updating index
+[2025-03-10 21:46:06][validation_functions.py]: Walking through files
+[2025-03-10 21:46:06][validation_script.py]: Repository validation just ran
+[2025-03-10 21:46:06][main.py]: Process end
+[2025-03-10 21:58:31][main.py]: Process start
+[2025-03-10 21:58:31][validation_script.py]: Repository validation now running
+[2025-03-10 21:58:31][validation_functions.py]: Updating index
+[2025-03-10 21:58:31][validation_functions.py]: Walking through files
+[2025-03-10 21:58:31][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: new
+[2025-03-10 21:58:31][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Optimising filepath and checking that it doesn't already exist
+[2025-03-10 21:58:31][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/notes/note_3.md validated as: note 3
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: category is: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/notes/note_3.md: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/notes/note_3.md validated as: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/notes/note_3.md: ['general']
+[2025-03-10 21:58:31][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/notes/note_3.md validated as: ['general']
+[2025-03-10 21:58:31][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 21:58:31][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][validation_functions.py]: YAML validation passed
+[2025-03-10 21:58:31][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][validation_functions.py]: Beginning reorder process
+[2025-03-10 21:58:31][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Note', 'category': 'examples', 'title': 'note 3', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@21:58:31', 'uid': 'de678d14d93f6aa3'})
+[2025-03-10 21:58:31][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 21:58:31][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: new
+[2025-03-10 21:58:31][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Optimising filepath and checking that it doesn't already exist
+[2025-03-10 21:58:31][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: note 2
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: category is: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/notes/note_2.md: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/notes/note_2.md: ['general']
+[2025-03-10 21:58:31][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: ['general']
+[2025-03-10 21:58:31][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 21:58:31][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][validation_functions.py]: YAML validation passed
+[2025-03-10 21:58:31][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][validation_functions.py]: Beginning reorder process
+[2025-03-10 21:58:31][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Note', 'category': 'examples', 'title': 'note 2', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@21:58:31', 'uid': '8cf55ee7800ce676'})
+[2025-03-10 21:58:31][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 21:58:31][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: new
+[2025-03-10 21:58:31][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Optimising filepath and checking that it doesn't already exist
+[2025-03-10 21:58:31][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/notes/note_1.md validated as: note 1
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: category is: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/notes/note_1.md: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/notes/note_1.md validated as: examples
+[2025-03-10 21:58:31][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/notes/note_1.md: ['general']
+[2025-03-10 21:58:31][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/notes/note_1.md validated as: ['general']
+[2025-03-10 21:58:31][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 21:58:31][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][validation_functions.py]: YAML validation passed
+[2025-03-10 21:58:31][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][validation_functions.py]: Beginning reorder process
+[2025-03-10 21:58:31][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Note', 'category': 'examples', 'title': 'note 1', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@21:58:31', 'uid': '09db70dd012ba2d6'})
+[2025-03-10 21:58:31][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 21:58:31][validation_script.py]: Repository validation just ran
+[2025-03-10 21:58:36][main.py]: Process end
+[2025-03-10 22:13:29][main.py]: Process start
+[2025-03-10 22:13:29][validation_script.py]: Repository validation now running
+[2025-03-10 22:13:29][validation_functions.py]: Updating index
+[2025-03-10 22:13:29][validation_functions.py]: Walking through files
+[2025-03-10 22:13:29][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:13:29][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:13:29][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:13:29][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:13:29][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:13:29][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:13:29][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:13:29][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:13:29][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:13:29][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:13:29][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:13:29][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:13:29][validation_script.py]: Repository validation just ran
+[2025-03-10 22:13:31][main.py]: Process end
+[2025-03-10 22:13:47][main.py]: Process start
+[2025-03-10 22:13:47][validation_script.py]: Repository validation now running
+[2025-03-10 22:13:47][validation_functions.py]: Updating index
+[2025-03-10 22:13:47][validation_functions.py]: Walking through files
+[2025-03-10 22:13:47][validation_script.py]: Repository validation just ran
+[2025-03-10 22:13:48][main.py]: Process end
+[2025-03-10 22:13:57][main.py]: Process start
+[2025-03-10 22:13:57][validation_script.py]: Repository validation now running
+[2025-03-10 22:13:57][validation_functions.py]: Updating index
+[2025-03-10 22:13:57][validation_functions.py]: Walking through files
+[2025-03-10 22:13:57][validation_script.py]: Repository validation just ran
+[2025-03-10 22:13:59][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:14:00][main.py]: Process end
+[2025-03-10 22:14:15][main.py]: Process start
+[2025-03-10 22:14:15][validation_script.py]: Repository validation now running
+[2025-03-10 22:14:15][validation_functions.py]: Updating index
+[2025-03-10 22:14:15][validation_functions.py]: Walking through files
+[2025-03-10 22:14:15][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:14:15][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:14:15][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:14:15][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:14:15][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:14:15][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:14:15][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:14:15][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:14:15][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:14:15][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:14:15][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:14:15][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:14:15][validation_script.py]: Repository validation just ran
+[2025-03-10 22:14:16][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:14:23][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:14:34][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:14:38][main.py]: Process end
+[2025-03-10 22:26:00][main.py]: Process start
+[2025-03-10 22:26:00][validation_script.py]: Repository validation now running
+[2025-03-10 22:26:00][validation_functions.py]: Updating index
+[2025-03-10 22:26:00][validation_functions.py]: Walking through files
+[2025-03-10 22:26:00][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_3.md is: new
+[2025-03-10 22:26:00][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/events/event_3.md validated as: event 3
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/events/event_3.md: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/events/event_3.md validated as: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/events/event_3.md: ['general']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/events/event_3.md validated as: ['general']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees is None for file: /home/benjamin/org/examples_org/events/event_3.md. Looking for default value in config
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/events/event_3.md: None
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/events/event_3.md validated as: ['None']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: status is: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/events/event_3.md: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/events/event_3.md validated as: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating start and end dates for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: start date for file: /home/benjamin/org/examples_org/events/event_3.md is: 2026-01-03
+[2025-03-10 22:26:00][yaml_val_functions.py]: Checking start date format
+[2025-03-10 22:26:00][yaml_val_functions.py]: Start and end dates for file: /home/benjamin/org/examples_org/events/event_3.md validated as: Start: 2026-01-03, End: 2026-01-03
+[2025-03-10 22:26:00][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 22:26:00][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][validation_functions.py]: YAML validation passed
+[2025-03-10 22:26:00][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][validation_functions.py]: Beginning reorder process
+[2025-03-10 22:26:00][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Event', 'category': 'examples', 'title': 'event 3', 'tags': ['general'], 'status': 'Not started', 'assignee': ['None'], 'start': datetime.date(2026, 1, 3), 'end': datetime.date(2026, 1, 3), 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:00', 'uid': '8f045f411a820ce2'})
+[2025-03-10 22:26:00][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:00][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_1.md is: new
+[2025-03-10 22:26:00][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/events/event_1.md validated as: event 1
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/events/event_1.md: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/events/event_1.md validated as: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/events/event_1.md: ['general']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/events/event_1.md validated as: ['general']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees is None for file: /home/benjamin/org/examples_org/events/event_1.md. Looking for default value in config
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/events/event_1.md: None
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/events/event_1.md validated as: ['None']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: status is: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/events/event_1.md: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/events/event_1.md validated as: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating start and end dates for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: start date for file: /home/benjamin/org/examples_org/events/event_1.md is: 2025-04-04
+[2025-03-10 22:26:00][yaml_val_functions.py]: Checking start date format
+[2025-03-10 22:26:00][yaml_val_functions.py]: end date for file: /home/benjamin/org/examples_org/events/event_1.md is: 2025-04-04
+[2025-03-10 22:26:00][yaml_val_functions.py]: Checking end date format
+[2025-03-10 22:26:00][yaml_val_functions.py]: Start and end dates for file: /home/benjamin/org/examples_org/events/event_1.md validated as: Start: 2025-04-04, End: 2025-04-04
+[2025-03-10 22:26:00][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 22:26:00][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][validation_functions.py]: YAML validation passed
+[2025-03-10 22:26:00][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][validation_functions.py]: Beginning reorder process
+[2025-03-10 22:26:00][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Event', 'category': 'examples', 'title': 'event 1', 'tags': ['general'], 'status': 'Not started', 'assignee': ['None'], 'start': datetime.date(2025, 4, 4), 'end': datetime.date(2025, 4, 4), 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:00', 'uid': 'fcb9045828ee0882'})
+[2025-03-10 22:26:00][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:26:00][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_2.md is: new
+[2025-03-10 22:26:00][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/events/event_2.md validated as: event 2
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/events/event_2.md: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/events/event_2.md validated as: examples
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/events/event_2.md: ['general']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/events/event_2.md validated as: ['general']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees is None for file: /home/benjamin/org/examples_org/events/event_2.md. Looking for default value in config
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/events/event_2.md: None
+[2025-03-10 22:26:00][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/events/event_2.md validated as: ['None']
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: status is: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/events/event_2.md: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/events/event_2.md validated as: Not started
+[2025-03-10 22:26:00][yaml_val_functions.py]: Validating start and end dates for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][yaml_val_functions.py]: start date for file: /home/benjamin/org/examples_org/events/event_2.md is: 2025-04-04@16:54
+[2025-03-10 22:26:00][yaml_val_functions.py]: Checking start date format
+[2025-03-10 22:26:00][yaml_val_functions.py]: Start and end dates for file: /home/benjamin/org/examples_org/events/event_2.md validated as: Start: 2025-04-04@16:54, End: 2025-04-04@16:54
+[2025-03-10 22:26:00][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 22:26:00][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][validation_functions.py]: YAML validation passed
+[2025-03-10 22:26:00][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][validation_functions.py]: Beginning reorder process
+[2025-03-10 22:26:00][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Event', 'category': 'examples', 'title': 'event 2', 'tags': ['general'], 'status': 'Not started', 'assignee': ['None'], 'start': '2025-04-04@16:54', 'end': '2025-04-04@16:54', 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:00', 'uid': '7aa6d6d56962877a'})
+[2025-03-10 22:26:00][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:26:00][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:26:00][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:26:00][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:26:00][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:26:00][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:26:00][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:26:00][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:26:00][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:26:00][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:26:00][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:26:00][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:26:00][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:26:00][validation_script.py]: Repository validation just ran
+[2025-03-10 22:26:07][views.py]: Opening filepath: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:26:21][main.py]: Process end
+[2025-03-10 22:30:12][main.py]: Process start
+[2025-03-10 22:30:12][validation_script.py]: Repository validation now running
+[2025-03-10 22:30:12][validation_functions.py]: Updating index
+[2025-03-10 22:30:12][validation_functions.py]: Walking through files
+[2025-03-10 22:30:12][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_3.md is: existing
+[2025-03-10 22:30:12][validation_functions.py]: File was last modified at: 1741645580
+[2025-03-10 22:30:12][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:30:12][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/events/event_3.md validated as: event 3
+[2025-03-10 22:30:12][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:30:12][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/events/event_3.md: examples
+[2025-03-10 22:30:12][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/events/event_3.md validated as: examples
+[2025-03-10 22:30:12][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/events/event_3.md: ['general']
+[2025-03-10 22:30:12][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/events/event_3.md validated as: ['general']
+[2025-03-10 22:30:12][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/events/event_3.md: ['None']
+[2025-03-10 22:30:12][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/events/event_3.md validated as: ['None']
+[2025-03-10 22:30:12][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: status is: Not started
+[2025-03-10 22:30:12][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/events/event_3.md: Not started
+[2025-03-10 22:30:12][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/events/event_3.md validated as: Not started
+[2025-03-10 22:30:12][yaml_val_functions.py]: Validating start and end dates for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][yaml_val_functions.py]: start date for file: /home/benjamin/org/examples_org/events/event_3.md is: 2026-01-03
+[2025-03-10 22:30:12][yaml_val_functions.py]: Checking start date format
+[2025-03-10 22:30:12][yaml_val_functions.py]: end date for file: /home/benjamin/org/examples_org/events/event_3.md is: 2026-01-03
+[2025-03-10 22:30:12][yaml_val_functions.py]: Checking end date format
+[2025-03-10 22:30:12][yaml_val_functions.py]: Start and end dates for file: /home/benjamin/org/examples_org/events/event_3.md validated as: Start: 2026-01-03, End: 2026-01-03
+[2025-03-10 22:30:12][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:30:12][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:30:12][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:30:12][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][validation_functions.py]: YAML validation passed
+[2025-03-10 22:30:12][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][validation_functions.py]: yml data: {'item': 'Event', 'category': 'examples', 'title': 'event 3', 'tags': ['general'], 'status': 'Not started', 'assignee': ['None'], 'start': datetime.date(2026, 1, 3), 'end': datetime.date(2026, 1, 3), 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:20', 'uid': '8f045f411a820ce2'}
+[2025-03-10 22:30:12][validation_functions.py]: item: {'uid': '8f045f411a820ce2', 'root_folder': 'examples', 'item_type': 'events', 'stat_access': 1741645538, 'stat_mod': 1741645560, 'item': 'Event', 'category': 'examples', 'title': 'event 3', 'tags': ['general'], 'status': 'Not started', 'assignees': ['ben'], 'start': '2026-01-03', 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:00', 'assignee': ['None'], 'end': '2026-01-03'}
+[2025-03-10 22:30:12][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:12][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:30:12][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_1.md is: existing
+[2025-03-10 22:30:12][validation_functions.py]: File was last modified at: 1741645560
+[2025-03-10 22:30:12][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:30:12][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:30:12][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_2.md is: existing
+[2025-03-10 22:30:12][validation_functions.py]: File was last modified at: 1741645560
+[2025-03-10 22:30:12][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:30:12][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:30:12][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:30:12][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:30:12][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:30:12][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:30:12][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:30:12][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:30:12][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:30:12][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:30:12][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:30:12][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:30:12][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:30:12][validation_script.py]: Repository validation just ran
+[2025-03-10 22:30:15][main.py]: Process end
+[2025-03-10 22:30:36][main.py]: Process start
+[2025-03-10 22:30:36][validation_script.py]: Repository validation now running
+[2025-03-10 22:30:36][validation_functions.py]: Updating index
+[2025-03-10 22:30:36][validation_functions.py]: Walking through files
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_3.md is: existing
+[2025-03-10 22:30:36][validation_functions.py]: File was last modified at: 1741645812
+[2025-03-10 22:30:36][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_1.md is: existing
+[2025-03-10 22:30:36][validation_functions.py]: File was last modified at: 1741645560
+[2025-03-10 22:30:36][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_2.md is: existing
+[2025-03-10 22:30:36][validation_functions.py]: File was last modified at: 1741645560
+[2025-03-10 22:30:36][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_3.md is: new
+[2025-03-10 22:30:36][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: todo 3
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: ['general']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: ['general']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees is None for file: /home/benjamin/org/examples_org/todos/todo_3.md. Looking for default value in config
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: None
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: ['None']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: None
+[2025-03-10 22:30:36][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 22:30:36][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][validation_functions.py]: YAML validation passed
+[2025-03-10 22:30:36][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][validation_functions.py]: Beginning reorder process
+[2025-03-10 22:30:36][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Todo', 'category': 'examples', 'title': 'todo 3', 'tags': ['general'], 'status': 'Done', 'assignee': ['None'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:30:36', 'uid': '3cb32833784bc656'})
+[2025-03-10 22:30:36][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_1.md is: new
+[2025-03-10 22:30:36][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: todo 1
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: ['general']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: ['general']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees is None for file: /home/benjamin/org/examples_org/todos/todo_1.md. Looking for default value in config
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: None
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: ['None']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: None
+[2025-03-10 22:30:36][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 22:30:36][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][validation_functions.py]: YAML validation passed
+[2025-03-10 22:30:36][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][validation_functions.py]: Beginning reorder process
+[2025-03-10 22:30:36][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Todo', 'category': 'examples', 'title': 'todo 1', 'tags': ['general'], 'status': 'Done', 'assignee': ['None'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:30:36', 'uid': '87958434ad270b05'})
+[2025-03-10 22:30:36][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_2.md is: new
+[2025-03-10 22:30:36][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: todo 2
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: examples
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: ['general']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['general']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees is None for file: /home/benjamin/org/examples_org/todos/todo_2.md. Looking for default value in config
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: None
+[2025-03-10 22:30:36][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['None']
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Done
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Not urgent
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Important
+[2025-03-10 22:30:36][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: None
+[2025-03-10 22:30:36][yaml_val.py]: Updating automatic properties for new item
+[2025-03-10 22:30:36][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][validation_functions.py]: YAML validation passed
+[2025-03-10 22:30:36][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][validation_functions.py]: Beginning reorder process
+[2025-03-10 22:30:36][validation_functions.py]: Reordered YAML: OrderedDict({'item': 'Todo', 'category': 'examples', 'title': 'todo 2', 'tags': ['general'], 'status': 'Done', 'assignee': ['None'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:30:36', 'uid': '5f9c94213f447f45'})
+[2025-03-10 22:30:36][validation_functions.py]: Reordered YAML front matter for /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:30:36][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:30:36][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:30:36][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:30:36][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:30:36][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:30:36][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:30:36][validation_functions.py]: File was last modified at: 1741643911
+[2025-03-10 22:30:36][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:30:36][validation_script.py]: Repository validation just ran
+[2025-03-10 22:30:40][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:33:17][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:33:23][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:33:27][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:33:29][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:33:32][views.py]: Opening filepath: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:33:37][views.py]: Opening filepath: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:33:40][views.py]: Opening filepath: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:33:46][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:33:50][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:33:52][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:33:56][main.py]: Process end
+[2025-03-10 22:34:02][main.py]: Process start
+[2025-03-10 22:34:02][validation_script.py]: Repository validation now running
+[2025-03-10 22:34:02][validation_functions.py]: Updating index
+[2025-03-10 22:34:02][validation_functions.py]: Walking through files
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_3.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646015
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/events/event_3.md validated as: event 3
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/events/event_3.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/events/event_3.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/events/event_3.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/events/event_3.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/events/event_3.md: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/events/event_3.md validated as: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: status is: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/events/event_3.md: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/events/event_3.md validated as: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating start and end dates for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: start date for file: /home/benjamin/org/examples_org/events/event_3.md is: 2026-01-03
+[2025-03-10 22:34:02][yaml_val_functions.py]: Checking start date format
+[2025-03-10 22:34:02][yaml_val_functions.py]: end date for file: /home/benjamin/org/examples_org/events/event_3.md is: 2026-01-03
+[2025-03-10 22:34:02][yaml_val_functions.py]: Checking end date format
+[2025-03-10 22:34:02][yaml_val_functions.py]: Start and end dates for file: /home/benjamin/org/examples_org/events/event_3.md validated as: Start: 2026-01-03, End: 2026-01-03
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'assignee': ['None'], 'category': 'examples', 'created': '2025-03-10@22:26:00', 'end': datetime.date(2026, 1, 3), 'item': 'Event', 'modified': '2025-03-10@22:33:35', 'start': datetime.date(2026, 1, 3), 'status': 'Not started', 'tags': ['general'], 'title': 'event 3', 'uid': '8f045f411a820ce2'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': '8f045f411a820ce2', 'root_folder': 'examples', 'item_type': 'events', 'stat_access': 1741645580, 'stat_mod': 1741645812, 'item': 'Event', 'category': 'examples', 'title': 'event 3', 'tags': ['general'], 'status': 'Not started', 'assignees': ['ben'], 'start': '2026-01-03', 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:20', 'assignee': ['None'], 'end': '2026-01-03'}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_1.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646020
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/events/event_1.md validated as: event 1
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/events/event_1.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/events/event_1.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/events/event_1.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/events/event_1.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/events/event_1.md: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/events/event_1.md validated as: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: status is: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/events/event_1.md: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/events/event_1.md validated as: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating start and end dates for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: start date for file: /home/benjamin/org/examples_org/events/event_1.md is: 2025-04-04
+[2025-03-10 22:34:02][yaml_val_functions.py]: Checking start date format
+[2025-03-10 22:34:02][yaml_val_functions.py]: end date for file: /home/benjamin/org/examples_org/events/event_1.md is: 2025-04-04
+[2025-03-10 22:34:02][yaml_val_functions.py]: Checking end date format
+[2025-03-10 22:34:02][yaml_val_functions.py]: Start and end dates for file: /home/benjamin/org/examples_org/events/event_1.md validated as: Start: 2025-04-04, End: 2025-04-04
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Event', 'category': 'examples', 'title': 'event 1', 'tags': ['general'], 'status': 'Not started', 'assignee': ['None'], 'start': datetime.date(2025, 4, 4), 'end': datetime.date(2025, 4, 4), 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:33:40', 'uid': 'fcb9045828ee0882'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': 'fcb9045828ee0882', 'root_folder': 'examples', 'item_type': 'events', 'stat_access': 1741645560, 'stat_mod': 1741645560, 'item': 'Event', 'category': 'examples', 'title': 'event 1', 'tags': ['general'], 'status': 'Not started', 'assignees': ['ben'], 'start': '2025-04-04', 'end': '2025-04-04', 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:00', 'assignee': ['None']}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_2.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646024
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/events/event_2.md validated as: event 2
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/events/event_2.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/events/event_2.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/events/event_2.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/events/event_2.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/events/event_2.md: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/events/event_2.md validated as: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: status is: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/events/event_2.md: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/events/event_2.md validated as: Not started
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating start and end dates for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: start date for file: /home/benjamin/org/examples_org/events/event_2.md is: 2025-04-04@16:54
+[2025-03-10 22:34:02][yaml_val_functions.py]: Checking start date format
+[2025-03-10 22:34:02][yaml_val_functions.py]: end date for file: /home/benjamin/org/examples_org/events/event_2.md is: 2025-04-04@16:54
+[2025-03-10 22:34:02][yaml_val_functions.py]: Checking end date format
+[2025-03-10 22:34:02][yaml_val_functions.py]: Start and end dates for file: /home/benjamin/org/examples_org/events/event_2.md validated as: Start: 2025-04-04@16:54, End: 2025-04-04@16:54
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Event', 'category': 'examples', 'title': 'event 2', 'tags': ['general'], 'status': 'Not started', 'assignee': ['None'], 'start': '2025-04-04@16:54', 'end': '2025-04-04@16:54', 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:33:44', 'uid': '7aa6d6d56962877a'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': '7aa6d6d56962877a', 'root_folder': 'examples', 'item_type': 'events', 'stat_access': 1741645503, 'stat_mod': 1741645560, 'item': 'Event', 'category': 'examples', 'title': 'event 2', 'tags': ['general'], 'status': 'Not started', 'assignees': ['ben'], 'start': '2025-04-04@16:54', 'created': '2025-03-10@22:26:00', 'modified': '2025-03-10@22:26:00', 'assignee': ['None'], 'end': '2025-04-04@16:54'}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_3.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646005
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: todo 3
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: None
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Todo', 'category': 'examples', 'title': 'todo 3', 'tags': ['general'], 'status': 'Done', 'assignee': ['None'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:33:25', 'uid': '3cb32833784bc656'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': '3cb32833784bc656', 'root_folder': 'examples', 'item_type': 'todos', 'stat_access': 1741645805, 'stat_mod': 1741645836, 'item': 'Todo', 'category': 'examples', 'title': 'todo 3', 'tags': ['general'], 'status': 'Done', 'assignees': ['ben'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:30:36', 'assignee': ['None']}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_1.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646008
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: todo 1
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: None
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Todo', 'category': 'examples', 'title': 'todo 1', 'tags': ['general'], 'status': 'Done', 'assignee': ['None'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:33:28', 'uid': '87958434ad270b05'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': '87958434ad270b05', 'root_folder': 'examples', 'item_type': 'todos', 'stat_access': 1741645778, 'stat_mod': 1741645836, 'item': 'Todo', 'category': 'examples', 'title': 'todo 1', 'tags': ['general'], 'status': 'Done', 'assignees': ['ben'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:30:36', 'assignee': ['None']}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_2.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646011
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: todo 2
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['None']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Done
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Not urgent
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Important
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: None
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Todo', 'category': 'examples', 'title': 'todo 2', 'tags': ['general'], 'status': 'Done', 'assignee': ['None'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:33:31', 'uid': '5f9c94213f447f45'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': '5f9c94213f447f45', 'root_folder': 'examples', 'item_type': 'todos', 'stat_access': 1741645793, 'stat_mod': 1741645836, 'item': 'Todo', 'category': 'examples', 'title': 'todo 2', 'tags': ['general'], 'status': 'Done', 'assignees': ['ben'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:30:36', 'assignee': ['None']}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646029
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimising filepath and checking that it doesn't already exist
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/notes/note_3.md validated as: note 3
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/notes/note_3.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/notes/note_3.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/notes/note_3.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/notes/note_3.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Note', 'category': 'examples', 'title': 'note 3', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@22:33:49', 'uid': 'de678d14d93f6aa3'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': 'de678d14d93f6aa3', 'root_folder': 'examples', 'item_type': 'notes', 'stat_access': 1741630614, 'stat_mod': 1741643911, 'item': 'Note', 'category': 'examples', 'title': 'note 3', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@21:58:31'}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646031
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimising filepath and checking that it doesn't already exist
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: note 2
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/notes/note_2.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/notes/note_2.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Note', 'category': 'examples', 'title': 'note 2', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@22:33:51', 'uid': '8cf55ee7800ce676'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': '8cf55ee7800ce676', 'root_folder': 'examples', 'item_type': 'notes', 'stat_access': 1741630614, 'stat_mod': 1741643911, 'item': 'Note', 'category': 'examples', 'title': 'note 2', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@21:58:31'}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:02][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:34:02][validation_functions.py]: File was last modified at: 1741646033
+[2025-03-10 22:34:02][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimising filepath and checking that it doesn't already exist
+[2025-03-10 22:34:02][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/notes/note_1.md validated as: note 1
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/notes/note_1.md: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/notes/note_1.md validated as: examples
+[2025-03-10 22:34:02][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/notes/note_1.md: ['general']
+[2025-03-10 22:34:02][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/notes/note_1.md validated as: ['general']
+[2025-03-10 22:34:02][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:02][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:02][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:02][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:02][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][validation_functions.py]: yml data: {'item': 'Note', 'category': 'examples', 'title': 'note 1', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@22:33:53', 'uid': '09db70dd012ba2d6'}
+[2025-03-10 22:34:02][validation_functions.py]: item: {'uid': '09db70dd012ba2d6', 'root_folder': 'examples', 'item_type': 'notes', 'stat_access': 1741630614, 'stat_mod': 1741643911, 'item': 'Note', 'category': 'examples', 'title': 'note 1', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@21:58:31'}
+[2025-03-10 22:34:02][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:02][validation_script.py]: Repository validation just ran
+[2025-03-10 22:34:24][views.py]: Opening filepath: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:34][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:43][main.py]: Process end
+[2025-03-10 22:34:45][main.py]: Process start
+[2025-03-10 22:34:45][validation_script.py]: Repository validation now running
+[2025-03-10 22:34:45][validation_functions.py]: Updating index
+[2025-03-10 22:34:45][validation_functions.py]: Walking through files
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_3.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:34:45][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_1.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:34:45][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_2.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:34:45][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_3.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:34:45][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_1.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:34:45][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_2.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646082
+[2025-03-10 22:34:45][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: todo 2
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:45][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: examples
+[2025-03-10 22:34:45][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: examples
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: ['general']
+[2025-03-10 22:34:45][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['general']
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: ['None']
+[2025-03-10 22:34:45][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['None']
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:34:45][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Done
+[2025-03-10 22:34:45][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Done
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:34:45][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Not urgent
+[2025-03-10 22:34:45][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Not urgent
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:34:45][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Important
+[2025-03-10 22:34:45][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Important
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: None
+[2025-03-10 22:34:45][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:45][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:45][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:45][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:45][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][validation_functions.py]: yml data: {'assignee': ['None'], 'category': 'examples', 'created': '2025-03-10@22:30:36', 'importance': 'Important', 'item': 'Todo', 'modified': '2025-03-10@22:34:42', 'status': 'Done', 'deadline': None, 'tags': ['general'], 'title': 'todo 2', 'uid': '5f9c94213f447f45', 'urgency': 'Not urgent'}
+[2025-03-10 22:34:45][validation_functions.py]: item: {'uid': '5f9c94213f447f45', 'root_folder': 'examples', 'item_type': 'todos', 'stat_access': 1741646011, 'stat_mod': 1741646042, 'item': 'Todo', 'category': 'examples', 'title': 'todo 2', 'tags': ['general'], 'status': 'Done', 'assignees': ['ben'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:33:31', 'assignee': ['None']}
+[2025-03-10 22:34:45][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:34:45][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646068
+[2025-03-10 22:34:45][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Optimising filepath and checking that it doesn't already exist
+[2025-03-10 22:34:45][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: note 2
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:34:45][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/notes/note_2.md: examples
+[2025-03-10 22:34:45][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: examples
+[2025-03-10 22:34:45][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/notes/note_2.md: ['general']
+[2025-03-10 22:34:45][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/notes/note_2.md validated as: ['general']
+[2025-03-10 22:34:45][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:34:45][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:34:45][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:34:45][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][validation_functions.py]: YAML validation passed
+[2025-03-10 22:34:45][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][validation_functions.py]: yml data: {'category': 'examples', 'created': '2025-03-10@21:58:31', 'item': 'Note', 'modified': '2025-03-10@22:34:28', 'tags': ['general'], 'title': 'note 2', 'uid': '8cf55ee7800ce676'}
+[2025-03-10 22:34:45][validation_functions.py]: item: {'uid': '8cf55ee7800ce676', 'root_folder': 'examples', 'item_type': 'notes', 'stat_access': 1741646042, 'stat_mod': 1741646042, 'item': 'Note', 'category': 'examples', 'title': 'note 2', 'tags': ['general'], 'created': '2025-03-10@21:58:31', 'modified': '2025-03-10@22:33:51'}
+[2025-03-10 22:34:45][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:34:45][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:45][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:34:45][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:34:45][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:34:45][validation_script.py]: Repository validation just ran
+[2025-03-10 22:34:49][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:10][main.py]: Process end
+[2025-03-10 22:35:21][main.py]: Process start
+[2025-03-10 22:35:21][validation_script.py]: Repository validation now running
+[2025-03-10 22:35:21][validation_functions.py]: Updating index
+[2025-03-10 22:35:21][validation_functions.py]: Walking through files
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_3.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_1.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_2.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_3.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_1.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_2.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646108
+[2025-03-10 22:35:21][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: todo 2
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:35:21][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: examples
+[2025-03-10 22:35:21][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: examples
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: ['general']
+[2025-03-10 22:35:21][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['general']
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: ['None']
+[2025-03-10 22:35:21][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: ['None']
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:35:21][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Done
+[2025-03-10 22:35:21][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Done
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:35:21][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Not urgent
+[2025-03-10 22:35:21][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Not urgent
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:35:21][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_2.md: Important
+[2025-03-10 22:35:21][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: Important
+[2025-03-10 22:35:21][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_2.md validated as: None
+[2025-03-10 22:35:21][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:35:21][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:35:21][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:35:21][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][validation_functions.py]: YAML validation passed
+[2025-03-10 22:35:21][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][validation_functions.py]: yml data: {'assignee': ['None'], 'category': 'examples', 'created': '2025-03-10@22:30:36', 'deadline': None, 'importance': 'Important', 'item': 'Todo', 'modified': '2025-03-10@22:35:08', 'status': 'Done', 'tags': ['general'], 'title': 'todo 2', 'uid': '5f9c94213f447f45', 'urgency': 'Not urgent'}
+[2025-03-10 22:35:21][validation_functions.py]: item: {'uid': '5f9c94213f447f45', 'root_folder': 'examples', 'item_type': 'todos', 'stat_access': 1741646082, 'stat_mod': 1741646085, 'item': 'Todo', 'category': 'examples', 'title': 'todo 2', 'tags': ['general'], 'status': 'Done', 'assignees': ['ben'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:34:42', 'assignee': ['None'], 'deadline': None}
+[2025-03-10 22:35:21][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646085
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:35:21][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:35:21][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:35:21][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:21][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:35:21][validation_script.py]: Repository validation just ran
+[2025-03-10 22:35:23][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:31][views.py]: Opening filepath: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:37][main.py]: Process end
+[2025-03-10 22:35:38][main.py]: Process start
+[2025-03-10 22:35:38][validation_script.py]: Repository validation now running
+[2025-03-10 22:35:38][validation_functions.py]: Updating index
+[2025-03-10 22:35:38][validation_functions.py]: Walking through files
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_3.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:38][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_3.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_1.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:38][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_1.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/events/event_2.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:38][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/events/event_2.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_3.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646136
+[2025-03-10 22:35:38][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: todo 3
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:35:38][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: examples
+[2025-03-10 22:35:38][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: examples
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: ['general']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: ['general']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: ['None']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: ['None']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:35:38][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Done
+[2025-03-10 22:35:38][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Done
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:35:38][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Not urgent
+[2025-03-10 22:35:38][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Not urgent
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:35:38][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_3.md: Important
+[2025-03-10 22:35:38][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: Important
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_3.md validated as: None
+[2025-03-10 22:35:38][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:35:38][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:35:38][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:35:38][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][validation_functions.py]: YAML validation passed
+[2025-03-10 22:35:38][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][validation_functions.py]: yml data: {'assignee': ['None'], 'deadline': None, 'category': 'examples', 'created': '2025-03-10@22:30:36', 'importance': 'Important', 'item': 'Todo', 'modified': '2025-03-10@22:35:36', 'status': 'Done', 'tags': ['general'], 'title': 'todo 3', 'uid': '3cb32833784bc656', 'urgency': 'Not urgent'}
+[2025-03-10 22:35:38][validation_functions.py]: item: {'uid': '3cb32833784bc656', 'root_folder': 'examples', 'item_type': 'todos', 'stat_access': 1741646005, 'stat_mod': 1741646042, 'item': 'Todo', 'category': 'examples', 'title': 'todo 3', 'tags': ['general'], 'status': 'Done', 'assignees': ['ben'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:33:25', 'assignee': ['None']}
+[2025-03-10 22:35:38][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_3.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_1.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646129
+[2025-03-10 22:35:38][validation_functions.py]: Index not up to date for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][validation_functions.py]: Validating YAML before updating index
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating item for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating title for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Optimised filepath is: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Title for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: todo 1
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating category for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: category is: examples
+[2025-03-10 22:35:38][yaml_val_functions.py]: category found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: examples
+[2025-03-10 22:35:38][yaml_val_functions.py]: Category for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: examples
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating tags for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Tags found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: ['general']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Tags for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: ['general']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating assignees for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Assignees found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: ['None']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Assignees for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: ['None']
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating status for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: status is: Done
+[2025-03-10 22:35:38][yaml_val_functions.py]: status found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Done
+[2025-03-10 22:35:38][yaml_val_functions.py]: Status for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Done
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: urgency is: Not urgent
+[2025-03-10 22:35:38][yaml_val_functions.py]: urgency found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Not urgent
+[2025-03-10 22:35:38][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Not urgent
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating importance for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: importance is: Important
+[2025-03-10 22:35:38][yaml_val_functions.py]: importance found in config for file: /home/benjamin/org/examples_org/todos/todo_1.md: Important
+[2025-03-10 22:35:38][yaml_val_functions.py]: Urgency for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: Important
+[2025-03-10 22:35:38][yaml_val_functions.py]: Validating deadline for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][yaml_val_functions.py]: Deadline for file: /home/benjamin/org/examples_org/todos/todo_1.md validated as: None
+[2025-03-10 22:35:38][yaml_val.py]: Updating automatic properties for existing item
+[2025-03-10 22:35:38][yaml_val.py]: Double checking that created time is correct
+[2025-03-10 22:35:38][yaml_val.py]: Reading file data from index (index name: index)
+[2025-03-10 22:35:38][yaml_val.py]: Filepath at the end of YAML validation is: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][validation_functions.py]: YAML validation passed
+[2025-03-10 22:35:38][validation_functions.py]: Updating index for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][validation_functions.py]: yml data: {'assignee': ['None'], 'deadline': None, 'category': 'examples', 'created': '2025-03-10@22:30:36', 'importance': 'Important', 'item': 'Todo', 'modified': '2025-03-10@22:35:29', 'status': 'Done', 'tags': ['general'], 'title': 'todo 1', 'uid': '87958434ad270b05', 'urgency': 'Not urgent'}
+[2025-03-10 22:35:38][validation_functions.py]: item: {'uid': '87958434ad270b05', 'root_folder': 'examples', 'item_type': 'todos', 'stat_access': 1741646008, 'stat_mod': 1741646042, 'item': 'Todo', 'category': 'examples', 'title': 'todo 1', 'tags': ['general'], 'status': 'Done', 'assignees': ['ben'], 'urgency': 'Not urgent', 'importance': 'Important', 'created': '2025-03-10@22:30:36', 'modified': '2025-03-10@22:33:28', 'assignee': ['None']}
+[2025-03-10 22:35:38][validation_functions.py]: Index successfully updated for file: /home/benjamin/org/examples_org/todos/todo_1.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/todos/todo_2.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646121
+[2025-03-10 22:35:38][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/todos/todo_2.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_3.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:38][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_3.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_2.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646085
+[2025-03-10 22:35:38][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_2.md
+[2025-03-10 22:35:38][validation_functions.py]: Getting state for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:35:38][validation_functions.py]: State for /home/benjamin/org/examples_org/notes/note_1.md is: existing
+[2025-03-10 22:35:38][validation_functions.py]: File was last modified at: 1741646042
+[2025-03-10 22:35:38][validation_functions.py]: Index up to date for file: /home/benjamin/org/examples_org/notes/note_1.md
+[2025-03-10 22:35:38][validation_script.py]: Repository validation just ran
+[2025-03-10 22:35:40][main.py]: Process end

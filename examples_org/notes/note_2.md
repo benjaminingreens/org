@@ -1,12 +1,12 @@
 ---
-item: Note
 category: examples
-title: note 2
+created: 2025-03-10@21:58:31
+item: Note
+modified: 2025-03-10@22:34:28
 tags:
 - general
-created: 2025-03-10@18:13:19
-modified: 2025-03-10@18:13:19
-uid: a911869209d2d2cc
+title: note 2
+uid: 8cf55ee7800ce676
 ---
 
 Note two

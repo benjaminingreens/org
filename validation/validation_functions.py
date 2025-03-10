@@ -309,6 +309,9 @@ def update_index(index, index_1):
     log("Walking through files")
     for root, dirs, files in os.walk(ORG_HOME):
 
+        if os.path.relpath(root, ORG_HOME).count(os.sep) > 1:
+            continue  # Skip anything deeper than ORG_HOME/directory
+
         print(root)
 
         if not is_valid_directory(root):
