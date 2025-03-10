@@ -1,8 +1,11 @@
 import os
+import shutil
 
 # Get the current working directory (super root)
 SUPER_ROOT = os.getcwd()
 ORGRC_PATH = os.path.join(SUPER_ROOT, '.config', 'orgrc.py')
+EXAMPLE_DIR = os.path.join(SUPER_ROOT, 'examples', 'example_org')
+NEW_EXAMPLE_DIR = os.path.join(SUPER_ROOT, 'example_org')
 
 # Ensure parent directories exist
 def ensure_directories_exist():
@@ -237,12 +240,17 @@ def adjust_blank_lines():
         with open(ORGRC_PATH, "w") as file:
             file.writelines(new_content_lines)
 
+def load_example_files():
+
+    shutil.move(EXAMPLE_DIR, NEW_EXAMPLE_DIR)
+
 # Main logic
 def main():
     variables = check_orgrc_file()
 
     prompt_missing_variables(variables)
     ensure_device_comment_and_variables(variables)
+    load_example_files()
 
     # Adjust blank lines at the end of the logic
     adjust_blank_lines()
