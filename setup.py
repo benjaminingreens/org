@@ -15,8 +15,12 @@ setup(
         'hooks': ['*'],  # Ensure your hooks are included
     },
     install_requires=[
-        "pyyaml",
-        "setuptools"
+        "fuzzywuzzy==0.18.0",
+        "Levenshtein==0.26.1",
+        "python-Levenshtein==0.26.1",
+        "pyyaml==6.0.2",
+        "RapidFuzz==3.10.1",
+        "setuptools==75.6.0"
     ],
     entry_points={
         'console_scripts': [
