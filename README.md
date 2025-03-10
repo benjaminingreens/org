@@ -262,6 +262,7 @@ The end date or date-time for the event. Must be in one of the following formats
   - Add o and r, and allow combined commands
   - Have them refresh after returning after editing note
 - Order the properties in a specific manner
+- Nested _org folders is allowed - might this cause issues? what if the folder is moved? might be easier to ensure they are top level
 - Standardise configuration handling
   - Including re-initialisation for config re-writes
   - Urgency decay as an option?

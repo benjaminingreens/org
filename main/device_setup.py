@@ -242,7 +242,13 @@ def adjust_blank_lines():
 
 def load_example_files():
 
-    shutil.move(EXAMPLE_DIR, NEW_EXAMPLE_DIR)
+    if os.path.isdir(EXAMPLE_DIR):
+        if os.path.isdir(NEW_EXAMPLE_DIR):
+            pass
+        else:
+            shutil.copytree(EXAMPLE_DIR, NEW_EXAMPLE_DIR)
+    else:
+        pass
 
 # Main logic
 def main():
@@ -250,7 +256,7 @@ def main():
 
     prompt_missing_variables(variables)
     ensure_device_comment_and_variables(variables)
-    load_example_files()
+    # load_example_files()
 
     # Adjust blank lines at the end of the logic
     adjust_blank_lines()

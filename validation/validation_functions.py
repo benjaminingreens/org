@@ -308,6 +308,9 @@ def update_index(index, index_1):
     # Walk through valid files in ORG_HOME
     log("Walking through files")
     for root, dirs, files in os.walk(ORG_HOME):
+
+        print(root)
+
         if not is_valid_directory(root):
 
             # Not sure the below log is a useful message.
