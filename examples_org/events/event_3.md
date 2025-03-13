@@ -1,16 +1,16 @@
 ---
-assignee:
-- None
-category: examples
-created: 2025-03-10@22:26:00
-end: 2026-01-03
 item: Event
-modified: 2025-03-10@22:33:35
-start: 2026-01-03
-status: Not started
+category: examples
+title: event 3
 tags:
 - general
-title: event 3
-uid: 8f045f411a820ce2
+status: Not started
+assignee:
+- None
+start: 2026-01-03
+end: 2026-01-03
+created: 2025-03-13@16:24:59
+modified: 2025-03-13@16:24:59
+uid: c3107f5dc309d072
 ---
 

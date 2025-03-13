@@ -25,7 +25,7 @@ from views.views import main as initiate_tui
 ## ==============================
 ORG_HOME = os.getcwd()
 LOG_PATH = os.path.join(ORG_HOME, "log.txt")
-VENV_DIR = os.path.join(ORG_HOME, ".org_venv")
+VENV_DIR = os.path.join(ORG_HOME, ".org/org_venv")
 REQ_PATH = os.path.join(ORG_HOME, "requirements.txt")
 
 
@@ -46,13 +46,21 @@ def ensure_venv():
         subprocess.run([sys.executable, "-m", "venv", VENV_DIR])
         subprocess.run([f"{VENV_DIR}/bin/pip", "install", "--upgrade", "pip"])
         subprocess.run([f"{VENV_DIR}/bin/pip", "install", "-r", REQ_PATH])
+
+        # Ensure `org` is installed inside `.org_venv`
+        subprocess.run([f"{VENV_DIR}/bin/pip", "install", "-e", ORG_HOME])
+
     else:
         log(f"Virtual environment exists at: {VENV_DIR}")
     
     # Restart the script inside the venv if not already in it
+    log(f"Checking if org installed in virtual environment")
     if sys.prefix != VENV_DIR:
+        log(f"Org not installed in virtual environment. Installing and restarting process...")
         python_exec = f"{VENV_DIR}/bin/python"
         os.execv(python_exec, [python_exec] + sys.argv)
+    else:
+        log(f"Org installed in virtual environment. Continuing with process...")
 
 ## ==============================
 ## Main function

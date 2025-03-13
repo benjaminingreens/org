@@ -1,16 +1,16 @@
 ---
-assignee:
-- None
-category: examples
-created: 2025-03-10@22:26:00
-end: 2025-04-04
 item: Event
-modified: 2025-03-10@22:33:40
-start: 2025-04-04
-status: Not started
+category: examples
+title: event 1
 tags:
 - general
-title: event 1
-uid: fcb9045828ee0882
+status: Not started
+assignee:
+- None
+start: 2025-04-04
+end: 2025-04-04
+created: 2025-03-13@16:24:59
+modified: 2025-03-13@16:24:59
+uid: 1d1fd38ff25707f4
 ---
 
