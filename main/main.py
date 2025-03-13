@@ -6,9 +6,11 @@
 ## Imports
 ## ==============================
 import os
+import sys
 import datetime
 import argparse
 import curses
+import subprocess
 
 ## ==============================
 ## Module imports
@@ -21,7 +23,10 @@ from views.views import main as initiate_tui
 ## ==============================
 ## Constants
 ## ==============================
-LOG_PATH = os.path.join(os.getcwd(), "log.txt")
+ORG_HOME = os.getcwd()
+LOG_PATH = os.path.join(ORG_HOME, "log.txt")
+VENV_DIR = os.path.join(ORG_HOME, ".org_venv")
+REQ_PATH = os.path.join(ORG_HOME, "requirements.txt")
 
 
 ## ==============================
@@ -34,12 +39,28 @@ def log(message):
     with open(LOG_PATH, "a") as f:
         f.write(f"[{current_time}][{script_name}]: {message}\n")
 
+def ensure_venv():
+    """Ensure that a virtual environment exists and is activated."""
+    if not os.path.exists(VENV_DIR):
+        log(f"Creating virtual environment in {VENV_DIR}...")
+        subprocess.run([sys.executable, "-m", "venv", VENV_DIR])
+        subprocess.run([f"{VENV_DIR}/bin/pip", "install", "--upgrade", "pip"])
+        subprocess.run([f"{VENV_DIR}/bin/pip", "install", "-r", REQ_PATH])
+    else:
+        log(f"Virtual environment exists at: {VENV_DIR}")
+    
+    # Restart the script inside the venv if not already in it
+    if sys.prefix != VENV_DIR:
+        python_exec = f"{VENV_DIR}/bin/python"
+        os.execv(python_exec, [python_exec] + sys.argv)
 
 ## ==============================
 ## Main function
 ## ==============================
 def main():
     log("Process start")
+    log("Ensuring virtual environment exists")
+    ensure_venv()
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     subparsers = parser.add_subparsers(dest="command")
 

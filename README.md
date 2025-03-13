@@ -255,8 +255,8 @@ The end date or date-time for the event. Must be in one of the following formats
     - Do I not also need to remove the pre-commit and post-receive?
   [X] How to recreate testing environment files (`python -m venv venv`, `source venv/bin/activate`, `pip install -e .`)
     - Off the back of this I can create the standardised example library
-  - How to upload to AUR
-- Figure out what is going on with `fuzzywuzzy`. Is it not being installed from `requirements.txt`
+  - How to upload to AUR - note this down
+- ~Figure out what is going on with `fuzzywuzzy`. Is it not being installed from `requirements.txt`~
 
 
 - Create routine management
