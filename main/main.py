@@ -12,13 +12,6 @@ import argparse
 import curses
 import subprocess
 
-## ==============================
-## Module imports
-## ==============================
-from main.device_setup import main as device_setup
-from cli.cli_functions import init, display_graphical_view, create_file
-from validation.validation_script import main as run_validation
-from views.views import main as initiate_tui
 
 ## ==============================
 ## Constants
@@ -30,15 +23,8 @@ REQ_PATH = os.path.join(ORG_HOME, "requirements.txt")
 
 
 ## ==============================
-## Basic functions
+## VENV Setup
 ## ==============================
-# Logging function
-def log(message):
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    script_name = os.path.basename(__file__)
-    with open(LOG_PATH, "a") as f:
-        f.write(f"[{current_time}][{script_name}]: {message}\n")
-
 def ensure_venv():
     """Ensure that a virtual environment exists and is activated."""
     if not os.path.exists(VENV_DIR):
@@ -61,6 +47,28 @@ def ensure_venv():
         os.execv(python_exec, [python_exec] + sys.argv)
     else:
         log(f"Org installed in virtual environment. Continuing with process...")
+
+ensure_venv()
+
+## ==============================
+## Module imports (VENV setup must run first)
+## ==============================
+from main.device_setup import main as device_setup
+from cli.cli_functions import init, display_graphical_view, create_file
+from validation.validation_script import main as run_validation
+from views.views import main as initiate_tui
+
+
+## ==============================
+## Basic functions
+## ==============================
+# Logging function
+def log(message):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    script_name = os.path.basename(__file__)
+    with open(LOG_PATH, "a") as f:
+        f.write(f"[{current_time}][{script_name}]: {message}\n")
+
 
 ## ==============================
 ## Main function
