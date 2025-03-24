@@ -23,6 +23,17 @@ REQ_PATH = os.path.join(ORG_HOME, "requirements.txt")
 
 
 ## ==============================
+## Basic functions
+## ==============================
+# Logging function
+def log(message):
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    script_name = os.path.basename(__file__)
+    with open(LOG_PATH, "a") as f:
+        f.write(f"[{current_time}][{script_name}]: {message}\n")
+
+
+## ==============================
 ## VENV Setup
 ## ==============================
 def ensure_venv():
@@ -57,17 +68,6 @@ from main.device_setup import main as device_setup
 from cli.cli_functions import init, display_graphical_view, create_file
 from validation.validation_script import main as run_validation
 from views.views import main as initiate_tui
-
-
-## ==============================
-## Basic functions
-## ==============================
-# Logging function
-def log(message):
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    script_name = os.path.basename(__file__)
-    with open(LOG_PATH, "a") as f:
-        f.write(f"[{current_time}][{script_name}]: {message}\n")
 
 
 ## ==============================
