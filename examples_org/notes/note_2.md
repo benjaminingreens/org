@@ -4,9 +4,9 @@ category: examples
 title: note 2
 tags:
 - general
-created: 2025-03-13@16:24:59
-modified: 2025-03-13@16:24:59
-uid: 06d33a995cb2a634
+created: 2025-03-24@17:08:02
+modified: 2025-03-24@17:08:02
+uid: 45d8fbd4b328983c
 ---
 
 Note two

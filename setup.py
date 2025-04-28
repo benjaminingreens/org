@@ -2,17 +2,17 @@ from setuptools import setup, find_packages
 
 setup(
     name="org",
-    version="0.0.10",
+    version="0.0.11",
     description="Suckless second brain",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     author="Benjamin Hammond",
     author_email="benjaminphammond@gmail.com",
     url="https://github.com/benjaminingreens/org",
-    packages=find_packages(include=['main', 'cli', 'creation', 'validation', 'hooks', 'views']),
+    packages=find_packages(include=['org', 'org.*']),
     include_package_data=True,
     package_data={
-        'hooks': ['*'],  # Ensure your hooks are included
+        'org.hooks': ['*'],  # Adjust for hooks in the org package
     },
     install_requires=[
         "fuzzywuzzy==0.18.0",
@@ -24,7 +24,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'org = main.main:main',  # Update to the new script location
+            'org = org.main.main:main',  # Updated for new structure
         ],
     },
     classifiers=[
