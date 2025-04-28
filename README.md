@@ -289,4 +289,6 @@ The end date or date-time for the event. Must be in one of the following formats
 - Ensure server-side logic is secure. There are a few places where things feel a bit risky.
 - Org auto-open item is an issue when using on mobile. can’t open apps from terminal in the same way i don’t think
 
-- current issue: when installing from aur, aur cannot install some python packages without pip. this requires a virtual env to be part of the installation process, so i have added creation of one to main. when org init is run, packages need to be installed into this venv. but switching to installing things into and running things from a venv clien-side has proven difficult, and i have broken a few things in trying to switch to this installation infrastructure. working on fixing it now
+- ~~current issue: when installing from aur, aur cannot install some python packages without pip. this requires a virtual env to be part of the installation process, so i have added creation of one to main. when org init is run, packages need to be installed into this venv. but switching to installing things into and running things from a venv clien-side has proven difficult, and i have broken a few things in trying to switch to this installation infrastructure. working on fixing it now~~
+- org now runs out of a venv in the initialised folder - but if org removed globally, venv doesn't work - maybe an issue, maybe not
+- does org running from a venv affect mobile?
