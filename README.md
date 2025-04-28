@@ -292,3 +292,8 @@ The end date or date-time for the event. Must be in one of the following formats
 - ~~current issue: when installing from aur, aur cannot install some python packages without pip. this requires a virtual env to be part of the installation process, so i have added creation of one to main. when org init is run, packages need to be installed into this venv. but switching to installing things into and running things from a venv clien-side has proven difficult, and i have broken a few things in trying to switch to this installation infrastructure. working on fixing it now~~
 - org now runs out of a venv in the initialised folder - but if org removed globally, venv doesn't work - maybe an issue, maybe not
 - does org running from a venv affect mobile?
+- need a mechanism for updating venv when whole package is updated
+- requirements.txt and others not being pulled into site packages
+- during install i had to enter sudo password? shouldn't happen
+
+- am in the process of removing dependencies so i don't have to do all this venv stuff

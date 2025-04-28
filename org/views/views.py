@@ -2,7 +2,8 @@ import os
 import json
 import subprocess
 import datetime
-from fuzzywuzzy import fuzz
+import difflib
+# from fuzzywuzzy import fuzz
 
 # Constants
 SUPER_ROOT = os.getcwd()
@@ -26,14 +27,23 @@ def load_index_json():
     with open(INDEX_JSON_PATH, "r") as file:
         return json.load(file)
 
+def fuzzy_match(items, prop, search_term):
+    """Perform a fuzzy search on the items using difflib."""
+    return [
+        item for item in items
+        if difflib.SequenceMatcher(
+            None, item.get(prop, ""), search_term
+        ).ratio() > 0.75  # 75% similarity threshold
+    ]
 
+"""
 # Fuzzy search function
 def fuzzy_match(items, prop, search_term):
-    """Perform a fuzzy search on the items."""
     return [
         item for item in items
         if fuzz.partial_ratio(item.get(prop, "").lower(), search_term.lower()) > 75
     ]
+"""
 
 
 # Exact search function

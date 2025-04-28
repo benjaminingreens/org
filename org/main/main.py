@@ -7,7 +7,6 @@
 ## ==============================
 import os
 import sys
-
 import shutil
 import datetime
 import argparse
@@ -18,13 +17,7 @@ import subprocess
 ## ==============================
 ## Constants
 ## ==============================
-# ORG_PACKAGE_DIR = os.path.dirname(org.__file__)
-ORG_HOME = os.getcwd()
-LOG_PATH = os.path.join(ORG_HOME, "log.txt")
-VENV_DIR = os.path.join(ORG_HOME, ".org/org_venv")
-VENV_ORG_DIR = os.path.join(VENV_DIR, "org_source")
-# REQ_PATH = os.path.join(ORG_HOME, "requirements.txt")
-# REQ_PATH = os.path.join(ORG_PACKAGE_DIR, "requirements.txt")
+LOG_PATH = os.path.join(os.getcwd(), "log.txt")
 
 
 ## ==============================
@@ -36,51 +29,6 @@ def log(message):
     script_name = os.path.basename(__file__)
     with open(LOG_PATH, "a") as f:
         f.write(f"[{current_time}][{script_name}]: {message}\n")
-
-
-## ==============================
-## VENV Setup
-## ==============================
-
-def ensure_venv():
-    VENV_DIR = os.path.join(os.getcwd(), ".org/org_venv")
-    VENV_ORG_DIR = os.path.join(VENV_DIR, "org_source")
-
-    # Create venv if not exists
-    if not os.path.exists(VENV_DIR):
-        subprocess.run([sys.executable, "-m", "venv", VENV_DIR])
-        subprocess.run([f"{VENV_DIR}/bin/pip", "install", "--upgrade", "pip"])
-
-    # Import org AFTER pip is available globally
-    import org
-    ORG_PACKAGE_DIR = os.path.dirname(org.__file__)
-    REQ_PATH = os.path.join(ORG_PACKAGE_DIR, "requirements.txt")
-
-    # Copy org source into venv if not already copied
-    if not os.path.exists(VENV_ORG_DIR):
-        log(f"Copying org package from {ORG_PACKAGE_DIR} to {VENV_ORG_DIR}/org")
-        os.makedirs(VENV_ORG_DIR, exist_ok=True)
-        shutil.copytree(ORG_PACKAGE_DIR, os.path.join(VENV_ORG_DIR, 'org'))
-
-    # Install dependencies
-    subprocess.run([f"{VENV_DIR}/bin/pip", "install", "-r", REQ_PATH])
-
-    # Restart with venv’s Python if not already in venv
-    if sys.prefix != VENV_DIR:
-        log("Switching to venv-installed Python...")
-
-        python_exec = os.path.join(VENV_DIR, "bin", "python")
-        main_script = os.path.join(VENV_ORG_DIR, 'org', 'main', 'main.py')
-
-        # Build the environment with PYTHONPATH pointing to org_source
-        env = os.environ.copy()
-        env["PYTHONPATH"] = VENV_ORG_DIR
-
-        os.execve(python_exec, [python_exec, main_script] + sys.argv[1:], env)
-    else:
-        log(f"Running inside virtual environment. Continuing process...")
-
-ensure_venv()
 
 ## ==============================
 ## Module imports (VENV setup must run first)
@@ -96,8 +44,6 @@ from org.views.views import main as initiate_tui
 ## ==============================
 def main():
     log("Process start")
-    log("Ensuring virtual environment exists")
-    ensure_venv()
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     subparsers = parser.add_subparsers(dest="command")
 
