@@ -16,11 +16,11 @@ import importlib.resources as pkg_resources
 ## ==============================
 ## Module imports
 ## ==============================
-from views import views
-from validation.validation_script import (
+from org.views import views
+from org.validation.validation_script import (
     main as run_validation,
 )
-from creation.creation_val import (
+from org.creation.creation_val import (
     construct_note,
     construct_todo,
     construct_event,
@@ -54,7 +54,7 @@ def current_datetime():
 # Generic function to get the hook file path within the package
 def get_hook_path(hook_name):
     # Assuming 'my_package' is the name of your package
-    with pkg_resources.path("hooks", hook_name) as hook_path:
+    with pkg_resources.path("org.hooks", hook_name) as hook_path:
         return hook_path
 
 

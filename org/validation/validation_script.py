@@ -11,8 +11,8 @@ import datetime
 ## ==============================
 ## Module Imports
 ## ==============================
-from main.device_setup import main as device_setup
-from validation.validation_functions import (
+from org.main.device_setup import main as device_setup
+from org.validation.validation_functions import (
     check_org_initialized,
     load_config,
     load_or_initialize_index,

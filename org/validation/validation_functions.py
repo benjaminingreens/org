@@ -38,7 +38,7 @@ from collections import OrderedDict
 ## ==============================
 ## Module Imports
 ## ==============================
-from validation.yaml_val import validate_yaml_frontmatter as validate_yaml
+from org.validation.yaml_val import validate_yaml_frontmatter as validate_yaml
 
 ## ==============================
 ## Constants

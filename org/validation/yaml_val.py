@@ -22,12 +22,12 @@ import json
 ## ==============================
 ## Module imports
 ## ==============================
-from validation.yaml_val_functions import (
+from org.validation.yaml_val_functions import (
     update_yaml_frontmatter,
     current_datetime,
     load_config,
 )
-from validation.yaml_val_functions import (
+from org.validation.yaml_val_functions import (
     validate_datetime,
     validate_item,
     validate_tags,
