@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="org",
-    version="0.0.15",
+    version="0.0.16",
     description="Suckless second brain",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
@@ -15,8 +15,8 @@ setup(
         'org.hooks': ['*'],  # Adjust for hooks in the org package
     },
     install_requires=[
-        "pureyaml==0.1.0",
-        "setuptools==75.6.0"
+        "setuptools==75.6.0",
+        "ruamel.yaml>=0.18.10"
     ],
     entry_points={
         'console_scripts': [

@@ -1,4 +1,4 @@
-## ==============================
+# ==============================
 ## validation_functions.py
 ## ==============================
 
@@ -25,7 +25,11 @@
 ## ==============================
 import os
 import json
-import pureyaml as yaml
+
+from ruamel.yaml import safe_load, safe_dump
+from ruamel.yaml.representer import RoundTripRepresenter
+import io
+
 import stat
 import time
 import shutil
@@ -110,18 +114,19 @@ def read_yaml_from_file(file_path):
         content = file.read()
         if content.startswith("---"):
             yaml_part = content.split("---", 2)[1]
-            return yaml.safe_load(yaml_part)
+            # return yaml.safe_load(yaml_part)
+            return safe_load(yaml_part)
     return {}
 
 
 # Check if a file is archive lapsed
-def check_archive_lapse(state, yaml):
+def check_archive_lapse(state, front_matter_yaml):
 
     index_1 = load_or_initialize_index(INDEX_1_PATH)
 
     if state == "new":
 
-        state = "lapsed" if any(i["uid"] == yaml.get("uid") for i in index_1) else "new"
+        state = "lapsed" if any(i["uid"] == front_matter_yaml.get("uid") for i in index_1) else "new"
 
     return state
 
@@ -161,11 +166,16 @@ def get_root_folder_name(root):
     return basename.replace("_org", "")  # Remove '_org' from the base name
 
 # Add a custom representer for OrderedDict
-def represent_ordereddict(dumper, data):
-    return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+# def represent_ordereddict(dumper, data):
+#     return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
 
 # Register the custom representer
-yaml.add_representer(OrderedDict, represent_ordereddict)
+# yaml.add_representer(OrderedDict, represent_ordereddict)
+# replacing the above yaml parser code:
+RoundTripRepresenter.add_representer(
+    OrderedDict,
+    lambda self, data: self.represent_mapping('tag:yaml.org,2002:map', data.items())
+)
 
 def reorder_yaml(file_path, yaml_data, item_type, field_order):
     """
@@ -206,7 +216,15 @@ def reorder_yaml(file_path, yaml_data, item_type, field_order):
         return
 
     # Prepare new content with reordered YAML
-    new_front_matter = "---\n" + yaml.dump(reordered_yaml, default_flow_style=False, sort_keys=False) + "---\n"
+    # new_front_matter = "---\n" + yaml.dump(reordered_yaml, default_flow_style=False, sort_keys=False) + "---\n"
+
+    dumped = safe_dump(
+        reordered_yaml,
+        default_flow_style=False,
+        sort_keys=False
+    )
+    new_front_matter = "---\n" + dumped + "---\n"
+
     new_content = new_front_matter + '\n' + content[yaml_end + 3:].lstrip()
 
     # Write the updated content back to the file

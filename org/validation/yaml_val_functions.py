@@ -14,7 +14,8 @@
 ## ==============================
 import os
 import re
-import pureyaml as yaml
+# import pureyaml as yaml
+from ruamel.yaml import safe_dump
 import copy
 import datetime
 from pathlib import Path
@@ -170,7 +171,13 @@ def update_yaml_frontmatter(filepath, yaml_content):
         body = content
 
     # Update the front matter with the new yaml_content
-    updated_frontmatter = yaml.dump(yaml_content, default_flow_style=False)
+    # updated_frontmatter = yaml.dump(yaml_content, default_flow_style=False)
+    # replacing above yaml parser code
+    updated_frontmatter = safe_dump(
+        yaml_content,
+       default_flow_style=False,
+        sort_keys=False
+    )
 
     # Recreate the file content with the updated front matter and the existing body
     updated_content = f"---\n{updated_frontmatter}---\n\n{body}"
