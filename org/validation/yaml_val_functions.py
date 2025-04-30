@@ -14,7 +14,7 @@
 ## ==============================
 import os
 import re
-import yaml
+import pureyaml as yaml
 import copy
 import datetime
 from pathlib import Path

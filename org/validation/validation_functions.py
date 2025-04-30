@@ -25,7 +25,7 @@
 ## ==============================
 import os
 import json
-import yaml
+import pureyaml as yaml
 import stat
 import time
 import shutil
