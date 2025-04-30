@@ -265,8 +265,7 @@ The end date or date-time for the event. Must be in one of the following formats
 ## TODO
 
 - Refresh memory on:
-  [X] How to remove testing environment files (`rm -rf .config .org org-egg.info venv .org_venv`)
-    - for some reason, `org-egg.info` wasn't being removed
+  [X] How to remove testing environment files (`rm -rf .config .org org.egg-info venv .org_venv`)
     - Do I not also need to remove the pre-commit and post-receive?
   [X] How to recreate testing environment files (`python -m venv venv`, `source venv/bin/activate`, `pip install -e .`)
     - Off the back of this I can create the standardised example library
@@ -277,6 +276,7 @@ The end date or date-time for the event. Must be in one of the following formats
 - Create routine management
 - Create tag management
 
+- fix alphabetical ordering of yaml
 - ~Create command line views~
   - Add o and r, and allow combined commands
   - Have them refresh after returning after editing note
@@ -302,3 +302,4 @@ The end date or date-time for the event. Must be in one of the following formats
 - If someone clones an org repo, or a portion of it, org may not be initialised. User has to be careful. Could push invalid changes to server. Think about mitigation of this.
 - Ensure server-side logic is secure. There are a few places where things feel a bit risky.
 - Org auto-open item is an issue when using on mobile. can’t open apps from terminal in the same way i don’t think
+- will org need to be reinitialised in a folder when an update is done

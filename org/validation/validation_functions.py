@@ -26,9 +26,17 @@
 import os
 import json
 
-from ruamel.yaml import safe_load, safe_dump
-from ruamel.yaml.representer import RoundTripRepresenter
+from ruamel.yaml import YAML
+from ruamel.yaml.representer import SafeRepresenter
 import io
+from collections import OrderedDict
+
+yaml = YAML(typ="safe", pure=True)
+# Preserve insertion order but emit as a plain mapping (no !!omap)
+yaml.representer.add_representer(
+    OrderedDict,
+    SafeRepresenter.represent_dict
+)
 
 import stat
 import time
@@ -114,8 +122,7 @@ def read_yaml_from_file(file_path):
         content = file.read()
         if content.startswith("---"):
             yaml_part = content.split("---", 2)[1]
-            # return yaml.safe_load(yaml_part)
-            return safe_load(yaml_part)
+            return yaml.load(yaml_part)
     return {}
 
 
@@ -165,18 +172,6 @@ def get_root_folder_name(root):
     basename = os.path.basename(parent_dir)  # Get the base directory name
     return basename.replace("_org", "")  # Remove '_org' from the base name
 
-# Add a custom representer for OrderedDict
-# def represent_ordereddict(dumper, data):
-#     return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
-
-# Register the custom representer
-# yaml.add_representer(OrderedDict, represent_ordereddict)
-# replacing the above yaml parser code:
-RoundTripRepresenter.add_representer(
-    OrderedDict,
-    lambda self, data: self.represent_mapping('tag:yaml.org,2002:map', data.items())
-)
-
 def reorder_yaml(file_path, yaml_data, item_type, field_order):
     """
     Reorder the YAML fields in the front matter to match the predefined order.
@@ -218,11 +213,11 @@ def reorder_yaml(file_path, yaml_data, item_type, field_order):
     # Prepare new content with reordered YAML
     # new_front_matter = "---\n" + yaml.dump(reordered_yaml, default_flow_style=False, sort_keys=False) + "---\n"
 
-    dumped = safe_dump(
-        reordered_yaml,
-        default_flow_style=False,
-        sort_keys=False
-    )
+    buf = io.StringIO()
+    yaml.default_flow_style = False
+    yaml.dump(reordered_yaml, buf)
+    dumped = buf.getvalue()
+
     new_front_matter = "---\n" + dumped + "---\n"
 
     new_content = new_front_matter + '\n' + content[yaml_end + 3:].lstrip()

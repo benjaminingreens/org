@@ -1,16 +1,14 @@
 ---
-item: Todo
+assignee: [None]
 category: examples
-title: todo 3
-tags:
-- general
-status: Done
-assignee:
-- None
-urgency: Not urgent
+created: 2025-04-30@16:46:50
 importance: Important
-created: 2025-03-24@17:08:02
-modified: 2025-03-24@17:08:02
-uid: 75fa355934eb4c13
+item: Todo
+modified: 2025-04-30@16:46:50
+status: Done
+tags: [general]
+title: todo 3
+uid: 2e8a9b008e0f1c10
+urgency: Not urgent
 ---
 
