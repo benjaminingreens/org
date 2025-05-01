@@ -19,6 +19,18 @@ The following principles are key to the philosophy of Org:
 
 ## Installation
 
+Universal dependencies include:
+
+`python 3.6 or higher`
+`git`
+
+Other dependencies are handled by the install process, but include:
+
+`setuptools`
+`ruamel.yaml`
+
+If any system specific dependencies are required, I will mention them under the relevant system install section below.
+
 ### Linux
 
 `yay -S org`
@@ -29,7 +41,11 @@ The following principles are key to the philosophy of Org:
 
 ### iSH Terminal (iOS)
 
-`Coming soon`
+1. `mkdir -p /usr/local/src`
+2. `cd /usr/local/src`
+3. `git clone https://github.com/benjaminingreens/org.git`
+4. `cd org`
+5. `pip install .`
 
 ### Windows
 

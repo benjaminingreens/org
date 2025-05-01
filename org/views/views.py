@@ -70,7 +70,7 @@ def construct_filepath(item):
     """Construct the filepath for an item."""
     try:
         item_type = item["item_type"]
-        root_folder = f"{item["root_folder"]}_org"
+        root_folder = f"{item['root_folder']}_org"
         title = item["title"].lower().replace(" ", "_")
         filepath = os.path.join(SUPER_ROOT, root_folder, item_type, f"{title}.md")
         return filepath
