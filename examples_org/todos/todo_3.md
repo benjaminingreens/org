@@ -1,14 +1,14 @@
 ---
 assignee: [None]
 category: examples
-created: 2025-05-01@16:58:34
+created: 2025-05-03@15:39:49
 importance: Important
 item: Todo
-modified: 2025-05-01@16:58:34
+modified: 2025-05-03@15:39:49
 status: Done
 tags: [general]
 title: todo 3
-uid: 7e0bc2b84fd8ec58
+uid: e2a43157e73dc9c1
 urgency: Not urgent
 ---
 

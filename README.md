@@ -299,7 +299,7 @@ The frequency for an event can be one of the following:
 `h` Hourly  
 `d` Daily  
 `w` Weekly  
-`m` Monthly
+`m` Monthly  
 `a` Annually  
 
 Adding a number as a prefix further describes frequency:
@@ -329,9 +329,9 @@ footie, sports, Not started, , w, 2025-05-05@19:30:00,
 
 The routine listed here schedules an event every week called `footie`. The event will be scheduled indefinitely from the 5th of May 2025 (a Monday) from 19:30. The `status` will be 'Not started', and the `tag` will be 'sports'.
 
-Or, your `routines.csv` could look like this:
+The `start` property sets a date from which `event` generation should begin, and the `end` property sets a date beyond which the routine `event` will not be generated.
 
-...
+`NOTE`: Required fields are: `title`, `frequency`, `start`. All else may be left empty. Defaults are modified in `orgrc.py`
 
 ### Routine Management Configuration
 
@@ -349,7 +349,7 @@ You can also toggle the `delete_routines` variable to `TRUE` or `FALSE` to delet
 ## TODO
 
 - Refresh memory on:
-  [X] How to remove testing environment files (`rm -rf .config .org org.egg-info venv .org_venv`)
+  [X] How to remove testing environment files (`rm -rf .config .org org.egg-info venv`)
     - Do I not also need to remove the pre-commit and post-receive?
   [X] How to recreate testing environment files (`python -m venv venv`, `source venv/bin/activate`, `pip install -e .`)
     - Off the back of this I can create the standardised example library

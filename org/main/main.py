@@ -37,6 +37,7 @@ from org.main.device_setup import main as device_setup
 from org.cli.cli_functions import init, display_graphical_view, create_file
 from org.validation.validation_script import main as run_validation
 from org.views.views import main as initiate_tui
+from org.rotuine_management.routine_management import main as routine_main
 
 
 ## ==============================
@@ -44,6 +45,7 @@ from org.views.views import main as initiate_tui
 ## ==============================
 def main():
     log("Process start")
+    routine_main()
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     subparsers = parser.add_subparsers(dest="command")
 
