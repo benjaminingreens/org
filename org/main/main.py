@@ -45,7 +45,6 @@ from org.rotuine_management.routine_management import main as routine_main
 ## ==============================
 def main():
     log("Process start")
-    routine_main()
     parser = argparse.ArgumentParser(description="Org Command Line Interface")
     subparsers = parser.add_subparsers(dest="command")
 
@@ -190,6 +189,8 @@ def main():
             return
         device_setup()
         curses.wrapper(initiate_tui)
+
+    routine_main()
     log("Process end")
 
 

@@ -358,6 +358,8 @@ You can also toggle the `delete_routines` variable to `TRUE` or `FALSE` to delet
 
 
 - Create routine management
+    - fix issue with start and end dates in events created by routines (no @)
+    - working on fixing issue with titles including dates so multiple events can be created
 - Create tag management
 
 - fix alphabetical ordering of yaml

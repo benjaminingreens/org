@@ -1,11 +1,11 @@
 ---
 category: examples
-created: 2025-05-03@15:39:49
+created: 2025-05-05@00:40:21
 item: Note
-modified: 2025-05-03@15:39:49
+modified: 2025-05-05@00:40:21
 tags: [general]
 title: note 2
-uid: fa031c09644f8201
+uid: b13324cba6928418
 ---
 
 Note two

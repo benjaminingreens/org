@@ -6,6 +6,8 @@
 # used by this script
 # TODO: Ensure that this script is activated at the appropriate moment
 # during order of operations (probably post - validation)
+# TODO: Handling old events: change to Unknown if not delete
+# DO NOT UPDATE EVENTS MATCHING TODAY()
 
 ## ==============================
 ## Imports
@@ -92,38 +94,67 @@ def parse_freq_parts(freq):
 
 def nested_occurrences(start_dt, deltas, period_start, period_end, until=None):
     """
-    Recursively handle nested frequency parts to compute occurrences.
+    Handle nested frequency parts:
+      - Always build the full parent-level occurrence list from start_dt up to period_end,
+        but include the one immediately before period_start.
+      - Recurse into sub-levels for each parent interval.
+      - Finally, filter all results into [period_start, period_end].
     """
     if not deltas:
         return []
-    first = deltas[0]
-    occs = []
-    occ = start_dt
-    while occ < period_start:
-        occ = first(occ) if callable(first) else occ + first
-    while occ <= period_end:
-        if until and occ.date() > until:
-            break
-        occs.append(occ)
-        occ = first(occ) if callable(first) else occ + first
-    if len(deltas) == 1:
-        log(f"Found {len(occs)} occurrences for {start_dt.isoformat()}")
-        return occs
-    results = []
-    for occ in occs:
-        next_end = first(occ) if callable(first) else occ + first
-        sub = nested_occurrences(occ, deltas[1:], occ, next_end, until)
-        results.extend(sub)
-    log(f"Nested occurrences produced {len(results)} total")
-    return results
 
+    first = deltas[0]
+    # 1. Build parent list, including the last occ before period_start
+    parents = []
+    occ = start_dt
+    # advance until the first parent >= period_start, but remember the one before
+    prev = None
+    while occ < period_start:
+        prev = occ
+        occ = first(occ) if callable(first) else occ + first
+    if prev is not None:
+        parents.append(prev)
+    # now collect all remaining parents up to period_end
+    while occ <= period_end:
+        parents.append(occ)
+        occ = first(occ) if callable(first) else occ + first
+
+    # 2. Recurse down
+    results = []
+    if len(deltas) == 1:
+        # bottom level: just a single delta
+        for p in parents:
+            # generate simple occurrences from p to next parent (or beyond)
+            occ2 = p
+            while occ2 <= (first(p) if callable(first) else p + first):
+                if until and occ2.date() > until:
+                    break
+                results.append(occ2)
+                occ2 = first(occ2) if callable(first) else occ2 + first
+    else:
+        # multi-level: for each parent, recurse into next delta
+        for i, p in enumerate(parents):
+            # define the end of this segment
+            if i+1 < len(parents):
+                segment_end = parents[i+1]
+            else:
+                segment_end = first(p) if callable(first) else p + first
+            # recurse on the tail of deltas
+            sub = nested_occurrences(p, deltas[1:], p, segment_end, until)
+            results.extend(sub)
+
+    # 3. Filter into your actual window
+    filtered = [dt for dt in results 
+                if dt >= period_start and dt <= period_end]
+    log(f"Nested occurrences produced {len(filtered)} total in window")
+    return filtered
 
 def get_routine_period(depth_str):
     """
     Determine the routine period from now to now + depth.
     """
     now   = datetime.datetime.now()
-    delta = frequency_parser(depth_str)
+    delta = atomic_freq_to_delta(depth_str)
     # apply delta for months/years
     if callable(delta):
         end = delta(now)
@@ -137,21 +168,30 @@ def find_occurrences(start_dt, freq_delta, period_start, period_end, until=None)
     """
     Yield all occurrences of a routine from start_dt within [period_start, period_end],
     stopping if 'until' date is exceeded.
-    freq_delta may be timedelta or function(dt).
+    freq_delta may be:
+      - a timedelta
+      - a function(dt) → datetime
+      - a list of such deltas/functions (for nested frequencies)
     """
+    # if nested frequency parts were passed, delegate to nested_occurrences()
+    if isinstance(freq_delta, list):
+        return nested_occurrences(start_dt, freq_delta, period_start, period_end, until)
+
     occ = start_dt
     # advance to first occurrence >= period_start
     while occ < period_start:
         occ = freq_delta(occ) if callable(freq_delta) else occ + freq_delta
+
     impls = []
+    # collect each occurrence until exceeding period_end or 'until' cutoff
     while occ <= period_end:
         if until and occ.date() > until:
             break
         impls.append(occ)
         occ = freq_delta(occ) if callable(freq_delta) else occ + freq_delta
+
     log(f"Found {len(impls)} occurrences for start {start_dt.isoformat()}")
     return impls
-
 
 def load_index(path):
     """
@@ -169,24 +209,33 @@ def load_index(path):
 
 def filter_existing(routine_impls, index_items):
     """
-    Filter out any routine implementation whose title, tags, and start
-    match an existing Event in index_items.
+    Given:
+      - routine_impls: list of candidate dicts {"title","tags","start",…}
+      - index_items: list of existing index dicts (with item=="Event")
+    Return:
+      - to_create: those impls not found in the index
+      - old_matching: those impls whose title/tags/start **do** match an existing Event
     """
-    filtered = []
+    to_create     = []
+    old_matching  = []
+
     for r in routine_impls:
-        dup = False
+        is_duplicate = False
         for item in index_items:
             if item.get("item") != "Event":
                 continue
-            if (item.get("title") == r["title"]
-                    and item.get("tags") == r.get("tags")
-                    and item.get("start") == r["start"]):
-                dup = True
+            if (item.get("title") == r["title"] and
+                item.get("tags")  == r.get("tags") and
+                item.get("start") == r["start"]):
+                is_duplicate = True
+                old_matching.append(r)
                 break
-        if not dup:
-            filtered.append(r)
-    log(f"Filtered existing; {len(filtered)} new routines remain")
-    return filtered
+        if not is_duplicate:
+            to_create.append(r)
+
+    log(f"Filtered existing; {len(to_create)} new routines, "
+        f"{len(old_matching)} already exist")
+    return to_create, old_matching
 
 
 def handle_old_routines(routine_impls):
@@ -197,7 +246,7 @@ def handle_old_routines(routine_impls):
     Returns list of routines to keep.
     """
     log(f"handle_old_routines stub called with {len(routine_impls)} items")
-    return routine_impls
+    pass
 
 
 def load_routines(path):
@@ -320,9 +369,10 @@ def main():
                     log(f"Invalid end date: {rt.get('end')}; raising ValueError")
                     raise ValueError(f"Invalid end date: {rt.get('end')}")
 
-            # get a list of occurences of the routine
+            # get a list of occurences for the routine
             occs = find_occurrences(start_dt, deltas, period_start, period_end, until)
 
+            # iterate over the occurrences and get their properties
             impls = []
             for occ in occs:
                 impls.append({
@@ -336,14 +386,27 @@ def main():
                 })
             log(f"Built {len(impls)} implementations for '{title}'")
 
-            to_create = filter_existing(impls, index_items)
-            to_create = handle_old_routines(to_create)
+            # filter impls to remove existing routines
+            # return lists of routines to create
+            # and any routines already created
+            to_create, old_matching = filter_existing(impls, index_items)
+
+            # handle any matching routines from the past
+            # the below functions are placeholders and
+            # need fleshing out
+            handle_old_routines(old_matching)
             log(f"{len(to_create)} routines to create for '{title}' after filtering")
 
+            # create the events from to_create list of occurrences
             for ev in to_create:
-                log(f"Creating event file for '{ev['title']}' at {ev['start']}")
+                # build title with datetime suffix
+                dt = datetime.datetime.fromisoformat(ev["start"])
+                suffix = dt.strftime("%Y%m%d%H%M%S")
+                title_with_dt = f"{ev['title']}-{suffix}"
+
+                log(f"Creating event file for '{title_with_dt}' at {ev['start']}")
                 args = SimpleNamespace(
-                    title=[ev["title"]],
+                    title=[title_with_dt],
                     category=ev["category"],
                     tags=ev["tags"],
                     status=ev["status"],
@@ -353,9 +416,9 @@ def main():
                 )
                 try:
                     create_file("event", args)
-                    log(f"Successfully created event '{ev['title']}' at {ev['start']}")
+                    log(f"Successfully created event '{title_with_dt}' at {ev['start']}")
                 except Exception as e:
-                    log(f"Failed to create event '{ev['title']}' at {ev['start']}: {e}")
+                    log(f"Failed to create event '{title_with_dt}' at {ev['start']}: {e}")
 
 if __name__ == "__main__":
     main()
