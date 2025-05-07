@@ -399,6 +399,7 @@ def main():
 
             # create the events from to_create list of occurrences
             for ev in to_create:
+                log(f"in to create is: {ev}")
                 # build title with datetime suffix
                 dt = datetime.datetime.fromisoformat(ev["start"])
                 suffix = dt.strftime("%Y%m%d%H%M%S")
