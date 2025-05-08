@@ -287,10 +287,10 @@ Routines are managed via a `routines.csv` file within your workspace. Every time
 The `routines.csv` should be structured like this:
 
 ```csv
-title, tags, status, assignees, frequency, start, end
+title, tags, status, assignees, frequency, anchor, start, end
 ```
 
-The headings correlate to `event` properties outlined under `org create event`, except for `frequency`. In this section, I will therefore explain the format required for `frequency` only, as the required format for the other headings is outlined under the `org create event` heading.
+The headings correlate to `event` properties outlined under `org create event`, except for `frequency` and `anchor`. In this section, I will therefore explain the format required for `frequency` and `anchor` only, as the required format for the other headings is outlined under the `org create event` heading.
 
 ### Frequency
 
@@ -300,7 +300,7 @@ The frequency for an event can be one of the following:
 `d` Daily  
 `w` Weekly  
 `m` Monthly  
-`a` Annually  
+`y` Annually  
 
 Adding a number as a prefix further describes frequency:
 
@@ -308,30 +308,120 @@ Adding a number as a prefix further describes frequency:
 `8m` Every eight months  
 `4w` Every four weeks  
 
-Using `1` in this instance is not required, because `h` and `1h` mean the same thing, for example.
+Using `1` in this instance is not required, because `h` and `1h` mean the same thing, for example. Though `1` can be used.
 
-The complexity of the frequency can be further expanded by nesting with `:`:
+The complexity of the frequency can be further expanded by nesting with `:` or with `.`. `:` refers to rolling time-frames, and `.` to fixed time-frames. Here are some examples:
 
-`m:2w` The second week of every month (literally: `every_month:every_two_weeks`)  
+`m:w` Every week of every month (literally: `every_month:every_week`)  
+
+OR
+
+`m.w` The first week into every month (literally: `every_month.the_first_week_in`
+
+`Note`: In a nested frequency, the first part (in this case, `m`) is always rolling. Both examples above have a frequency which has a monthly rolling base. In the first example, the `:` indicates that what follows (`w`) is rolling. That is: `:w` = `every_weeks`. In the second example, the `.` indicates that what follows (`.w`) is fixed. That is: `.w` = `the_first_week_in`.
+
+More examples are below:
+
 `d:6h` The 6th, 12th, and 18th hours of every day (literally: `every_day:every_six_hours`)  
-`2a:3m:2w` The second week of every third month of every other year (literally: `every_two_years:every_three_months:every_two_weeks`)
+
+OR
+
+`d.6h` The 6th hour of every day (literally: `every_day.the_sixth_hour_in`)
+
+`2y:3m:w` Every week of every third month of every other year (literally: `every_two_years:every_three_months:every_two_weeks`)
+
+OR
+
+`2y:3m.1w` One week into every third month of every other year (literally: `every_two_years:every_three_months.the_first_week_in`)
 
 Notice that the syntax requires longer periods on the left and shorter periods on the right. `2w:m` will not work, for example, because the system will read this as `every_two_weeks:every_month`. A fortnight cannot be divided into months.
+
+### Anchor
+
+The `anchor` heading in `routines.csv` controls how the frequency is processed.
+
+There are two ways the frequency of a recurring event can be interpreted. Imagine an event with these core properties:
+
+```txt
+title: buy milk
+frequency: w
+start: 2025-05-01
+```
+
+The system currently has no way of knowing whether the routine should occur weekly *from the `start` date* (i.e. whether the frequency is *anchored* to the start date), or whether the routine should occur *every calendar week* (i.e. whether the frequency is *anchored* to the beginning of the calendar year, with the start date acting as a moment from which to observe occurrences).
+
+Both interpretations (`start anchor` or `calendar anchor`) may be necessary depending on your use case for a particular routine.
+
+In some cases, you may want to start **counting** from the `start` date (for example: a routine for a grocery shop every week *from today*) - this is a `start anchor`:
+
+```txt
+title: grocery shopping
+frequency: w
+start: 2025-05-01
+anchor: start
+```
+
+Here, the `routines.csv` would look like this:
+
+```csv
+title, tags, status, assignees, frequency, anchor, start, end
+grocery shopping, , , , w, start, 2025-05-01,
+```
+
+In other cases, you may want to start **observing** occurrences from the `start` date (for example: a routine for the staff meeting on the second Tuesday of every month, with any occurrences to be included in my events from today onwards) - this is a `calendar anchor`:
+
+```txt
+title: staff meeting
+frequency: m.2w.2d
+start: 2025-05-01
+anchor: calendar
+```
+
+Here, the `routines.csv` would look like this:
+
+```csv
+title, tags, status, assignees, frequency, anchor, start, end
+staff meeting, , , , m.2w.2d, start, 2025-05-01,
+```
+
+`NOTE`: Where `anchor` is not specified, `start` will be assumed as a value, as this is the more frequently used interpretation of `frequency`.
 
 ### Examples
 
 A valid `routines.csv` will look something like this:
 
 ```csv
-title, tags, status, assignees, frequency, start, end
-footie, sports, Not started, , w, 2025-05-05@19:30:00,
+title, tags, status, assignees, frequency, anchor, start, end
+footie, sports, Not started, , w, , 2025-05-05@19:30:00,
 ```
 
-The routine listed here schedules an event every week called `footie`. The event will be scheduled indefinitely from the 5th of May 2025 (a Monday) from 19:30. The `status` will be 'Not started', and the `tag` will be 'sports'.
+The routine listed here schedules an event every week called `footie`. The event will be scheduled indefinitely from the 5th of May 2025 (a Monday) from 19:30. A `start anchor` has been assumed because it is not specified. The `status` will be 'Not started', and the `tag` will be 'sports'.
 
 The `start` property sets a date from which `event` generation should begin, and the `end` property sets a date beyond which the routine `event` will not be generated.
 
-`NOTE`: Required fields are: `title`, `frequency`, `start`. All else may be left empty. Defaults are modified in `orgrc.py`
+Where `start` has no time, `00:00:00` will be assumed.
+
+Where `end` is not specified and a time has been specified within `start`, a duration of one hour will be assumed.
+
+Where `end` has not been specified, or has been specified without a time, `23:59:59` will be assumed (either with the `start` date (if no `end` date specified) or with the `end` date specified).
+
+`NOTE`: Required fields are: `title`, `frequency`, `start`. All else may be left empty. Defaults are modified in `orgrc.py`. Where `anchor` is not specified, `start` will be assumed as a value.
+
+```YAML
+---
+item: Event
+title: footie
+category: {workspace_name}
+tags: [sports]
+status: Not started
+assignees: {default_assignee}
+start: 2025-05-01@19:30:00
+end: 2025-05-01@20:30:00
+created: yyyy-mm-dd@hh:mm:ss
+modified: yyyy-mm-dd@hh:mm:ss
+uid: {hash_of_title_and_created}
+---
+```
 
 ### Routine Management Configuration
 
@@ -389,5 +479,4 @@ You can also toggle the `delete_routines` variable to `TRUE` or `FALSE` to delet
 - Ensure server-side logic is secure. There are a few places where things feel a bit risky.
 - Org auto-open item is an issue when using on mobile. can’t open apps from terminal in the same way i don’t think
 - will org need to be reinitialised in a folder when an update is done
-
-test
+- no logic handles deletions. if an item is removed, the json object remains. need better logic. maybe a bin.json as a backup?

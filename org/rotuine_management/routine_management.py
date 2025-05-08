@@ -66,6 +66,27 @@ def add_years(dt, years):
         # handle February 29 for non-leap year
         return dt.replace(month=2, day=28, year=dt.year + years)
 
+def align_calendar(dt, unit):
+    """
+    Snap dt to the start of its calendar unit:
+      h = top of hour; d = midnight; w = Monday midnight;
+      m = first of month; y = Jan 1 midnight.
+    """
+    if unit == 'h':
+        return dt.replace(minute=0, second=0, microsecond=0)
+    if unit == 'd':
+        return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    if unit == 'w':
+        # ISO weekday: Monday=1
+        start = dt - datetime.timedelta(days=(dt.isoweekday()-1))
+        return start.replace(hour=0, minute=0, second=0, microsecond=0)
+    if unit == 'm':
+        return dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if unit == 'y':
+        return dt.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    # fallback to no change
+    return dt
+
 def atomic_freq_to_delta(part):
     """
     Parse one frequency segment like '2w' or 'm' into a timedelta or function.
@@ -85,67 +106,112 @@ def atomic_freq_to_delta(part):
 
 def parse_freq_parts(freq):
     """
-    Split nested frequency by ':' and parse each segment into deltas or functions.
+    Split on ':' and '.' into a list of dicts:
+      [{mode: 'roll'|'fixed', repr: '2w', delta: <timedelta|func>}, ...]
     """
-    parts = freq.split(":")
-    deltas = [atomic_freq_to_delta(p) for p in parts]
-    log(f"Parsed frequency parts: {parts}")
-    return deltas
+    tokens = re.split(r'([:.])', freq)
+    parts = []
+    # first segment is always roll
+    seg = tokens[0]
+    parts.append({'mode': 'roll', 'repr': seg, 'delta': atomic_freq_to_delta(seg)})
+    # then pairs of [sep, token]
+    i = 1
+    while i < len(tokens) - 1:
+        sep, tok = tokens[i], tokens[i+1]
+        mode = 'roll' if sep == ':' else 'fixed'
+        parts.append({
+            'mode':  mode,
+            'repr':  tok,
+            'delta': atomic_freq_to_delta(tok)
+        })
+        i += 2
+    log(f"Parsed frequency spec: {[p['repr'] for p in parts]} with modes {[p['mode'] for p in parts]}")
+    return parts
 
-def nested_occurrences(start_dt, deltas, period_start, period_end, until=None):
+def nested_occurrences(start_dt, parts_info, period_start, period_end, until=None):
     """
-    Handle nested frequency parts:
-      - Always build the full parent-level occurrence list from start_dt up to period_end,
-        but include the one immediately before period_start.
-      - Recurse into sub-levels for each parent interval.
-      - Finally, filter all results into [period_start, period_end].
+    Handle nested frequency parts with rolling (:) and fixed (.) modes.
+
+    parts_info: [
+      {'mode':'roll'|'fixed', 'repr':str, 'delta':timedelta|func}, ...
+    ]
     """
-    if not deltas:
+    if not parts_info:
         return []
 
-    first = deltas[0]
-    # 1. Build parent list, including the last occ before period_start
+    # First part is always roll per spec
+    first_info = parts_info[0]
+    first = first_info['delta']
+
+    # 1. Build parent list by rolling
     parents = []
     occ = start_dt
-    # advance until the first parent >= period_start, but remember the one before
     prev = None
+    # include the last occurrence before our window
     while occ < period_start:
         prev = occ
         occ = first(occ) if callable(first) else occ + first
     if prev is not None:
         parents.append(prev)
-    # now collect all remaining parents up to period_end
     while occ <= period_end:
         parents.append(occ)
         occ = first(occ) if callable(first) else occ + first
 
-    # 2. Recurse down
+    # 2. Drill down
     results = []
-    if len(deltas) == 1:
-        # bottom level: just a single delta
-        for p in parents:
-            # generate simple occurrences from p to next parent (or beyond)
-            occ2 = p
-            while occ2 <= (first(p) if callable(first) else p + first):
-                if until and occ2.date() > until:
-                    break
-                results.append(occ2)
-                occ2 = first(occ2) if callable(first) else occ2 + first
-    else:
-        # multi-level: for each parent, recurse into next delta
-        for i, p in enumerate(parents):
-            # define the end of this segment
-            if i+1 < len(parents):
-                segment_end = parents[i+1]
-            else:
-                segment_end = first(p) if callable(first) else p + first
-            # recurse on the tail of deltas
-            sub = nested_occurrences(p, deltas[1:], p, segment_end, until)
-            results.extend(sub)
 
-    # 3. Filter into your actual window
-    filtered = [dt for dt in results 
-                if dt >= period_start and dt <= period_end]
+    # bottom‐level: only one part left
+    if len(parts_info) == 1:
+        info  = parts_info[0]
+        delta = info['delta']
+        mode  = info['mode']
+
+        if mode == 'fixed':
+            # fixed → single occurrence at start_dt if within window/until
+            if period_start <= start_dt <= period_end and (not until or start_dt.date() <= until):
+                return [start_dt]
+            return []
+        else:
+            # rolling → step repeatedly within window
+            return _atomic_occurrences(start_dt, delta, period_start, period_end, until)
+
+    # multi-level: for each parent, handle next part
+    for i, p in enumerate(parents):
+        # determine the end of this parent window
+        if i+1 < len(parents):
+            segment_end = parents[i+1]
+        else:
+            segment_end = first(p) if callable(first) else p + first
+
+        next_info = parts_info[1]
+        mode2     = next_info['mode']
+        delta2    = next_info['delta']
+
+        if mode2 == 'fixed':
+            # fixed = compute a single sub-anchor
+            sub_start = delta2(p) if callable(delta2) else p + delta2
+            # recurse with the tail past this fixed part
+            sub = nested_occurrences(sub_start, parts_info[2:], p, segment_end, until)
+        else:
+            # rolling = walk within this parent window
+            sub = []
+            occ2 = p
+            # step into window
+            while occ2 < p:
+                occ2 = delta2(occ2) if callable(delta2) else occ2 + delta2
+            # collect sub-parents
+            subs = []
+            while occ2 <= segment_end:
+                subs.append(occ2)
+                occ2 = delta2(occ2) if callable(delta2) else occ2 + delta2
+            # for each sub-parent, recurse deeper
+            for sp in subs:
+                sub.extend(nested_occurrences(sp, parts_info[2:], sp, segment_end, until))
+
+        results.extend(sub)
+
+    # 3. Final filter into [period_start, period_end]
+    filtered = [dt for dt in results if period_start <= dt <= period_end]
     log(f"Nested occurrences produced {len(filtered)} total in window")
     return filtered
 
@@ -163,35 +229,45 @@ def get_routine_period(depth_str):
     log(f"Routine period set from {now.isoformat()} to {end.isoformat()}")
     return now, end
 
-
-def find_occurrences(start_dt, freq_delta, period_start, period_end, until=None):
+def _atomic_occurrences(start_dt, delta, period_start, period_end, until=None):
     """
-    Yield all occurrences of a routine from start_dt within [period_start, period_end],
-    stopping if 'until' date is exceeded.
-    freq_delta may be:
-      - a timedelta
-      - a function(dt) → datetime
-      - a list of such deltas/functions (for nested frequencies)
+    Single-step frequency: advance by delta (timedelta or function) from start_dt
+    until period_end, filtering by [period_start, period_end] and 'until'.
     """
-    # if nested frequency parts were passed, delegate to nested_occurrences()
-    if isinstance(freq_delta, list):
-        return nested_occurrences(start_dt, freq_delta, period_start, period_end, until)
-
     occ = start_dt
-    # advance to first occurrence >= period_start
+    # advance into window
     while occ < period_start:
-        occ = freq_delta(occ) if callable(freq_delta) else occ + freq_delta
+        occ = delta(occ) if callable(delta) else occ + delta
 
-    impls = []
-    # collect each occurrence until exceeding period_end or 'until' cutoff
+    out = []
     while occ <= period_end:
         if until and occ.date() > until:
             break
-        impls.append(occ)
-        occ = freq_delta(occ) if callable(freq_delta) else occ + freq_delta
+        out.append(occ)
+        occ = delta(occ) if callable(delta) else occ + delta
 
-    log(f"Found {len(impls)} occurrences for start {start_dt.isoformat()}")
-    return impls
+    return out
+
+def find_occurrences(start_dt, parts_info, period_start, period_end, until=None, anchor='start'):
+    """
+    parts_info: output of parse_freq_parts()
+    anchor: 'start' or 'calendar'
+    """
+    # align start if calendar‐anchored
+    if anchor == 'calendar':
+        start_dt = align_calendar(start_dt, parts_info[0]['repr'][-1])
+
+    # single part = atomic
+    if len(parts_info) == 1:
+        delta = parts_info[0]['delta']
+        occs = _atomic_occurrences(start_dt, delta,
+                                   period_start, period_end, until)
+        log(f"Found {len(occs)} occurrences for start {start_dt.isoformat()}")
+        return occs
+
+    # nested case
+    return nested_occurrences(start_dt, parts_info,
+                              period_start, period_end, until)
 
 def load_index(path):
     """
@@ -339,13 +415,6 @@ def main():
                 log(f"One or more of the following is missing from routine: title, frequency, start; raising ValueError")
                 raise ValueError("One or more of the following is missing from routine: title, frequency, start")
 
-            # get time deltas from frequency
-            try:
-                deltas = parse_freq_parts(freq)
-                log(f"Parsed nested frequency into {len(deltas)} part(s)")
-            except ValueError as e:
-                log(str(e))
-                raise ValueError(str(e))
 
             # validate start
             try:
@@ -355,7 +424,7 @@ def main():
                 log(f"Invalid start date: {rt.get('start')}; raising ValueError")
                 raise ValueError(f"Invalid start date: {rt.get('start')}")
 
-            # validate end (if it exists)
+            # 1. Parse and validate `end`
             until = None
             if rt.get("end"):
                 try:
@@ -369,8 +438,19 @@ def main():
                     log(f"Invalid end date: {rt.get('end')}; raising ValueError")
                     raise ValueError(f"Invalid end date: {rt.get('end')}")
 
-            # get a list of occurences for the routine
-            occs = find_occurrences(start_dt, deltas, period_start, period_end, until)
+            # 2. Parse frequency + anchor (drop your old `deltas = …` block)
+            anchor = rt.get("anchor") or "start"
+            try:
+                parts_info = parse_freq_parts(freq)
+                log(f"Parsed frequency into {len(parts_info)} part(s), anchor={anchor}")
+            except ValueError as e:
+                log(str(e))
+                raise
+
+            # 3. Compute occurrences
+            occs = find_occurrences(start_dt, parts_info,
+                                    period_start, period_end,
+                                    until, anchor)
 
             # iterate over the occurrences and get their properties
             impls = []
