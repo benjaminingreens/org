@@ -449,7 +449,9 @@ You can also toggle the `delete_routines` variable to `TRUE` or `FALSE` to delet
 
 - Create routine management
     - fix issue with start and end dates in events created by routines (no @)
-    - working on fixing issue with titles including dates so multiple events can be created
+    - ~working on fixing issue with titles including dates so multiple events can be created~
+    - ~frequency notation currently does not capture 'fixed weeks'. 2 weeks into a month is not synonymous with the beginning of 'the second full week' of the month. this needs to be fixed. additional notation will be required~
+        - the abvove has been addressed with the pure_count variable -- where pure_count being ON means that when counting into a month, we count from the first monday if the first day of the month is not a monday
 - Create tag management
 
 - fix alphabetical ordering of yaml

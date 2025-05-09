@@ -107,113 +107,48 @@ def atomic_freq_to_delta(part):
 def parse_freq_parts(freq):
     """
     Split on ':' and '.' into a list of dicts:
-      [{mode: 'roll'|'fixed', repr: '2w', delta: <timedelta|func>}, ...]
+      [{mode: 'roll'|'fixed', repr: '2w', count: 2, unit: 'w', delta: <timedelta|func>}, ...]
     """
+    log(f"parse_freq_parts: raw freq='{freq}'")
     tokens = re.split(r'([:.])', freq)
     parts = []
     # first segment is always roll
     seg = tokens[0]
-    parts.append({'mode': 'roll', 'repr': seg, 'delta': atomic_freq_to_delta(seg)})
+    m = re.fullmatch(r"(\d*)([hdwmy])", seg)
+    count = int(m.group(1)) if m.group(1) else 1
+    unit  = m.group(2)
+    parts.append({
+        'mode':  'roll',
+        'repr':  seg,
+        'count': count,
+        'unit':  unit,
+        'delta': atomic_freq_to_delta(f"{count}{unit}")
+    })
+    log(f"parse_freq_parts: added part repr='{seg}' mode='roll' count={count} unit='{unit}'")
     # then pairs of [sep, token]
     i = 1
     while i < len(tokens) - 1:
         sep, tok = tokens[i], tokens[i+1]
         mode = 'roll' if sep == ':' else 'fixed'
+        m = re.fullmatch(r"(\d*)([hdwmy])", tok)
+        count = int(m.group(1)) if m.group(1) else 1
+        unit  = m.group(2)
+        delta = atomic_freq_to_delta(f"{count}{unit}")
         parts.append({
             'mode':  mode,
             'repr':  tok,
-            'delta': atomic_freq_to_delta(tok)
+            'count': count,
+            'unit':  unit,
+            'delta': delta
         })
+        log(f"parse_freq_parts: added part repr='{tok}' mode='{mode}' count={count} unit='{unit}'")
         i += 2
-    log(f"Parsed frequency spec: {[p['repr'] for p in parts]} with modes {[p['mode'] for p in parts]}")
+
+    reprs = [p['repr'] for p in parts]
+    modes = [p['mode'] for p in parts]
+    log(f"parse_freq_parts: completed with {reprs} / modes {modes}")
     return parts
 
-def nested_occurrences(start_dt, parts_info, period_start, period_end, until=None):
-    """
-    Handle nested frequency parts with rolling (:) and fixed (.) modes.
-
-    parts_info: [
-      {'mode':'roll'|'fixed', 'repr':str, 'delta':timedelta|func}, ...
-    ]
-    """
-    if not parts_info:
-        return []
-
-    # First part is always roll per spec
-    first_info = parts_info[0]
-    first = first_info['delta']
-
-    # 1. Build parent list by rolling
-    parents = []
-    occ = start_dt
-    prev = None
-    # include the last occurrence before our window
-    while occ < period_start:
-        prev = occ
-        occ = first(occ) if callable(first) else occ + first
-    if prev is not None:
-        parents.append(prev)
-    while occ <= period_end:
-        parents.append(occ)
-        occ = first(occ) if callable(first) else occ + first
-
-    # 2. Drill down
-    results = []
-
-    # bottom‐level: only one part left
-    if len(parts_info) == 1:
-        info  = parts_info[0]
-        delta = info['delta']
-        mode  = info['mode']
-
-        if mode == 'fixed':
-            # fixed → single occurrence at start_dt if within window/until
-            if period_start <= start_dt <= period_end and (not until or start_dt.date() <= until):
-                return [start_dt]
-            return []
-        else:
-            # rolling → step repeatedly within window
-            return _atomic_occurrences(start_dt, delta, period_start, period_end, until)
-
-    # multi-level: for each parent, handle next part
-    for i, p in enumerate(parents):
-        # determine the end of this parent window
-        if i+1 < len(parents):
-            segment_end = parents[i+1]
-        else:
-            segment_end = first(p) if callable(first) else p + first
-
-        next_info = parts_info[1]
-        mode2     = next_info['mode']
-        delta2    = next_info['delta']
-
-        if mode2 == 'fixed':
-            # fixed = compute a single sub-anchor
-            sub_start = delta2(p) if callable(delta2) else p + delta2
-            # recurse with the tail past this fixed part
-            sub = nested_occurrences(sub_start, parts_info[2:], p, segment_end, until)
-        else:
-            # rolling = walk within this parent window
-            sub = []
-            occ2 = p
-            # step into window
-            while occ2 < p:
-                occ2 = delta2(occ2) if callable(delta2) else occ2 + delta2
-            # collect sub-parents
-            subs = []
-            while occ2 <= segment_end:
-                subs.append(occ2)
-                occ2 = delta2(occ2) if callable(delta2) else occ2 + delta2
-            # for each sub-parent, recurse deeper
-            for sp in subs:
-                sub.extend(nested_occurrences(sp, parts_info[2:], sp, segment_end, until))
-
-        results.extend(sub)
-
-    # 3. Final filter into [period_start, period_end]
-    filtered = [dt for dt in results if period_start <= dt <= period_end]
-    log(f"Nested occurrences produced {len(filtered)} total in window")
-    return filtered
 
 def get_routine_period(depth_str):
     """
@@ -248,26 +183,116 @@ def _atomic_occurrences(start_dt, delta, period_start, period_end, until=None):
 
     return out
 
-def find_occurrences(start_dt, parts_info, period_start, period_end, until=None, anchor='start'):
+def find_occurrences(start_dt, parts_info, window_start, window_end, *,
+                        anchor='start', pure_count=True, until=None):
     """
-    parts_info: output of parse_freq_parts()
-    anchor: 'start' or 'calendar'
+    A flat, two-step algorithm for freq specs like [roll][fixed][fixed…].
+    
+    - start_dt      : your CSV “start” datetime
+    - parts_info    : output of parse_freq_parts(), e.g.
+                      [{'mode':'roll','repr':'2m','delta':…}, 
+                       {'mode':'fixed','repr':'2w','delta':…},
+                       {'mode':'fixed','repr':'2d','delta':…}]
+    - window_start  : datetime from which you’ll actually include events
+    - window_end    : datetime beyond which you stop
+    - anchor        : 'start' (default) or 'calendar'
+    - pure_count    : True for “pure counting,” False to align to first full sub-interval
+    - until         : optional date cutoff (no occurrence past this date)
     """
-    # align start if calendar‐anchored
+    log(f"find_occurrences_v2: entering with start_dt={start_dt.isoformat()} "
+        f"window=({window_start.isoformat()}→{window_end.isoformat()}), "
+        f"anchor={anchor}, pure_count={pure_count}, parts={[(p['repr'],p['mode']) for p in parts_info]}")
+
+    # 1) apply calendar anchor if requested
     if anchor == 'calendar':
-        start_dt = align_calendar(start_dt, parts_info[0]['repr'][-1])
+        year_start = datetime.datetime(start_dt.year, 1, 1,
+                                       start_dt.hour, start_dt.minute, start_dt.second)
+        log(f"find_occurrences_v2: calendar anchor → start_dt reset to {year_start.isoformat()}")
+        start_dt = year_start
 
-    # single part = atomic
-    if len(parts_info) == 1:
-        delta = parts_info[0]['delta']
-        occs = _atomic_occurrences(start_dt, delta,
-                                   period_start, period_end, until)
-        log(f"Found {len(occs)} occurrences for start {start_dt.isoformat()}")
-        return occs
+    # 2) split into roll + fixed
+    roll_info  = parts_info[0]
+    fixed_info = parts_info[1:]
 
-    # nested case
-    return nested_occurrences(start_dt, parts_info,
-                              period_start, period_end, until)
+    roll_repr  = roll_info['repr']
+    roll_delta = roll_info['delta']
+    log(f"find_occurrences_v2: roll part repr={roll_repr} mode={roll_info['mode']}")
+
+    # 3) generate one “cycle” per roll step
+    occs = []
+    cycle_base = start_dt
+    cycle_index = 0
+    while True:
+        # for cycle 0 we use start_dt directly; for n>0 we step by roll_delta
+        if cycle_index > 0:
+            if roll_info['mode'] != 'roll':
+                raise ValueError("first part must always be roll")
+            cycle_base = ( roll_delta(cycle_base) 
+                           if callable(roll_delta) 
+                           else cycle_base + roll_delta )
+            log(f"find_occurrences_v2: rolled to cycle_base={cycle_base.isoformat()}")
+
+        # stop once the base itself is beyond our window end
+        if cycle_base > window_end:
+            log("find_occurrences_v2: cycle_base > window_end, breaking")
+            break
+
+        # 4) starting from this base, apply all fixed parts in sequence
+        dt = cycle_base
+        for info in fixed_info:
+            repr0  = info['repr']
+            delta0 = info['delta']
+            mode0  = info['mode']
+
+            log(f"find_occurrences_v2:   fixed part repr={repr0} mode={mode0} starting dt={dt.isoformat()}")
+
+            # unpack count+unit
+            m = re.fullmatch(r"(\d*)([hdwma])", repr0)
+            count = int(m.group(1)) if m.group(1) else 1
+            unit  = m.group(2)
+
+            if mode0 == 'fixed':
+                # optionally align to the first “complete” subinterval
+                if not pure_count and unit == 'w':
+                    # find first Monday on-or-after dt
+                    shift = (7 - (dt.isoweekday()-1)) % 7
+                    dt = dt + datetime.timedelta(days=shift)
+                    log(f"find_occurrences_v2:     aligned to first Monday→{dt.isoformat()}")
+                elif not pure_count and unit == 'm':
+                    # align to 1st of next month if day != 1
+                    if dt.day != 1:
+                        dt = dt.replace(day=1) + datetime.timedelta(days=calendar.monthrange(dt.year, dt.month)[1])
+                        log(f"find_occurrences_v2:     aligned to month start→{dt.isoformat()}")
+                elif not pure_count and unit == 'y':
+                    if dt.month != 1 or dt.day != 1:
+                        dt = datetime.datetime(dt.year+1, 1, 1, dt.hour, dt.minute, dt.second)
+                        log(f"find_occurrences_v2:     aligned to year start→{dt.isoformat()}")
+
+                # now step exactly count×unit from dt
+                single_delta = atomic_freq_to_delta(f"{count}{unit}")
+                dt = single_delta(dt) if callable(single_delta) else dt + single_delta
+                log(f"find_occurrences_v2:     fixed → stepped to {dt.isoformat()}")
+
+            else:  # rolling fixed inside this cycle
+                # just roll count×unit by repeated delta calls
+                rolling_delta = atomic_freq_to_delta(f"{count}{unit}")
+                for i in range(count):
+                    dt = (rolling_delta(dt) 
+                          if callable(rolling_delta) 
+                          else dt + rolling_delta)
+                log(f"find_occurrences_v2:     roll-within-cycle → {dt.isoformat()}")
+
+        # 5) collect if in window and before 'until'
+        if dt >= window_start and dt <= window_end and (not until or dt.date() <= until):
+            log(f"find_occurrences_v2:   collecting occurrence {dt.isoformat()}")
+            occs.append(dt)
+        else:
+            log(f"find_occurrences_v2:   skipping {dt.isoformat()} (out of window/until)")
+
+        cycle_index += 1
+
+    log(f"find_occurrences_v2: finished with {len(occs)} occurrences")
+    return occs
 
 def load_index(path):
     """
@@ -448,9 +473,15 @@ def main():
                 raise
 
             # 3. Compute occurrences
-            occs = find_occurrences(start_dt, parts_info,
-                                    period_start, period_end,
-                                    until, anchor)
+            occs = find_occurrences(
+                start_dt,
+                parts_info,
+                period_start,
+                period_end,
+                anchor=anchor,
+                pure_count=False,
+                until=until
+            )
 
             # iterate over the occurrences and get their properties
             impls = []
