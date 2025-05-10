@@ -1,14 +1,14 @@
 ---
 assignee: [None]
 category: examples
-created: 2025-05-08@10:29:54
+created: 2025-05-10@00:15:16
 end: 2026-01-03
 item: Event
-modified: 2025-05-08@10:29:54
+modified: 2025-05-10@00:15:16
 start: 2026-01-03
 status: Not started
 tags: [general]
 title: event 3
-uid: 89baa9b59364cc39
+uid: d2b69c693b211724
 ---
 
