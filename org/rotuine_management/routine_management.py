@@ -2,8 +2,6 @@
 ## routine_management.py
 ## ==============================
 
-# TODO: validate routines.csv args
-# TODO: Handling old events: change to Unknown if not delete
 # DO NOT UPDATE EVENTS MATCHING TODAY()
 
 ## ==============================

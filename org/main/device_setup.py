@@ -136,6 +136,7 @@ def adjust_blank_lines():
     event_category_found = False
     event_tags_found = False
     event_assignee_found = False
+    routine_depth_found = False
 
     if os.path.exists(ORGRC_PATH):
         with open(ORGRC_PATH, "r") as file:
@@ -176,6 +177,8 @@ def adjust_blank_lines():
                 event_tags_found = True
             if "event_assignee" in line:
                 event_assignee_found = True
+            if "routine_depth" in line:
+                routine_depth_found = True
 
         # If any of the default variables exist, set the other_defaults flag to True
         other_defaults = (note_status_found or note_category_found or note_tags_found or note_assignee_found or
@@ -228,6 +231,8 @@ def adjust_blank_lines():
                 new_content_lines.append("event_tags = 'general'\n")
             if not event_assignee_found:
                 new_content_lines.append("event_assignee = 'None'\n")
+            if not routine_depth_found:
+                new_content_lines.append("routine_depth = '1w'\n")
 
         # Step 6: Add exactly one blank line after # OTHER DEFAULTS section if it exists
         if missing_defaults:
