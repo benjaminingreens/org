@@ -13,6 +13,7 @@
 ## routine management
 
 - validation for `routine.csv` args
+- haven't properly tested timing with routines.csv
 - ~update orgrc defaults with `routine_depth`~
 - include logic for handling old events (change to unknown status if no presets, or delete if preset is on)
 - should the logs be saying 'failure to create x'? or this is an issue with the index not reflecting deletions while i am testing?
