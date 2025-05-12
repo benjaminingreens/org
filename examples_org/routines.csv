@@ -1,4 +1,4 @@
-title,tags,status,assignees,frequency,anchor,start,end
-footie,,,,m:2w,calendar,2025-01-01,
-do thing,,,,2m.2w.2d,calendar,2025-05-06,
-shopping,,,,w,,2025-05-06,
+title,tags,status,assignees,frequency,anchor,pure_count,start,end
+footie,,,,m:2w,calendar,,2025-01-01,
+do thing,,,,2m.2w.2d,calendar,,2025-05-06,
+shopping,,,,w,,,2025-05-06,

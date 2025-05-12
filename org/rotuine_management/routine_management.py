@@ -2,10 +2,7 @@
 ## routine_management.py
 ## ==============================
 
-# TODO: Update automatic creation of orgrc to include defaults
-# used by this script
-# TODO: Ensure that this script is activated at the appropriate moment
-# during order of operations (probably post - validation)
+# TODO: validate routines.csv args
 # TODO: Handling old events: change to Unknown if not delete
 # DO NOT UPDATE EVENTS MATCHING TODAY()
 
@@ -471,13 +468,20 @@ def main():
                 raise
 
             # 3. Compute occurrences
+            pure_count = rt.get("pure_count")
+
+            if pure_count == "True":
+                pure_count = True
+            else:
+                pure_count = False
+
             occs = find_occurrences(
                 start_dt,
                 parts_info,
                 period_start,
                 period_end,
                 anchor=anchor,
-                pure_count=False,
+                pure_count=pure_count,
                 until=until
             )
 

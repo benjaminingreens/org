@@ -287,10 +287,10 @@ Routines are managed via a `routines.csv` file within your workspace. Every time
 The `routines.csv` should be structured like this:
 
 ```csv
-title, tags, status, assignees, frequency, anchor, start, end
+title, tags, status, assignees, frequency, anchor, pure_count, start, end
 ```
 
-The headings correlate to `event` properties outlined under `org create event`, except for `frequency` and `anchor`. In this section, I will therefore explain the format required for `frequency` and `anchor` only, as the required format for the other headings is outlined under the `org create event` heading.
+The headings correlate to `event` properties outlined under `org create event`, except for `frequency`, `anchor`, and `pure_count`. In this section, I will therefore explain the format required for `frequency`, `anchor`, and `pure_count` only, as the required format for the other headings is outlined under the `org create event` heading.
 
 ### Frequency
 
@@ -340,7 +340,7 @@ Notice that the syntax requires longer periods on the left and shorter periods o
 
 The `anchor` heading in `routines.csv` controls how the frequency is processed.
 
-There are two ways the frequency of a recurring event can be interpreted. Imagine an event with these core properties:
+There are two main ways the frequency of a recurring event can be interpreted. Imagine an event with these core properties:
 
 ```txt
 title: buy milk
@@ -364,8 +364,8 @@ anchor: start
 Here, the `routines.csv` would look like this:
 
 ```csv
-title, tags, status, assignees, frequency, anchor, start, end
-grocery shopping, , , , w, start, 2025-05-01,
+title, tags, status, assignees, frequency, anchor, pure_count, start, end
+grocery shopping, , , , w, start, , 2025-05-01,
 ```
 
 In other cases, you may want to start **observing** occurrences from the `start` date (for example: a routine for the staff meeting on the second Tuesday of every month, with any occurrences to be included in my events from today onwards) - this is a `calendar anchor`:
@@ -380,22 +380,34 @@ anchor: calendar
 Here, the `routines.csv` would look like this:
 
 ```csv
-title, tags, status, assignees, frequency, anchor, start, end
-staff meeting, , , , m.2w.2d, start, 2025-05-01,
+title, tags, status, assignees, frequency, anchor, pure_count, start, end
+staff meeting, , , , m.2w.2d, start, , 2025-05-01,
 ```
 
 `NOTE`: Where `anchor` is not specified, `start` will be assumed as a value, as this is the more frequently used interpretation of `frequency`.
+
+### pure_count
+
+The `pure_count` property is a `boolean`. It is either `True` or `False`. If no value is specified, it is `False` by default.
+
+Its purpose is to specify how `org` should count weeks when iterating over routines with the specified `frequency`.
+
+For example, with a frequency of `m.2w` (literally: `every_month.two_weeks_in`), `org` will, by default, count two 'full weeks' into the month. If the month does not begin on a Monday, `org` will jump to the nearest Monday, and then count two weeks.
+
+This is useful if you intend `m.2w` to mean: 'by the end of the second week of every month'. However, you may want `m.2w` to be taken more literally by `org`, and have it understand it as: 'exactly two weeks into every month', then you would want `org` to count 'purely' from the first day of each month, regardless of whether it is a Monday or not. For this to happen, `pure_count` must be set to 'True' in the `routines.csv`.
+
+The default is `False` because it is more common for people to think of 'the nth week of a month' as the nth *full* week of that month (i.e. a non-pure count).
 
 ### Examples
 
 A valid `routines.csv` will look something like this:
 
 ```csv
-title, tags, status, assignees, frequency, anchor, start, end
-footie, sports, Not started, , w, , 2025-05-05@19:30:00,
+title, tags, status, assignees, frequency, anchor, pure_count, start, end
+footie, sports, Not started, , w, , , 2025-05-05@19:30:00,
 ```
 
-The routine listed here schedules an event every week called `footie`. The event will be scheduled indefinitely from the 5th of May 2025 (a Monday) from 19:30. A `start anchor` has been assumed because it is not specified. The `status` will be 'Not started', and the `tag` will be 'sports'.
+The routine listed here schedules an event every week called `footie`. The event will be scheduled indefinitely from the 5th of May 2025 (a Monday) from 19:30. A `start anchor` has been assumed because it is not specified. The `pure_count` is `False` because it has not been specified. The `status` will be 'Not started', and the `tag` will be 'sports'.
 
 The `start` property sets a date from which `event` generation should begin, and the `end` property sets a date beyond which the routine `event` will not be generated.
 
@@ -435,50 +447,3 @@ In your `orgrc.py`, modify the `routine_depth` variable to control how far ahead
 You can also toggle the `delete_routines` variable to `TRUE` or `FALSE` to delete old events matching any routines. If set to `FALSE`, Org will keep old events generated by routines and automatically set the `status` to 'Done'.
 
 ## Tag Management
-
-## TODO
-
-- Refresh memory on:
-  [X] How to remove testing environment files (`rm -rf .config .org org.egg-info venv`)
-    - Do I not also need to remove the pre-commit and post-receive?
-  [X] How to recreate testing environment files (`python -m venv venv`, `source venv/bin/activate`, `pip install -e .`)
-    - Off the back of this I can create the standardised example library
-  - How to upload to AUR - note this down
-- ~Figure out what is going on with `fuzzywuzzy`. Is it not being installed from `requirements.txt`~
-
-
-- Create routine management
-    - fix issue with start and end dates in events created by routines (no @)
-    - ~working on fixing issue with titles including dates so multiple events can be created~
-    - ~frequency notation currently does not capture 'fixed weeks'. 2 weeks into a month is not synonymous with the beginning of 'the second full week' of the month. this needs to be fixed. additional notation will be required~
-        - the abvove has been addressed with the pure_count variable -- where pure_count being ON means that when counting into a month, we count from the first monday if the first day of the month is not a monday
-- Create tag management
-
-- fix alphabetical ordering of yaml
-- ~Create command line views~
-  - Add o and r, and allow combined commands
-  - Have them refresh after returning after editing note
-- Order the properties in a specific manner
-- ~Nested _org folders is allowed - might this cause issues? what if the folder is moved? might be easier to ensure they are top level~
-- Standardise configuration handling
-  - Including re-initialisation for config re-writes
-  - Urgency decay as an option?
-- Open file when created (include options in config)
-- Handle special characters in org create
-- doc updates
-- standardised code across board
-- flow chart
-- ~Create standardised example library~
-
-- Org command currently setup to work only in org dirs. Fix
-- Improve messages for errors etc. (replace ValueErrors with print statements and exit the script)
-  - Improve other general messages too - messages that say, for example, that note was created
-- Not entirely convinced that there will be no errors server-side. Check possibilities
-
-## ISSUES
-
-- If someone clones an org repo, or a portion of it, org may not be initialised. User has to be careful. Could push invalid changes to server. Think about mitigation of this.
-- Ensure server-side logic is secure. There are a few places where things feel a bit risky.
-- Org auto-open item is an issue when using on mobile. can’t open apps from terminal in the same way i don’t think
-- will org need to be reinitialised in a folder when an update is done
-- no logic handles deletions. if an item is removed, the json object remains. need better logic. maybe a bin.json as a backup?

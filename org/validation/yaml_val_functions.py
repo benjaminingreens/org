@@ -88,11 +88,17 @@ def current_datetime(type, filepath=None):
 
 # Helper function to validate datetime format with '@'
 def validate_datetime(filepath, yaml_content, required, property_string=""):
-
-    value = yaml_content.get(f"{property_string}")
+    """
+    Ensure a datetime string is normalized to YYYY-MM-DD@HH:MM:SS.
+    Accepts:
+      - DD-MM-YYYY or YYYY-MM-DD
+      - YYYY-MM-DD HH:MM or YYYY-MM-DD@HH:MM
+      - YYYY-MM-DD HH:MM:SS or YYYY-MM-DD@HH:MM:SS
+    Always returns and stores: YYYY-MM-DD@HH:MM:SS
+    """
+    value = yaml_content.get(property_string)
 
     if required and not value:
-
         log(
             f"Missing {property_string} date for file: {filepath}. Expected format: "
             + "'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM'. Raising Value Error"
@@ -101,60 +107,39 @@ def validate_datetime(filepath, yaml_content, required, property_string=""):
             f"Missing {property_string} date for file: {filepath}. Expected format: "
             + "'YYYY-MM-DD' or 'YYYY-MM-DD@HH:MM'"
         )
-
-    elif not required and not value:
-
-        # OFNOTE4: Pretty sure there are no issues
-        # here, but earlier something intuitive just told
-        # me that this might be a problem, so I have flagged it.
-        # It had something to do with the fact that not all properties
-        # need to have a value, and I had only realised that after
-        # modifying some conditions which has already factored this in.
-        # So, hopefully, this will suffice for those datetime strings
-        # which don't need to be returned. I think everything else
-        # has a default value in the config, so this shouldn't be
-        # as big of an issue as it feels it might.
+    if not required and not value:
         return None
 
-    else:
+    log(f"{property_string} date for file: {filepath} is: {value}")
+    value = str(value)
 
-        log(f"{property_string} date for file: {filepath} is: {value}")
+    # 1) unify any space to '@' (only once, between date & time)
+    if " " in value and "@" not in value:
+        value = value.replace(" ", "@", 1)
 
-    # Ensure value is a string
-    if not isinstance(value, str):
-        value = str(value)
+    # 2) if pure date, append midnight
+    if re.fullmatch(r"\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2}", value):
+        value = value + "@00:00:00"
+    # 3) if date@HH:MM, append :00
+    elif re.fullmatch(r"\d{2}-\d{2}-\d{4}@\d{2}:\d{2}|\d{4}-\d{2}-\d{2}@\d{2}:\d{2}", value):
+        value = value + ":00"
 
-    try:
-
-        log(f"Checking {property_string} date format")
-
-        if re.match(r"\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2}", value):
-            return value
-        if re.match(
-            r"\d{2}-\d{2}-\d{4}@\d{2}:\d{2}|\d{4}-\d{2}-\d{2}@\d{2}:\d{2}", value
-        ):
-            return value
-
-    except:
-
+    # final check: must be YYYY-MM-DD@HH:MM:SS
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}@\d{2}:\d{2}:\d{2}", value):
         log(
             f"{property_string} datetime validation failed for file: {filepath}. "
-            + f"{property_string} datetime: {value}. Raising Value Error"
+            + f"Got '{value}'. Raising Value Error"
         )
         raise ValueError(
             f"{property_string} datetime validation failed for file: {filepath}. "
-            + f"{property_string} datetime: {value}"
+            + f"Got '{value}'"
         )
 
-    log(
-        f"{property_string} datetime validation failed for file: {filepath}. "
-        + f"{property_string} datetime: {value}. Raising Value Error"
-    )
-    raise ValueError(
-        f"{property_string} datetime validation failed for file: {filepath}. "
-        + f"{property_string} datetime: {value}"
-    )
+    log(f"validate_datetime: normalized {property_string} → {value}")
 
+    # store it back so downstream sees the '@HH:MM:SS' form
+    yaml_content[property_string] = value
+    return value
 
 # Function to update the YAML front matter in the .md file
 def update_yaml_frontmatter(filepath, yaml_content):

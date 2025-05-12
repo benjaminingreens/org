@@ -325,8 +325,6 @@ def update_index(index, index_1):
         if os.path.relpath(root, ORG_HOME).count(os.sep) > 1:
             continue  # Skip anything deeper than ORG_HOME/directory
 
-        print(root)
-
         if not is_valid_directory(root):
 
             # Not sure the below log is a useful message.
