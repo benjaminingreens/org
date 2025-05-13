@@ -25,6 +25,7 @@
 ## `org view`
 
 - Add o and r, and allow combined commands
+- summary views (or shortcuts for certain views) for a snapshot to most important info
 - Have the views refresh after returning after editing note
 
 ## orgrc handling
