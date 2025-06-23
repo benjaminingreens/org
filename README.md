@@ -1,5 +1,7 @@
 # ORG
 
+`NOTE`: Major re-write of `Org` ongoing on `branch`: `dev`
+
 `COMING SOON`: This app is still under development. The following README is still being written and is incomplete. Some parts of the app are usable--feel free to compile and have a play. I'd appreciate any ideas or thoughts.
 
 ## What is Org?
