@@ -18,7 +18,20 @@ from org.validation.file_cat import get_file_type_data
 cwd = os.getcwd()
 workspace = os.path.basename(cwd)
 
-def grab_invalid_files() -> list:
+def get_file_metadata() -> list:
+    """
+    Scan all sql databases and store data in a list of dicts.
+    """
+
+    log("info", f"Scanning all sql databases within '{workspace}'")
+
+    row_dicts = []
+
+    # will continue this later
+
+    return row_dicts
+
+def get_file_revalidation_metadata() -> list:
     """
     Finds invalid files ready for re-validation.
     Grabs their validation metadata from the sql db
@@ -107,17 +120,18 @@ def main():
 
     log("info", f"Validation start for workspace '{workspace}")
 
-    file_validation_metadata = []
-
     # PC: check if .org/ is present
     # if not, raise error and prompt user to run org init
 
     # PC: function for getting sql db from all folders
     # PC: function for getting scan of filesystem
+    # The above two are then used to generate file validation metadata
+    # which can be combined with file revalidation metadata
+    # (after sorting out file deletions, that is)
 
     # 2. look for 'invalid' folder and get files for revalidation
     if os.path.isdir('invalid'):
-        file_revalidation_metadata = grab_invalid_files()
+        file_revalidation_metadata = get_file_revalidation_metadata()
     else:
         file_revalidation_metadata = []
 
