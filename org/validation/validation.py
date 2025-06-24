@@ -19,8 +19,8 @@ def grab_invalid_files():
     # 1. walking through files
     # FIXME: This will not work unless invalid is automatically created
     # by a later function
-		#
-		# NOTE: Must be any plaintext file
+    #
+    # NOTE: Must be any plaintext file
     for root, _, files in os.walk(cwd + "/invalid"):
         for name in files:
             path = os.path.join(root, name)
