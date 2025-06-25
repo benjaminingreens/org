@@ -23,7 +23,7 @@ def get_file_metadata() -> list:
     Scan all sql databases and store data in a list of dicts.
     """
 
-    log("info", f"Scanning all sql databases within '{workspace}'")
+    log("info", f"Scanning all SQL databases within '{workspace}'")
 
     row_dicts = []
     
@@ -39,16 +39,19 @@ def get_file_metadata() -> list:
     ]
     
     # 2. Convert dbs into dicts and combine
-    all_org_metadata = []
     for db_path in db_paths:
         cx = sqlite3.connect(db_path)
         cx.row_factory = sqlite3.Row
         cursor = cx.cursor()
+        # TODO: ensure all sql tables are named as such: yyyymm
         cursor.execute("SELECT * FROM yyyymm")
-        all_org_metadata.extend(dict(row) for row in cursor.fetchall())
+        row_dicts.extend(dict(row) for row in cursor.fetchall())
         cx.close()
 
-    # will continue this later
+    # get number of files logged in database
+    number_of_files = len(row_dicts)
+
+    log("info", f"All SQL databases within '{workspace}' scanned")
 
     return row_dicts
 
