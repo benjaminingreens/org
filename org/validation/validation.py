@@ -26,6 +26,27 @@ def get_file_metadata() -> list:
     log("info", f"Scanning all sql databases within '{workspace}'")
 
     row_dicts = []
+    
+    # 1. Get a list of all <.org.db> files in workspace
+    # (which will only be in valid org dirs: workspace/yyyy/mm)
+    db_paths = [
+        os.path.join(workspace, y, m, ".org.db")
+        for y in os.listdir(workspace)
+        if y.isdigit() and len(y) == 4
+        for m in os.listdir(os.path.join(workspace, y))
+        if m.isdigit() and 1 <= int(m) <= 12
+        if os.path.isfile(os.path.join(workspace, y, m, ".org.db"))
+    ]
+    
+    # 2. Convert dbs into dicts and combine
+    all_org_metadata = []
+    for db_path in db_paths:
+        cx = sqlite3.connect(db_path)
+        cx.row_factory = sqlite3.Row
+        cursor = cx.cursor()
+        cursor.execute("SELECT * FROM yyyymm")
+        all_org_metadata.extend(dict(row) for row in cursor.fetchall())
+        cx.close()
 
     # will continue this later
 
@@ -96,7 +117,7 @@ def get_file_revalidation_metadata() -> list:
 def metadata_format_validation():
     """
     Function enforces Org spec format rules:
-	1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 4.3, 4.4, & 5.1
+    1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 4.3, 4.4, & 5.1
     """
 
     log("info", "Beginning format validation process")
