@@ -231,6 +231,10 @@ def main():
 
     # PC: If invalid folder empty and invalid.db empty, delete
 
+    # PC: When writing to SQL, include:
+    # 1. metadata
+    # 2.  
+
     log("info", f"Validation end for workspace '{workspace}")
 
     return None
