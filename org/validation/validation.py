@@ -51,7 +51,7 @@ def get_file_metadata() -> list:
     # get number of files logged in database
     number_of_files = len(row_dicts)
 
-    log("info", f"All SQL databases within '{workspace}' scanned")
+    log("info", f"All SQL databases within '{workspace}' scanned. {number of files} found.")
 
     return row_dicts
 
@@ -147,6 +147,7 @@ def main():
     # PC: check if .org/ is present
     # if not, raise error and prompt user to run org init
 
+    existing_file_metadata = get_file_metadata()
     # PC: function for getting sql db from all folders
     # PC: function for getting scan of filesystem
     # The above two are then used to generate file validation metadata
