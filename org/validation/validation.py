@@ -18,7 +18,7 @@ from org.validation.file_cat import get_file_type_data
 cwd = os.getcwd()
 workspace = os.path.basename(cwd)
 
-def get_file_metadata() -> list:
+def get_indexed_file_metadata() -> list:
     """
     Scan all sql databases and store data in a list of dicts.
     """
@@ -51,9 +51,29 @@ def get_file_metadata() -> list:
     # get number of files logged in database
     number_of_files = len(row_dicts)
 
-    log("info", f"All SQL databases within '{workspace}' scanned. {number of files} found.")
+    log("info", f"All SQL databases within '{workspace}' scanned. {number_of_files} found.")
 
     return row_dicts
+
+def get_actual_file_filepaths() -> list:
+    """
+    Scan filesystem to discover all actual files.
+    Return filepaths in a list.
+    """
+    
+    # 1. get list of all filepaths for valid org files
+    filepaths = [
+        os.path.join(root, f)
+        for root, _, files in os.walk(workspace)
+        if (
+            (rel := os.path.relpath(root, workspace)) == "." or
+            (len((parts := rel.split(os.sep))) == 2 and all(p.isdigit() for p in parts))
+        )
+        for f in files
+        if os.path.isfile(os.path.join(root, f)) and not f.endswith(".org.db")
+    ]
+
+    return filepaths
 
 def get_file_revalidation_metadata() -> list:
     """
@@ -147,12 +167,14 @@ def main():
     # PC: check if .org/ is present
     # if not, raise error and prompt user to run org init
 
-    existing_file_metadata = get_file_metadata()
-    # PC: function for getting sql db from all folders
-    # PC: function for getting scan of filesystem
+    indexed_file_metadata = get_indexed_file_metadata()
+    actual_file_filepaths = get_actual_file_filepaths()
+    # PC: function to compare both above to get: deleted, new, modified dicts
     # The above two are then used to generate file validation metadata
     # which can be combined with file revalidation metadata
     # (after sorting out file deletions, that is)
+
+    # don't forget to pop record from sql if file is moved to invalid
 
     # 2. look for 'invalid' folder and get files for revalidation
     if os.path.isdir('invalid'):
