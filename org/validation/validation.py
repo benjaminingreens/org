@@ -57,8 +57,10 @@ def get_indexed_file_metadata() -> list:
 
 def get_actual_file_filepaths() -> list:
     """
-    Scan filesystem to discover all actual files.
-    Return filepaths in a list.
+    Scan filesystem to discover all actual files
+    in valid Org directories.
+    Store in a list and filter to Org-supported files.
+    Return list.
     """
 
     log("info", "Getting list of all filepaths in valid Org directories")
@@ -107,7 +109,12 @@ def compare_scans(index_scan: list, disk_scan: list):
         - disk_scan: a list of Org-supported filepaths within workspace/ and workspace/yyyy/mm
     """
 
-     
+     # compare filepaths in each
+     # does the index scan actually contain file paths?!
+     # why do I feel like it doesn't lol
+     # the metadata by default doesn't include filepath lol
+     #
+     # also, anticipate situations where one filepath is abs and the other rel
 
     return None
 
