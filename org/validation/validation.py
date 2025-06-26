@@ -60,8 +60,10 @@ def get_actual_file_filepaths() -> list:
     Scan filesystem to discover all actual files.
     Return filepaths in a list.
     """
+
+    log("info", "Getting list of all filepaths in valid Org directories")
     
-    # 1. get list of all filepaths for valid org files
+    # 1. get list of all filepaths in valid org directories within workspace
     filepaths = [
         os.path.join(root, f)
         for root, _, files in os.walk(workspace)
@@ -73,7 +75,41 @@ def get_actual_file_filepaths() -> list:
         if os.path.isfile(os.path.join(root, f)) and not f.endswith(".org.db")
     ]
 
-    return filepaths
+    log("info", "Filtering filepath list to include supported files only")
+
+    # 2. filter to get filepaths supported by Org
+    supported_file_filepaths = []
+    counter = 0
+    for path in filepaths:
+
+        # 2. get relative path for better logs etc.
+        if path.startswith(cwd):
+            rel_path = path[len(cwd):].lstrip("/")
+        else:
+            rel_path = path
+
+        # 3. check file is supported by Org. If so, append to final list
+        file_type_data = get_file_type_data(rel_path)
+        if file_type_data.get("filecat") == "not supported":
+            continue
+        supported_file_filepaths.append(path)
+        counter += 1
+
+    log("info", f"{counter} supported files found in valid Org directories")
+
+    return supported_file_filepaths
+
+def compare_scans(index_scan: list, disk_scan: list):
+    """
+    Accepts:
+        - index_scan: a list of dicts, where each dict is metadata
+        for indexed Org files - basically equivalent to an ndjson file
+        - disk_scan: a list of Org-supported filepaths within workspace/ and workspace/yyyy/mm
+    """
+
+     
+
+    return None
 
 def get_file_revalidation_metadata() -> list:
     """
