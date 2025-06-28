@@ -177,6 +177,27 @@ def generate_validation_metadata(index_scan: list, special_filepaths: dict) -> l
     modified_paths: list = special_filepaths["modified_paths"]
     redundant_paths: list = special_filepaths["redundant_paths"]
 
+    # 2. create a list for new file validation metadata
+    ## check if /yyyy/mm prefix exists
+    ## if not, create it by checking mtime
+    new_files_validation_metadata: list = []
+    for path in new_paths:
+        norm_path: str = os.path.normpath(path)
+        parts: list = norm_path.strip(os.sep).split(os.sep)
+        if len(parts) >= 3 and parts[-3].isdigit() and parts[-2].isdigit():
+            rel_path: str = norm_path
+        else:
+            mtime: float = os.path.getmtime(norm_path)
+            dt: datetime.datetime = datetime.datetime.fromtimestamp(mtime)
+            rel_path: str = os.path.join(f"{dt.year:04d}", f"{dt.month:02d}", os.path.basename(norm_path))
+
+        # append dict of validation metadata to list
+        new_files_validation_metadata.append({
+            "file_path": rel_path,
+            "category": "new",
+            "valid": False,
+        })
+
     # validation dicts in a list for new
     # full dicts in a list for modified - read from index and remove from index list
     # remove red from index
