@@ -22,6 +22,11 @@ workspace: str = os.path.basename(cwd)
 def get_indexed_file_metadata() -> list:
     """
     Scan all sql databases and store data in a list of dicts.
+
+    Returns:
+        A list of dictionaries where each dict contains all metadata
+        Org has on a file. Including: basic metadata, validation metadata,
+        and stat metadata.
     """
 
     log("info", f"Scanning all SQL databases within '{workspace}'")
@@ -153,6 +158,32 @@ def compare_scans(index_scan: list, disk_scan: list) -> dict:
         "redundant_paths": redundant_paths,
     }
 
+def generate_validation_metadata(index_scan: list, special_filepaths: dict) -> list:
+    """
+    Accepts:
+        - index_scan: a list of dicts, where each dict is metadata
+        - special_filepaths: a dict of lists where each list contains
+        new, modified, or redundant filepaths
+
+    Returns:
+        A list of dicts where each dictionary is the validation metadata for
+        all files which need to be validated (new and modified)
+    """
+
+    log("info", "Generating validation metadata for files awaiting validation")
+
+    # 1. get lists out of dictionary
+    new_paths: list = special_filepaths["new_paths"]
+    modified_paths: list = special_filepaths["modified_paths"]
+    redundant_paths: list = special_filepaths["redundant_paths"]
+
+    # validation dicts in a list for new
+    # full dicts in a list for modified - read from index and remove from index list
+    # remove red from index
+    # return all
+
+    return []
+
 def get_file_revalidation_metadata() -> list:
     """
     Finds invalid files ready for re-validation.
@@ -250,7 +281,7 @@ def main():
     indexed_file_metadata: list = get_indexed_file_metadata()
     disk_file_filepaths: list = get_disk_file_filepaths()
     new_and_mod_and_red_files: dict = compare_scans(indexed_file_metadata, disk_file_filepaths)
-    # PC: function to compare both above to get: deleted, new, modified dicts
+    foo = generate_validation_metadata(indexed_file_metadata, new_and_mod_and_red_files)
     # The above two are then used to generate file validation metadata
     # which can be combined with file revalidation metadata
     # (after sorting out file deletions, that is)
@@ -280,6 +311,8 @@ def main():
     # it will by default: invalid db consists of validation metadata or
     # full metadata (if file was existing/common) - but in either case should contain rel path
     # since that metadata will have been populated already by validation
+    #
+    # PC: function to update index
 
     log("info", f"Validation end for workspace '{workspace}")
 
