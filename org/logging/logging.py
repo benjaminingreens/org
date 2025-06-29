@@ -1,10 +1,11 @@
 import os
 import datetime
+from typing import NoReturn
 
 log_path = os.path.join(os.getcwd(), "log.txt")
 debug_flag = False
 
-def log(level: str, message: str) -> None:
+def log(level: str, message: str) -> NoReturn | None:
     """
     Just my personal log function
     """

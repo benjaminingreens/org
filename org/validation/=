@@ -12,8 +12,6 @@ import sqlite3
 from org.logging.logging import log
 from org.validation.file_cat import get_file_type_data
 
-# TODO: Add more detailed file annotations for lists and dicts to show what is inside each list/dict etc
-
 # TODO: cwd needs to be dynamic so Org can be run from anywehre.
 # If Org is run in a random location that isn't default cwd,
 # config should find default cwd, set it to cwd,
@@ -160,17 +158,16 @@ def compare_scans(index_scan: list, disk_scan: list) -> dict:
         "redundant_paths": redundant_paths,
     }
 
-def generate_validation_metadata(special_filepaths: dict) -> tuple[list[dict], list[str]]:
+def generate_validation_metadata(index_scan: list, special_filepaths: dict) -> list:
     """
     Accepts:
+        - index_scan: a list of dicts, where each dict is metadata
         - special_filepaths: a dict of lists where each list contains
         new, modified, or redundant filepaths
 
     Returns:
-        - A list of dicts where each dictionary is the validation metadata for
+        A list of dicts where each dictionary is the validation metadata for
         all files which need to be validated (new and modified)
-        - A list of filepaths for all redundant filepaths - these can be used to remove
-        deleted filepaths from the index later
     """
 
     # 1. get lists out of dictionary
@@ -213,26 +210,28 @@ def generate_validation_metadata(special_filepaths: dict) -> tuple[list[dict], l
         parts: list = norm_path.strip(os.sep).split(os.sep)
         if len(parts) >= 3 and parts[-3].isdigit() and parts[-2].isdigit():
             rel_path: str = norm_path
-
-            # append dict of validation metadata to list
-            modified_files_validation_metadata.append({
-                "file_path": rel_path,
-                "category": "modified",
-                "valid": False,
-            })
-
         else:
             # something has gone very wrong in this case. modified paths
             # have come from the index and must by necessity be in /yyyy/mm/file format
             log("critical", f"Modified file filepath ({norm_path}) is not in '/yyyy/mm/file' format")
 
-    modified_files_validation_metadata_len: int = len(modified_files_validation_metadata)
-    log("info", f"{modified_files_validation_metadata_len} modified files will be validated")
+                # append dict of validation metadata to list
+        new_files_validation_metadata.append({
+            "file_path": rel_path,
+            "category": "new",
+            "valid": False,
+        })
 
-    # 4. combine both validation metadata lists
-    new_and_modified_fvm: list = new_files_validation_metadata + modified_files_validation_metadata
 
-    return new_and_modified_fvm, redundant_paths
+        
+
+
+    # validation dicts in a list for new
+    # full dicts in a list for modified - read from index and remove from index list
+    # remove red from index
+    # return all
+
+    return []
 
 def get_file_revalidation_metadata() -> list:
     """
@@ -331,9 +330,10 @@ def main():
     indexed_file_metadata: list = get_indexed_file_metadata()
     disk_file_filepaths: list = get_disk_file_filepaths()
     new_and_mod_and_red_files: dict = compare_scans(indexed_file_metadata, disk_file_filepaths)
-    new_and_mod_file_vm, redundant_filepaths = generate_validation_metadata(new_and_mod_and_red_files)
-    new_and_mod_file_vm: list[dict]
-    redundant_filepaths: list
+    foo = generate_validation_metadata(indexed_file_metadata, new_and_mod_and_red_files)
+    # The above two are then used to generate file validation metadata
+    # which can be combined with file revalidation metadata
+    # (after sorting out file deletions, that is)
 
     # don't forget to pop record from sql if file is moved to invalid
 
