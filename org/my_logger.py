@@ -2,10 +2,10 @@ import os
 import datetime
 from typing import NoReturn
 
-log_path = os.path.join(os.getcwd(), "log.txt")
+log_path = os.path.join(os.getcwd(), "log.log")
 debug_flag = False
 
-def log(level: str, message: str) -> NoReturn | None:
+def log(level: str, message: str) -> None:
     """
     Just my personal log function
     """
@@ -36,4 +36,3 @@ def log(level: str, message: str) -> NoReturn | None:
     serious_levels = {"error", "critical"}
     if level in serious_levels:
         raise Exception(full_msg)
-
