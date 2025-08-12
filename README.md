@@ -23,6 +23,33 @@ Org is a terminal-based tool for managing notes, todos, and events. It is design
 pip install "git+https://github.com/benjaminingreens/org.git@v0.1.0"
 ```
 
+or, if you have a managed environment, do something like this:
+
+```bash
+# 1. Create a dedicated virtual environment for org
+python3 -m venv ~/.venvs/org
+
+# 2. Install org from GitHub into that environment
+~/.venvs/org/bin/pip install "git+https://github.com/benjaminingreens/org.git@v0.1.0"
+
+# 3. Create a bin directory in your home if it doesn't exist
+mkdir -p ~/.local/bin
+
+# 4. Create a wrapper script so you can run 'org' without activating the venv
+echo '~/.venvs/org/bin/org "$@"' > ~/.local/bin/org
+chmod +x ~/.local/bin/org
+
+# 5. Add ~/.local/bin to your PATH if it's not already there
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.profile
+. ~/.profile
+```
+
+To update:
+
+`~/.venvs/org/bin/pip install -U "git+https://github.com/benjaminingreens/org.git@vX.X.X"`
+
+The above is useful for installing on the likes of `iSH`. I will release on the AUR soon, and hope to release on homebrew also.
+
 ### Initialise a workspace
 Run this **in the directory you want as your root**:
 ```bash
