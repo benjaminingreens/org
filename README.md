@@ -1,5 +1,7 @@
 # org
 
+`NOTE: This is the first ever release. This WILL break for you. But you've got to start somewhere. It should work for some of you though. Please note again: this is the first release and is 99% incomplete. But it is off the 'ground', whatever that means`
+
 A text-first suckless second-brain CLI tool.
 
 Org is a terminal-based tool for managing notes, todos, and events. It is designed to be simple, open-source, and locally based — a 'suckless' alternative to proprietary tools like Notion. It focuses on the essentials of a 'second-brain' app: storing and querying your notes, todos, and events in a clean, predictable way.
@@ -15,11 +17,10 @@ Org is a terminal-based tool for managing notes, todos, and events. It is design
 
 ## Quick start
 
-### Install (local/dev)
+### Install
+
 ```bash
-git clone https://github.com/benjaminingreens/org.git
-cd org
-python3 org.py --version  # or run any command, e.g. notes
+pip install "git+https://github.com/benjaminingreens/org.git@v0.1.0"
 ```
 
 ### Initialise a workspace
