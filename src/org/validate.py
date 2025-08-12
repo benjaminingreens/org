@@ -12,7 +12,7 @@ import typing as tp
 from typing import get_args, get_origin
 from datetime import datetime
 from pathlib import Path
-from org.my_logger import log
+from .my_logger import log
 from collections import defaultdict, OrderedDict
 
 # ROOT: Path = Path.cwd()

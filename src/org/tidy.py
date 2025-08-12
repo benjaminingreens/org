@@ -36,7 +36,7 @@ import typing as tp
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
-from org.my_logger import log
+from .my_logger import log
 import shutil
 import sys
 

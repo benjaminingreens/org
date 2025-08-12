@@ -4,21 +4,22 @@ import os
 import subprocess
 import sqlite3
 import json
+import copy
 import re
 import calendar
-import org.init
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
-from org.my_logger import log
-from org.yo_mama import main as yo_mama
-
-ROOT = Path.cwd()
-DB_PATH = ROOT / "org.db"
+from . import init
+from .my_logger import log
+from .yo_mama import main as yo_mama
+from .validate import main as validate_main, SCHEMA
+from .tidy import main as tidy_main
 
 # -------------------- Helpers --------------------
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    db_path = Path.cwd() / "org.db"
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -381,18 +382,6 @@ def cmd_tidy():
     # which simplifies my tidy logic
     if errors_file.exists():
         sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running 'org tidy'")
-    import copy
-
-    # TODO: add tidy groups here
-    # TODO: run validation here
-
-    if errors_file.exists():
-        sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running 'org tidy'")
-    import copy
-
-    # only now import our API
-    from validate_rewrite import main as validate_main, SCHEMA
-    from tidy import main as tidy_main
 
     # 2) tidy (moves/renames files, updates DB)
     tidy_main()
@@ -410,7 +399,7 @@ def yo_mama():
 
 # -------------------- Main ---------------------------------------------------
 
-if __name__ == "__main__":
+def main():
     # TODO: fix whatever this was fixing
     if False:
         if len(sys.argv) != 2:
@@ -428,10 +417,7 @@ if __name__ == "__main__":
     else:
         pass
 
-    # 1) run validation (notes, todos, events)
-    res = subprocess.run([sys.executable, "validate_rewrite.py"])
-    if res.returncode != 0:
-        sys.exit(res.returncode)
+    validate_main(copy.deepcopy(SCHEMA))
 
     cmd, *args = sys.argv[1:]
     {
@@ -449,3 +435,6 @@ if __name__ == "__main__":
         "fold":   cmd_old,
         "group":  cmd_group, # a minimal step towards forg
     }.get(cmd, lambda *a: print(f"Unknown command: {cmd}"))(*args)
+
+if __name__ == "__main__":
+    main()
