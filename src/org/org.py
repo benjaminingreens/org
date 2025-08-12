@@ -6,11 +6,11 @@ import sqlite3
 import json
 import re
 import calendar
-import init
+import org.init
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
-from my_logger import log
-from yo_mama import main as yo_mama
+from org.my_logger import log
+from org.yo_mama import main as yo_mama
 
 ROOT = Path.cwd()
 DB_PATH = ROOT / "org.db"

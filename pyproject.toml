@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 dependencies = ["rich>=13"]
 
 [project.scripts]
-org = "org.cli:main"
+org = "org.org:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
