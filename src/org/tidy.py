@@ -40,7 +40,8 @@ from .my_logger import log
 import shutil
 import sys
 
-ROOT: Path = Path(__file__).resolve().parent
+# ROOT: Path = Path(__file__).resolve().parent
+ROOT: Path = Path.cwd()
 LINE_LIMIT = 500
 IGNORE_PREFIX = "_"
 

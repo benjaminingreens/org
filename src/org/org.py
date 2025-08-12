@@ -10,10 +10,6 @@ import calendar
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
 from . import init
-from .my_logger import log
-from .yo_mama import main as yo_mama
-from .validate import main as validate_main, SCHEMA
-from .tidy import main as tidy_main
 
 # -------------------- Helpers --------------------
 
@@ -370,6 +366,9 @@ def cmd_tags():
     print("(todos/events tags not yet indexed)")
 
 def cmd_tidy():
+    from .tidy import main as tidy_main
+    from .validate import main as validate_main, SCHEMA
+    from .my_logger import log
 
     errors_file = Path("org_errors")
 
@@ -411,6 +410,10 @@ def main():
     root = init.handle_init(arg_init)
     os.chdir(root)
 
+    from .validate import main as validate_main, SCHEMA
+    from .my_logger import log
+    from .yo_mama import main as yo_mama
+
     file = Path("log.log")
     if file.exists():
         os.remove("log.log")
@@ -418,6 +421,9 @@ def main():
         pass
 
     validate_main(copy.deepcopy(SCHEMA))
+    errors_file = Path("org_errors")
+    if errors_file.exists():
+        sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running any commands")
 
     cmd, *args = sys.argv[1:]
     {

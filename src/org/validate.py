@@ -16,9 +16,14 @@ from .my_logger import log
 from collections import defaultdict, OrderedDict
 
 # ROOT: Path = Path.cwd()
-ROOT: Path = Path(__file__).resolve().parent
+ROOT: Path = Path.cwd()
 DB_PATH: Path = ROOT / "org.db"
 CONFIG_PATH: Path = ROOT / ".config.json"
+ERRORS_PATH: Path = ROOT / "org_errors"
+
+# ROOT: Path = Path(__file__).resolve().parent
+# DB_PATH: Path = ROOT / "org.db"
+# CONFIG_PATH: Path = ROOT / ".config.json"
 
 # TODO: do todos and events have all their properties inline and in order?
 # TODO: make id shorter and more deterministic? in the case of loss? does this make data vulnerable?
