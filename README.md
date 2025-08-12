@@ -71,7 +71,7 @@ If `<tag>` is provided, both sections filter by that tag.
 - 09:00–10:00 Team Standup (20250811t090000.txt) [Scheduled] (work, standup)
 
 === Todos (priority 1 & 2) ===
-- File Watford MDR  (20250701t101010.txt) [In Progress] (work, report)
+- Fix issue for client (20250701t101010.txt) [In Progress] (work, report)
 ```
 
 ---
@@ -84,12 +84,19 @@ List valid notes. With tags, performs a “contains” filter for each tag.
 
 **Example output**
 ```
-20250810t223344.txt: Draft bid structure
+20250810t223344.txt: Draft chapter structure
 ```
 
 ---
 
 ### `todos`
+
+todos live in a .td file with the following syntax:
+
+`* t: todo // <metadata>`
+
+`will actually tell you what the metadata is later...`
+
 ```
 org todos [<tag>]
 ```
@@ -97,12 +104,19 @@ List valid todos (most recent first). Optional single tag filter.
 
 **Example output**
 ```
-- Send email to Janet  (20250809t083000.txt) [Not started] (email, work)
+- Send email to John (todos.td) [Not started] (email, work)
 ```
 
 ---
 
 ### `events`
+
+events live in an .ev file with the following syntax:
+
+`* e: event // <metadata>`
+
+`will actually tell you what the metadata is later...`
+
 ```
 org events [<tag>]
 ```
@@ -110,7 +124,7 @@ Print **today’s** events in chronological order (pattern-aware). Optional sing
 
 **Example output**
 ```
-- 15:00–16:00 PCC meeting (20250811t150000.txt) [Scheduled] (parish, pcc)
+- 15:00–16:00 PCC meeting (events.ev) [Scheduled] (parish, pcc)
 ```
 
 ---
