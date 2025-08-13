@@ -1,0 +1,15 @@
+// prep for v0.2.0
+* t: update documentation to properly reflect functionality and inform users
+* t: add a testing suite
+* t: tidy all scripts (ensure docstrings for all functions, and split some functions)
+* t: imrpove error handling and logs
+
+// priority 1: urgent and important
+* t: hide log and orgdb
+* t: log migrations 
+
+// priority 2: urgent and not important
+
+// priority 3: not urgent and important
+
+// priority 4: not urgent and not important
