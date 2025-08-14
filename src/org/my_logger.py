@@ -2,7 +2,7 @@ import os
 import datetime
 from typing import NoReturn
 
-log_path = os.path.join(os.getcwd(), "log.log")
+log_path = os.path.join(os.getcwd(), ".org.log")
 debug_flag = False
 
 def log(level: str, message: str) -> None:

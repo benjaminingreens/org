@@ -444,7 +444,7 @@ def process_files(file_type, buckets, max_lines):
             if file_type == ".txt":
 
                 # Get title from DB
-                c = sqlite3.connect("org.db")
+                c = sqlite3.connect(".org.db")
                 c.row_factory = sqlite3.Row  # Optional, if you prefer dict-style access
 
                 row = c.execute(
@@ -521,7 +521,7 @@ def main():
     tagsets: dict[Path, list] = {}
     tagsets = get_tagsets()
 
-    conn = sqlite3.connect('org.db', isolation_level=None)
+    conn = sqlite3.connect('.org.db', isolation_level=None)
     c    = conn.cursor()
 
     # 2) bucket them by year/month

@@ -14,7 +14,7 @@ from . import init
 # -------------------- Helpers --------------------
 
 def get_db():
-    db_path = Path.cwd() / "org.db"
+    db_path = Path.cwd() / ".org.db"
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
@@ -414,9 +414,9 @@ def main():
     from .my_logger import log
     from .yo_mama import main as yo_mama
 
-    file = Path("log.log")
+    file = Path(".org.log")
     if file.exists():
-        os.remove("log.log")
+        os.remove(".org.log")
     else:
         pass
 

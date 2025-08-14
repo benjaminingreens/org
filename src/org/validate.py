@@ -4,6 +4,7 @@ import os
 import re
 import json
 import copy
+import uuid
 import sqlite3
 import hashlib
 import shutil
@@ -14,10 +15,11 @@ from datetime import datetime
 from pathlib import Path
 from .my_logger import log
 from collections import defaultdict, OrderedDict
+from .orgids import new_user_id_str, make_id
 
 # ROOT: Path = Path.cwd()
 ROOT: Path = Path.cwd()
-DB_PATH: Path = ROOT / "org.db"
+DB_PATH: Path = ROOT / ".org.db"
 CONFIG_PATH: Path = ROOT / ".config.json"
 ERRORS_PATH: Path = ROOT / "org_errors"
 
@@ -68,9 +70,8 @@ SCHEMA: dict[str, list] = {
 
 # define Config class to create type
 class Config(tp.TypedDict, total=True):
-    first_name: str
-    last_name: str
-    dob: str
+    user_id: str
+    counter: int
     
 def load_or_create_config() -> Config:
     """
@@ -93,28 +94,18 @@ def load_or_create_config() -> Config:
         cfg: Config = {}
 
     # ensure user data exists
-    lookup: dict = {"first_name": "first name", "last_name": "last name", "dob": "date of birth"}
-    for key in ("first_name", "last_name", "dob"):
-        if not cfg.get(key, "").strip():
-            label = lookup.get(key, key.replace("_", " "))
-
-            # ensure dob returned in correct format
-            if key == "dob":
-
-                while True:
-                    s: str = input(f"Enter your {label} (DD/MM/YYYY): ").strip()
-                    try:
-                        dt: datetime = datetime.strptime(s, "%d/%m/%Y")
-                        cfg[key] = dt.strftime("%Y%m%d")
-                        break
-                    except:
-                        log("error", "Invalid format; please use DD/MM/YYYY")
-
-            else:
-                cfg[key] = input(f"Enter your {label}: ").strip()
+    for key in ("user_id", "counter"):
+        if key == "user_id":
+            val = cfg.get("user_id")
+            if not isinstance(val, str) or not val.strip():
+                cfg["user_id"] = new_user_id_str()
+        else:  # key == "counter"
+            val = cfg.get("counter")
+            if not isinstance(val, int) or not (0 <= val < (1 << 32)):
+                cfg["counter"] = 0
 
     # write data to config file
-    CONFIG_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+    CONFIG_PATH.write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
 
     log("info", "Config processing complete")
 
@@ -320,27 +311,6 @@ def _parse_front(yaml_str: str, metadata_dict: dict[str, list]) -> tp.Dict[str, 
 
     return metadata_dict
 
-def _make_id(path: Path, line: str, cfg: Config) -> str:
-    # the path here is the relative one as per the script structure
-    # do i want to change this or no?
-    """
-    Needs to be a hash of:
-    first name
-    last name
-    dob
-    title (we’ll use the entire line here)
-        # FIXME: for inline and yaml files i use inconsistent things here
-        # see if i can make it more consistent
-    current time
-
-    TODO: make hash shorter if possible and more unique if possible
-    """
-    from datetime import datetime
-    user_part = f"{cfg['first_name']}|{cfg['last_name']}|{cfg['dob']}"
-    payload = f"{user_part}|{path}|{line}|{datetime.now().isoformat()}"
-    return hashlib.sha1(payload.encode('utf-8')).hexdigest()
-
-
 def _split_front_body(text: str) -> tp.Tuple[str, str]:
     """
     Returns (front_block, body). front_block includes the ---…---\n
@@ -455,8 +425,7 @@ def validate_notes(conn: sqlite3.Connection, c: sqlite3.Cursor, cfg: Config, to_
             if meta['id'][0]:
                 note_id = meta['id'][0]
             else:
-                note_id = _make_id(p, text, cfg)
-                meta["id"][0] = note_id
+                meta["id"][0] = make_id()
 
         # validate metadata
         meta, valids_dict, errors_dict = validate_metadata(meta, ".txt", row)
@@ -1274,8 +1243,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
                 if meta['id'][0]:
                     note_id = meta['id'][0]
                 else:
-                    note_id = _make_id(p, line, cfg)
-                    meta["id"][0] = note_id
+                    meta["id"][0] = make_id()
 
             # this is where validation happens per line            
             meta, valids_dict, errors_dict = validate_metadata(meta, file_type, db_row_match)
