@@ -3,6 +3,7 @@
 * t: add a testing suite
 * t: tidy all scripts (ensure docstrings for all functions, and split some functions)
 * t: imrpove error handling and logs
+* t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
 * t: hide log and orgdb
