@@ -236,6 +236,7 @@ def cmd_todos(*args):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
+    # TODO: AND WHERE STATUS == TODO!!! DUH!!!
     rows = c.execute("""
         SELECT todo, path, status, tags
           FROM todos
