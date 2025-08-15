@@ -6,11 +6,11 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
-* t: hide log and orgdb
 * t: log migrations 
 
 // priority 2: urgent and not important
 
 // priority 3: not urgent and important
+* t: if no title, use file title
 
 // priority 4: not urgent and not important
