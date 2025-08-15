@@ -24,7 +24,7 @@ def new_user_id_str() -> str:
 def make_id() -> str:
     """
     160-bit ID from UUIDv7 namespace (string in config) + 32-bit counter.
-    Bijective scramble + base32 encoding for fixed 32-char lowercase output.
+    Keyed Feistel over 160 bits for full diffusion; outputs 32-char base32 (lowercase).
     """
     if CONFIG_PATH.exists():
         cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -39,23 +39,35 @@ def make_id() -> str:
     if not (0 <= counter < (1 << 32)):
         raise ValueError("counter must be a 32-bit unsigned integer")
 
-    ns_uuid = uuid.UUID(ns_uuid_str)  # parse string to UUID
+    ns_uuid = uuid.UUID(ns_uuid_str)
     ns128 = int.from_bytes(ns_uuid.bytes, "big")
     x = (ns128 << 32) | counter  # 160 bits
 
     mask80 = (1 << 80) - 1
     L, R = (x >> 80) & mask80, x & mask80
-    for r in range(1, 7):
-        F = int.from_bytes(
-            hashlib.sha256(
-                L.to_bytes(10, "big") + b"org-feistel-160" + bytes([r])
-            ).digest()[:10],
-            "big",
-        )
-        L, R = R, (L ^ F) & mask80
-    y = (L << 80) | R
 
-    cfg["counter"] += 1
+    # namespace-derived key
+    K = hashlib.sha256(ns_uuid.bytes + b"org-feistel-160-key").digest()
+
+    def F(r_half: int, rnd: int) -> int:
+        # depend on RIGHT half + key + round (+ counter for extra tweak)
+        data = (
+            r_half.to_bytes(10, "big")
+            + counter.to_bytes(4, "big")
+            + K
+            + bytes([rnd])
+        )
+        return int.from_bytes(hashlib.sha256(data).digest()[:10], "big")  # 80 bits
+
+    # more rounds for diffusion; use right-half in F
+    for r in range(1, 11):  # was 6
+        L, R = R, (L ^ F(R, r)) & mask80
+
+    # final swap to improve avalanche
+    y = (R << 80) | L
+
+    # increment and persist counter
+    cfg["counter"] = counter + 1
     CONFIG_PATH.write_text(json.dumps(cfg, indent=2, default=str), encoding="utf-8")
 
     return base64.b32encode(y.to_bytes(20, "big")).decode().rstrip("=").lower()
