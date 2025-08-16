@@ -396,6 +396,14 @@ def cmd_init():
 def yo_mama():
     print("yo mama")
 
+def setup_collaboration():
+    """
+    check .orgroot for ceiling - if not exists ask
+    ask user to input .orgroot id - if already exists, do nothing
+    """
+
+    pass
+
 
 # -------------------- Main ---------------------------------------------------
 
@@ -425,6 +433,12 @@ def main():
     errors_file = Path("org_errors")
     if errors_file.exists():
         sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running any commands")
+
+    # TODO
+    # put all db calls here. call the whole db here, and then pass to funcs
+    # check .orgroot for collabs
+    # if exist, go to .orgceiling, search for .orgroots with matching ids
+    # and combine their orb.db with this one
 
     cmd, *args = sys.argv[1:]
     {
