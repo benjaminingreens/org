@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import os
-import subprocess
 import sqlite3
 import json
 import copy
@@ -13,10 +12,27 @@ from . import init
 
 # -------------------- Helpers --------------------
 
-def get_db():
-    db_path = Path.cwd() / ".org.db"
-    conn = sqlite3.connect(db_path)
+def get_db(db_paths=None):
+    """
+    Return a connection to the first db, with the rest attached.
+    db_paths: list of Path-like objects. First is 'main', others attached as db1, db2, ...
+    """
+    if not db_paths:
+        db_paths = [Path.cwd() / ".org.db"]
+
+    # normalise to Path
+    db_paths = [Path(p) for p in db_paths]
+
+    # open first one
+    conn = sqlite3.connect(db_paths[0])
     conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # attach others
+    for i, path in enumerate(db_paths[1:], start=1):
+        alias = f"db{i}"
+        cur.execute("ATTACH DATABASE ? AS %s" % alias, (str(path),))
+
     return conn
 
 # Pattern parsing and instance generation (adapted from old functions)
@@ -179,20 +195,17 @@ def generate_instances_for_date(pat_def, start_dt, target_date):
 
 # -------------------- Commands --------------------
 
-def cmd_report(tag=None):
+def cmd_report(c, tag=None):
     # --- Today’s Events ---
     print("=== Events (today) ===")
     # reuse cmd_events to print today’s events (it already handles patterns & start dates)
     if tag:
-        cmd_events(tag)
+        cmd_events(c, tag)
     else:
-        cmd_events()
+        cmd_events(c)
 
     # --- Priority 1 & 2 Todos ---
     print("\n=== Todos (priority 1 & 2) ===")
-    conn = get_db()
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
     rows = c.execute("""
         SELECT todo, status, tags, path
           FROM todos
@@ -212,9 +225,7 @@ def cmd_report(tag=None):
         print(f"- {row['todo']} ({name}) [{row['status']}] ({', '.join(tags)})")
 
 
-def cmd_notes(*tags):
-    conn = get_db()
-    c = conn.cursor()
+def cmd_notes(c, *tags):
     if tags:
         q = "SELECT path, title FROM notes WHERE valid = 1 AND (" + \
             " OR ".join("tags LIKE ?" for _ in tags) + ")"
@@ -225,16 +236,13 @@ def cmd_notes(*tags):
     for row in c.execute(q, params):
         print(f"{Path(row['path']).name}: {row['title']}")
 
-def cmd_todos(*args):
+def cmd_todos(c, *args):
     import json
     from pathlib import Path
 
     # if you passed a tag, use it to filter; otherwise show all
     tag_filter = args[0] if args else None
 
-    conn = get_db()
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
 
     # TODO: AND WHERE STATUS == TODO!!! DUH!!!
     rows = c.execute("""
@@ -253,15 +261,12 @@ def cmd_todos(*args):
         tags_str = ", ".join(tags)
         print(f"- {row['todo']}  ({name}) [{row['status']}] ({tags_str})")
 
-def cmd_events(*args):
+def cmd_events(c, *args):
     """
     Print today’s events in chronological order.
     """
     tag_filter = args[0] if args else None
     today = date.today()
-    conn = get_db()
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
 
     # Fetch all events
     rows = c.execute("""
@@ -305,10 +310,10 @@ def cmd_events(*args):
         print(f"- {time_str} {event} ({name}) [{status}] ({', '.join(tags)})")
 
 
-def cmd_old():
+def cmd_old(c):
     print("`fold` now runs on the filesystem—SQL index not involved.")
 
-def cmd_group(*args):
+def cmd_group(c, *args):
     # Usage & validation
     if len(args) < 2:
         print("Usage: org group <name> <tag1> [tag2 ...]")
@@ -350,9 +355,7 @@ def cmd_group(*args):
     print(f"Group created: {group_dir}")
     print(f"Wrote tags to: {tagset_path} ({len(tags)} tag(s))")
 
-def cmd_tags():
-    conn = get_db()
-    c = conn.cursor()
+def cmd_tags(c):
     # notes
     note_counts = {row["tags"]: row["cnt"] for row in c.execute("""
         SELECT json_each.value AS tags, COUNT(*) AS cnt
@@ -366,7 +369,7 @@ def cmd_tags():
         print(f"  {t}: {cnt}")
     print("(todos/events tags not yet indexed)")
 
-def cmd_tidy():
+def cmd_tidy(c):
     from .tidy import main as tidy_main
     from .validate import main as validate_main, SCHEMA
     from .my_logger import log
@@ -390,13 +393,13 @@ def cmd_tidy():
     # 3) final in‑process validation
     validate_main(copy.deepcopy(SCHEMA))
 
-def cmd_init():
+def cmd_init(c):
     pass
 
-def yo_mama():
+def yo_mama(c):
     print("yo mama")
 
-def setup_collaboration():
+def setup_collaboration(c):
     """
     check .orgroot for ceiling - if not exists ask
     ask user to input .orgroot id - if already exists, do nothing
@@ -435,27 +438,39 @@ def main():
         sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running any commands")
 
     # TODO
-    # put all db calls here. call the whole db here, and then pass to funcs
     # check .orgroot for collabs
     # if exist, go to .orgceiling, search for .orgroots with matching ids
-    # and combine their orb.db with this one
+    # and add their db paths to list
+
+    # NOTE: the collab repos may contain errors, and so WHERE valid = 1 is very important
+    # keep an eye on this though. i do believe that the db is usable despite inability to validate
+    # since we can just use what was last valid with the valid flag
+
+    db_paths = [Path.cwd() / ".org.db"]
+    conn = get_db(db_paths)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
 
     cmd, *args = sys.argv[1:]
-    {
-        "init": cmd_init,
+    dispatch = {
+        "init":   cmd_init,
         "report": cmd_report,
         "notes":  cmd_notes,
         "todos":  cmd_todos,
         "events": cmd_events,
         "tags":   cmd_tags,
-        "tidy": cmd_tidy,
-        "ym": yo_mama,
-        "group": cmd_group,
+        "tidy":   cmd_tidy,
+        "ym":     yo_mama,
+        "group":  cmd_group,
+        "fold":   cmd_old,   # deprecated
+    }
 
-        # deprecated:
-        "fold":   cmd_old,
-        "group":  cmd_group, # a minimal step towards forg
-    }.get(cmd, lambda *a: print(f"Unknown command: {cmd}"))(*args)
+    handler = dispatch.get(cmd)
+    if handler is None:
+        print(f"Unknown command: {cmd}")
+        sys.exit(1)
+
+    handler(c, *args)
 
 if __name__ == "__main__":
     main()
