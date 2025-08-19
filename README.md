@@ -4,7 +4,7 @@
 
 ## What is `org`?
 
-`Org` aims to be a text-first suckless second-brain CLI tool.
+`Org` aims to be a text-first,  suckless, second-brain CLI tool.
 
 `Org` is a terminal-based tool designed for managing notes, todos, and events. It is seeking to meet the need for a 'second-brain' which many have in our modern age; the need to capture, organise, and query an overflow of personal information and data in order to maximise its usefulness.
 
