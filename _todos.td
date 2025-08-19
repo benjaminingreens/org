@@ -7,7 +7,6 @@
 
 // priority 1: urgent and important
 * t: fix org todos to select items with todo status only
-* t: fix defaults and config
 * t: add org add
 * t: add event and todo tags to org tags
 
