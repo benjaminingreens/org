@@ -69,7 +69,7 @@ At this early stage, Org manages three types of files:
 `.td` files - or 'todos'.
 `.ev` files - or 'events'.
 
-### `note` Conventions
+### 1. `note` Conventions
 
 Org relies on YAML-style metadata in `.txt` files to index and manage your notes. For example:
 
@@ -97,7 +97,7 @@ this is the note content
 
 If you wish, you may include a `description` property to include a brief description of your note. Org does not assume any defaults for this property.
 
-### `todo` and `event` Conventions
+### 2. `todo` and `event` Conventions
 
 `.td` (todo) and `.ev` (event) files follow similar conventions to one another.
 
@@ -158,11 +158,12 @@ Before running through other commands, it is worth mentioning the `org collab` c
 `org notes` - lists all notes managed by org  
 `org todos` - lists all priority 1 & 2 todo items in the workspace  
 `org events` - lists all events of the day  
-`(sorting and filtering to be included for the above three in future)`  
+(sorting and filtering to be included for the above three in future)  
+
 `org report` - combination of `org todos` and `org events` (custom reports to be included in future)  
 `org tags` - lists all tags found in the workspace  
 `org tidy` - organises files into relevant folders: `YYYY/MM` folders based on modification time, or project folders (see below command)  
-`org group <project_name> [tag1] [tag2]` - creates a folder called `_project_name`, and moves all notes, todos, and events of any specified tags into that folder.
+`org group <project_name> [tag1] [tag2]` - creates a folder called `_project_name`, and moves all notes, todos, and events of any specified tags into that folder
 
 There are some hidden commands for fun. Many of which are still in development.
 
