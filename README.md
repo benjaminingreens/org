@@ -13,9 +13,7 @@
 |                              |
 '------------------------------'
 ```
-
-# `Org`
-
+---
 `NOTE: This is the alpha release. This will probably break for you, and it will be slower than the ideal. Only the most basic features exist (see the command list), and I am still writing some of the core commands. I am a while off from a beta release, which would be the first release that would be usable by a wider audience. This release is to test the simplest of functionality, and nothing more. Feedback on such matters is welcome.`
 
 ## What is `org`?
