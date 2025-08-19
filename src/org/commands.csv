@@ -1,0 +1,10 @@
+command,args,description
+init,none,initialises dir with .orgroot
+notes,none,lists all notes
+todos,none,lists all todos of priorities 1 and 2
+events,none,lists all todays events
+report,none,combination of event and todo commands
+tags,none,lists all tags
+tidy,none,tidies repo by moving items to their relevant dirs
+group,<name> [tag1] [tag2],creates dir with _<name> based on [tag1] and [tag2]
+ym,none,prints 'yo mama'

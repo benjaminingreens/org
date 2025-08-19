@@ -30,48 +30,24 @@ ERRORS_PATH: Path = ROOT / "org_errors"
 # TODO: do todos and events have all their properties inline and in order?
 # TODO: make id shorter and more deterministic? in the case of loss? does this make data vulnerable?
 
-SCHEMA: dict[str, list] = {
-
-    # str: [value, [compatible filetypes], cardinal symbol, type, format string, defaults (i/a)]
-
-    # "note":[None,[".nt"],"",str,".*"],
-    "todo":[None,[".td"],"r",str,".*",None],
-    "event":[None,[".ev"],"r",str,".*",None],
-
-    # common to all
-    "tags":[None,[".txt",".nt",".td",".ev"],"d",list[str],"^\\S*$",[["general"],["general"],["general"],["general"]]],
-    "authour":[None,[".txt",".nt",".td",".ev"],"d",str,".*",["config","config","config","config"]],
-    "creation":[None,[".txt",".nt",".td",".ev"],"a",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",[None,None,None,None]],
-
-    # todos and events only
-    "status":[None,[".td",".ev"],"d",str,"(?i)^(todo|inprogress|done|dependent|blocked|redundant|cancelled|unknown)$",["todo","todo"]],
-    "assignees":[None,[".td",".ev"],"d",list[str],".*",[["config"],["config"]]],
-    "priority":[None,[".td",".ev"],"d",int,None,[3,3]],
-
-    # notes only
-    "title":[None,[".txt",".nt"],"d",str,".*",[lambda: datetime.now().strftime("%Y%m%dT%H%M%S"),lambda: datetime.now().strftime("%Y%m%dT%H%M%S")]], # FIXME: need actual default here
-    "description":[None,[".txt",".nt"],"n",str,".*",[None,None]],
-
-    # todos only
-    "deadline":[None,[".td"],"n",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",None],
-
-    # events only
-    "start":[None,[".ev"],"r",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",None],
-    # might need to double check this one
-    "pattern":[None,[".ev"],"n",str,"^(?:\\.)?(?:\\d+[ymwdhn])+(?:@[^@~]+)*(?:~[^@~]+)*(?:\\+\\d+(?:[ymwdhn])?)?$",None],
-    "end":[None,[".ev"],"n",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",None],
-
-    # id will not be run through validation,
-    # as it is a key reference property which should
-    # be handled ideally with as few operations as possible
-    "id":[None,None,None,None,None,None],
-
-}
 
 # define Config class to create type
 class Config(tp.TypedDict, total=True):
+    name: str
     user_id: str
     counter: int
+
+def normalise(text, allowed="a-z0-9_"):
+    """
+    Normalise text:
+    - Lowercase
+    - Replace spaces with underscores
+    - Remove disallowed characters (keeps only [allowed])
+    """
+    text = text.lower()
+    text = text.replace(" ", "_")
+    text = re.sub(f"[^{allowed}]", "", text)
+    return text
     
 def load_or_create_config() -> Config:
     """
@@ -94,8 +70,14 @@ def load_or_create_config() -> Config:
         cfg: Config = {}
 
     # ensure user data exists
-    for key in ("user_id", "counter"):
-        if key == "user_id":
+    for key in ("name", "user_id", "counter"):
+        if key == "name":
+            val = cfg.get("name")
+            if not isinstance(val, str) or not val.strip():
+                name = input(f"Please enter your name: ").strip()
+                name = normalise(name)
+                cfg["name"] = name
+        elif key == "user_id":
             val = cfg.get("user_id")
             if not isinstance(val, str) or not val.strip():
                 cfg["user_id"] = new_user_id_str()
@@ -110,6 +92,44 @@ def load_or_create_config() -> Config:
     log("info", "Config processing complete")
 
     return cfg
+
+SCHEMA: dict[str, list] = {
+
+    # str: [value, [compatible filetypes], cardinal symbol, type, format string, defaults (i/a)]
+
+    # "note":[None,[".nt"],"",str,".*"],
+    "todo":[None,[".td"],"r",str,".*",None],
+    "event":[None,[".ev"],"r",str,".*",None],
+
+    # common to all
+    "tags":[None,[".txt",".nt",".td",".ev"],"d",list[str],"^\\S*$",[["general"],["general"],["general"],["general"]]],
+    "authour":[None,[".txt",".nt",".td",".ev"],"d",str,".*",[lambda: load_or_create_config()["name"],lambda: load_or_create_config()["name"],lambda: load_or_create_config()["name"],lambda: load_or_create_config()["name"]]],
+    "creation":[None,[".txt",".nt",".td",".ev"],"a",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",[None,None,None,None]],
+
+    # todos and events only
+    "status":[None,[".td",".ev"],"d",str,"(?i)^(todo|inprogress|done|dependent|blocked|redundant|cancelled|unknown)$",["todo","todo"]],
+    "assignees":[None,[".td",".ev"],"d",list[str],".*",[lambda: load_or_create_config()["name"],lambda: load_or_create_config()["name"]]], # TODO: atm, i am just reusing name rather than an actual assignees default. fix
+    "priority":[None,[".td",".ev"],"d",int,None,[3,3]],
+
+    # notes only
+    "title":[None,[".txt",".nt"],"d",str,".*",[lambda: datetime.now().strftime("%Y%m%dT%H%M%S"),lambda: datetime.now().strftime("%Y%m%dT%H%M%S")]], # FIXME: need actual default here
+    "description":[None,[".txt",".nt"],"n",str,".*",[None,None]],
+
+    # todos only
+    "deadline":[None,[".td"],"n",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",None],
+
+    # events only
+    "start":[None,[".ev"],"r",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",None],
+    # might need to double check this one
+    "pattern":[None,[".ev"],"n",str,"^(?:\\.)?(?:\\d+[ymwdhn])+(?:@[^@~]+)*(?:~[^@~]+)*(?:\\+\\d+(?:[ymwdhn])?)?$",None],
+    "end":[None,[".ev"],"n",str,"^\\d{8}(?:T\\d{4}(?:\\d{2})?)?$",None],
+
+    # id will not be run through validation,
+    # as it is a key reference property which should
+    # be handled ideally with as few operations as possible
+    "id":[None,None,None,None,None,None],
+
+}
 
 def init_db() -> sqlite3.Connection:
     """

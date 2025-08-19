@@ -6,7 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
-* t: fix defaults and config
+* t: fix org todos to select items with todo status only
 * t: add org add
 * t: add event and todo tags to org tags
 
@@ -18,7 +18,11 @@
 * t: create a backup dir for some kind of fallback?
 * t: add filter and sorting to org todos and events
 * t: allow for custom report building
+* t: remove 'root' key from .orgroot - path will vary per system
+* t: navigate collab complexity when opening a file from a view
 
 // priority 4: not urgent and not important
 * t: find item by id
 * t: add org projects where a list of projects (and some info?) is shown
+* t: speed of collab workspace location logic
+* t: in views - add a marker showing whether an item is from a collab db
