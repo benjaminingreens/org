@@ -436,7 +436,22 @@ def main():
     errors_file = Path("org_errors")
     if errors_file.exists():
         sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running any commands")
-
+   
+    def get_miltiple_db_paths(data):
+        pass
+        
+    def get_db_paths():
+        
+        orgroot = Path(".orgroot")
+        with orgroot.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        if 'collabs' in data:
+            db_paths = get_multiple_db_paths(data)
+        else:
+            db_paths = [Path.cwd() / ".org.db"]
+        
+        return db_paths
     # TODO
     # check .orgroot for collabs
     # if exist, go to .orgceiling, search for .orgroots with matching ids
@@ -446,7 +461,7 @@ def main():
     # keep an eye on this though. i do believe that the db is usable despite inability to validate
     # since we can just use what was last valid with the valid flag
 
-    db_paths = [Path.cwd() / ".org.db"]
+    db_paths = get_db_paths()
     conn = get_db(db_paths)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
