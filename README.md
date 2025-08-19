@@ -4,13 +4,13 @@
 
 ## What is 'org'?
 
-Org aims to be a text-first suckless second-brain CLI tool.
+`Org` aims to be a text-first suckless second-brain CLI tool.
 
-Org is a terminal-based tool designed for managing notes, todos, and events. It is seeking to meet the need for a 'second-brain' which many have in our modern age; the need to capture, organise, and query an overflow of personal information and data in order to maximise its usefulness.
+`Org` is a terminal-based tool designed for managing notes, todos, and events. It is seeking to meet the need for a 'second-brain' which many have in our modern age; the need to capture, organise, and query an overflow of personal information and data in order to maximise its usefulness.
 
 Why not just use Notion, Evernote, or even Apple Notes/Reminders? Most - if not all - 'second-brain' apps today force users to cede territory in key areas, such as: locality of data storage, accessibility and portability of data, simplicity of data, and, most notably: the cost of organising data.
 
-Org wants to meet the same needs these apps meet while honouring these following core principles:
+`Org` wants to meet the same needs these apps meet while honouring these following core principles:
 
 - **Locality** — Your data should stay on your machines or wherever you choose.
 - **Accessibility** — Your data should remain in accessible and portable formats - such as plain-text files.
@@ -21,9 +21,9 @@ Org wants to meet the same needs these apps meet while honouring these following
 
 ### 1. Install
 
-The only package manager which hosts org currently is `yay`. Install with: `yay -S org`.
+The only package manager which hosts `org` currently is `yay`. Install with: `yay -S org`.
 
-For those who don't use `yay`: I plan to make org available on as many platforms as I can. For now, the below instructions will suffice while I am alpha testing:
+For those who don't use `yay`: I plan to make `org` available on as many platforms as I can. For now, the below instructions will suffice while I am alpha testing:
 
 ```bash
 pip install "git+https://github.com/benjaminingreens/org.git@v0.1.4"
@@ -63,7 +63,7 @@ From then on, running `org` inside any subfolder will operate at the workspace d
 
 ## Using Your Workspace
 
-At this early stage, Org manages three types of files:
+At this early stage, `Org` manages three types of files:
 
 `.txt` files - or 'notes'  
 `.td` files - or 'todos'  
@@ -71,7 +71,7 @@ At this early stage, Org manages three types of files:
 
 ### 1. `Note` Conventions
 
-Org relies on YAML-style metadata in `.txt` files to index and manage your notes. For example:
+`Org` relies on YAML-style metadata in `.txt` files to index and manage your notes. For example:
 
 ```YAML
 ---
@@ -82,7 +82,7 @@ tags: [general]
 this is the note content
 ```
 
-Officially, no metadata is required when the user creates a `.txt` note. However, if no metadata is input by the user, Org will assume the following defaults:
+Officially, no metadata is required when the user creates a `.txt` note. However, if no metadata is input by the user, `Org` will assume the following defaults:
 
 ```YAML
 ---
@@ -95,7 +95,7 @@ creation: YYYYMMDDTHHMMSS
 this is the note content
 ```
 
-If the user wishes, they may include a `description` property to include a brief description of their note. Org does not assume any defaults for this property.
+If the user wishes, they may include a `description` property to include a brief description of their note. `Org` does not assume any defaults for this property.
 
 ### 2. `Todo` and `Event` Conventions
 
@@ -173,7 +173,7 @@ Notes:
 1. Sorting and filtering to be included for `org notes`, `org todos`, and `org events`, in the future    
 2. Custom reports to be included for `org report` in future
 3. There are some hidden commands for fun. Many of which are still in development.
-4. You will have noticed that all files are stored either in `YYYY/MM` directories, or in project directories. The philosophy of `org` is to abstract as much structure as possible from the filesystem, and keep it as atomic (file-inherent) as possible. This is part of the 'second-brain' mechanism which aims to reduce mental load. 'Zettelkasten' philosophy is an inspiration in this regard.
+4. You will have noticed that all files are stored either in `YYYY/MM` directories, or in project directories. A part of the philosophy of `org` is to abstract as much structure as possible from the filesystem, and keep it as atomic (file-inherent) as possible. This is part of the 'second-brain' mechanism which aims to reduce mental load. 'Zettelkasten' philosophy is an inspiration in this regard.
 
 ## License
 

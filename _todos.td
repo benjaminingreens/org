@@ -20,6 +20,7 @@
 * t: allow for custom report building
 * t: remove 'root' key from .orgroot - path will vary per system
 * t: navigate collab complexity when opening a file from a view
+* t: support for markdown and other file types 
 
 // priority 4: not urgent and not important
 * t: find item by id
