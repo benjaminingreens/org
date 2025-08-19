@@ -26,3 +26,4 @@
 * t: find item by id
 * t: add org projects where a list of projects (and some info?) is shown
 * t: speed of collab workspace location logic
+* t: in views - add a marker showing whether an item is from a collab db

@@ -549,6 +549,7 @@ def main():
           - Always include the current repo’s .org.db first (if it exists).
         Returns a list of Path objects (deduped, absolute).
         """
+        # TODO: add logs for if collab id isn't found etc
 
         # --- 1. Gather requested IDs ---
         ids: tp.Set[str] = set(data.get("collabs") or [])
