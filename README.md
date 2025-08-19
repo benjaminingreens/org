@@ -172,8 +172,8 @@ Before running through other commands, it is worth mentioning the `org collab` c
 Notes:
 1. Sorting and filtering to be included for `org notes`, `org todos`, and `org events`, in the future    
 2. Custom reports to be included for `org report` in future
-3. There are some hidden commands for fun. Many of which are still in development.
-4. You will have noticed that all files are stored either in `YYYY/MM` directories, or in project directories. A part of the philosophy of `org` is to abstract as much structure as possible from the filesystem, and keep it as atomic (file-inherent) as possible. This is part of the 'second-brain' mechanism which aims to reduce mental load. 'Zettelkasten' philosophy is an inspiration in this regard.
+3. There are some hidden commands for fun. Many of which are still in development
+4. You will have noticed that all files are stored either in `YYYY/MM` directories, or in project directories. A part of the philosophy of `org` is to abstract as much structure as possible from the filesystem, and keep it as atomic (file-inherent) as possible. This is part of the 'second-brain' mechanism which aims to reduce mental load. 'Zettelkasten' philosophy is an inspiration in this regard
 
 ## License
 
