@@ -6,24 +6,23 @@ import json
 import copy
 import re
 import calendar
+import typing as tp
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
 from . import init
 
 # -------------------- Helpers --------------------
 
-def get_db(db_paths=None):
+def get_db(db_paths=None, union_views: bool = True):
     """
     Return a connection to the first db, with the rest attached.
-    db_paths: list of Path-like objects. First is 'main', others attached as db1, db2, ...
+    If union_views=True, create TEMP views 'notes', 'todos', 'events'
+    that UNION ALL across main + attached DBs (read-only).
     """
     if not db_paths:
         db_paths = [Path.cwd() / ".org.db"]
 
-    # normalise to Path
     db_paths = [Path(p) for p in db_paths]
-
-    # open first one
     conn = sqlite3.connect(db_paths[0])
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -31,7 +30,22 @@ def get_db(db_paths=None):
     # attach others
     for i, path in enumerate(db_paths[1:], start=1):
         alias = f"db{i}"
-        cur.execute("ATTACH DATABASE ? AS %s" % alias, (str(path),))
+        cur.execute(f"ATTACH DATABASE ? AS {alias}", (str(path),))
+
+    if union_views:
+        # collect db names in order: main, db1, db2, ...
+        dbs = [row["name"] for row in cur.execute("PRAGMA database_list") if row["name"] != "temp"]
+        # helper to build a union view
+        def make_union_view(view_name: str, table: str, cols: str):
+            selects = [f"SELECT {cols} FROM {db}.{table}" for db in dbs]
+            sql = f"CREATE TEMP VIEW {view_name} AS " + " UNION ALL ".join(selects)
+            cur.execute(f"DROP VIEW IF EXISTS {view_name}")
+            cur.execute(sql)
+
+        # Create TEMP views shadowing the table names (read-only!)
+        make_union_view("all_notes",  "notes",  "path, title, tags, valid")
+        make_union_view("all_todos",  "todos",  "todo, path, status, tags, priority, creation, valid")
+        make_union_view("all_events", "events", "event, start, pattern, tags, path, status, creation, valid")
 
     return conn
 
@@ -208,7 +222,7 @@ def cmd_report(c, tag=None):
     print("\n=== Todos (priority 1 & 2) ===")
     rows = c.execute("""
         SELECT todo, status, tags, path
-          FROM todos
+          FROM all_todos
          WHERE valid = 1
            AND priority IN (1,2)
            AND (? IS NULL OR EXISTS (
@@ -227,11 +241,11 @@ def cmd_report(c, tag=None):
 
 def cmd_notes(c, *tags):
     if tags:
-        q = "SELECT path, title FROM notes WHERE valid = 1 AND (" + \
+        q = "SELECT path, title FROM all_notes WHERE valid = 1 AND (" + \
             " OR ".join("tags LIKE ?" for _ in tags) + ")"
         params = [f"%{t}%" for t in tags]
     else:
-        q = "SELECT path, title FROM notes WHERE valid = 1"
+        q = "SELECT path, title FROM all_notes WHERE valid = 1"
         params = []
     for row in c.execute(q, params):
         print(f"{Path(row['path']).name}: {row['title']}")
@@ -247,7 +261,7 @@ def cmd_todos(c, *args):
     # TODO: AND WHERE STATUS == TODO!!! DUH!!!
     rows = c.execute("""
         SELECT todo, path, status, tags
-          FROM todos
+          FROM all_todos
          WHERE valid = 1
         ORDER BY creation DESC
     """).fetchall()
@@ -271,7 +285,7 @@ def cmd_events(c, *args):
     # Fetch all events
     rows = c.execute("""
         SELECT event, start, pattern, tags, path, status
-          FROM events
+          FROM all_events
          WHERE valid = 1
         ORDER BY creation DESC
     """).fetchall()
@@ -359,7 +373,7 @@ def cmd_tags(c):
     # notes
     note_counts = {row["tags"]: row["cnt"] for row in c.execute("""
         SELECT json_each.value AS tags, COUNT(*) AS cnt
-          FROM notes
+          FROM all_notes
           JOIN json_each(notes.tags)
          WHERE notes.valid = 1
          GROUP BY tags
@@ -401,11 +415,99 @@ def yo_mama(c):
 
 def setup_collaboration(c):
     """
-    check .orgroot for ceiling - if not exists ask
-    ask user to input .orgroot id - if already exists, do nothing
+    1) Ensure a .orgceiling exists somewhere above or create one (prompt user).
+    2) Prompt for a workspace ID and add it to 'collabs' in .orgroot (deduped).
     """
+    import json
+    from pathlib import Path
 
-    pass
+    def find_ceiling(start: Path, marker: str = ".orgceiling") -> Path | None:
+        p = start.resolve()
+        for cand in (p, *p.parents):
+            if (cand / marker).is_file():
+                return cand
+        return None
+
+    def prompt_ceiling() -> Path:
+        home = Path.home()
+        print(f"No .orgceiling found above {Path.cwd()}.")
+        use_home = input(f"Create one at your home? [{home}] [Y/n]: ").strip().lower()
+        if use_home in ("", "y", "yes"):
+            base = home
+        else:
+            while True:
+                raw = input("Enter an absolute path to place .orgceiling: ").strip()
+                if not raw:
+                    print("Please enter a path.")
+                    continue
+                base = Path(raw).expanduser().resolve()
+                if not base.exists():
+                    create_dir = input(f"{base} does not exist. Create it? [y/N]: ").strip().lower()
+                    if create_dir in ("y", "yes"):
+                        try:
+                            base.mkdir(parents=True, exist_ok=True)
+                        except Exception as e:
+                            print(f"Failed to create directory: {e}")
+                            continue
+                    else:
+                        continue
+                if not base.is_dir():
+                    print("Path is not a directory. Try again.")
+                    continue
+                break
+        marker = base / ".orgceiling"
+        try:
+            marker.touch(exist_ok=True)
+            print(f"Created/confirmed: {marker}")
+        except Exception as e:
+            raise SystemExit(f"Failed to create .orgceiling: {e}")
+        return base
+
+    # 1) Ensure .orgceiling
+    ceiling = find_ceiling(Path.cwd())
+    if ceiling is None:
+        ceiling = prompt_ceiling()
+
+    # 2) Add a collab ID to current workspace's .orgroot
+    orgroot = Path(".orgroot")
+    if not orgroot.is_file():
+        raise SystemExit("Missing .orgroot in current directory. Run `org init` first.")
+
+    try:
+        with orgroot.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        raise SystemExit(f"Invalid .orgroot: {e}")
+
+    if "id" not in data or not str(data["id"]).strip():
+        raise SystemExit("Your .orgroot must contain a non-empty 'id'.")
+
+    new_id = input("Enter an org workspace ID to add as a collaborator: ").strip()
+    if not new_id:
+        print("No ID entered. Nothing to do.")
+        return
+
+    collabs = data.get("collabs") or []
+    if not isinstance(collabs, list):
+        collabs = []
+
+    if new_id in collabs:
+        print(f"ID '{new_id}' already present in collabs. No change.")
+        return
+
+    collabs.append(new_id)
+    # dedupe while preserving order
+    seen = set()
+    collabs = [x for x in collabs if not (x in seen or seen.add(x))]
+
+    data["collabs"] = collabs
+    try:
+        with orgroot.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        print(f"Added '{new_id}' to collabs in {orgroot}")
+    except Exception as e:
+        raise SystemExit(f"Failed to write .orgroot: {e}")
 
 
 # -------------------- Main ---------------------------------------------------
@@ -437,8 +539,77 @@ def main():
     if errors_file.exists():
         sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running any commands")
    
-    def get_miltiple_db_paths(data):
-        pass
+    def get_multiple_db_paths(data: dict) -> list[Path]:
+        """
+        Given a dict with optional key 'collabs' (list of workspace IDs):
+          - Find the nearest .orgceiling by walking upwards from cwd.
+          - Recursively scan under it for .orgroot files.
+          - For each .orgroot, if its 'id' matches one of the collab IDs, 
+            add <that_dir>/.org.db to the results.
+          - Always include the current repo’s .org.db first (if it exists).
+        Returns a list of Path objects (deduped, absolute).
+        """
+
+        # --- 1. Gather requested IDs ---
+        ids: tp.Set[str] = set(data.get("collabs") or [])
+        if not ids:
+            return [Path.cwd() / ".org.db"]
+
+        # --- 2. Find ceiling marker ---
+        def find_ceiling(start: Path, marker: str = ".orgceiling") -> Path:
+            for candidate in (start, *start.parents):
+                if (candidate / marker).is_file():
+                    return candidate
+            raise FileNotFoundError(f"Could not find {marker} above {start}")
+
+        ceiling_dir = find_ceiling(Path.cwd())
+
+        # --- 3. Walk with scandir (faster than os.walk) ---
+        def iter_orgroots(root: Path):
+            stack = [root]
+            while stack:
+                current = stack.pop()
+                try:
+                    with os.scandir(current) as it:
+                        dirs = []
+                        for entry in it:
+                            if entry.is_file() and entry.name == ".orgroot":
+                                yield Path(entry.path)
+                            elif entry.is_dir(follow_symlinks=False):
+                                if entry.name not in {".git", "node_modules", "__pycache__"}:
+                                    dirs.append(Path(entry.path))
+                        stack.extend(dirs)
+                except PermissionError:
+                    continue
+
+        # --- 4. Scan and match IDs ---
+        needed = set(ids)
+        results: tp.Set[Path] = set()
+
+        for orgroot in iter_orgroots(ceiling_dir):
+            try:
+                with orgroot.open("r", encoding="utf-8") as f:
+                    info = json.load(f)
+            except Exception:
+                continue
+
+            wid = info.get("id")
+            if wid and wid in needed:
+                db_path = orgroot.parent / ".org.db"
+                if db_path.is_file():
+                    results.add(db_path)
+                    needed.discard(wid)
+                    if not needed:
+                        break  # found everything
+
+        # --- 5. Ensure current repo’s db is first ---
+        curr_db = Path.cwd() / ".org.db"
+        ordered = [curr_db] if curr_db.is_file() else []
+        for p in sorted(results):
+            if p != curr_db:
+                ordered.append(p)
+
+        return ordered
         
     def get_db_paths():
         
@@ -450,12 +621,8 @@ def main():
             db_paths = get_multiple_db_paths(data)
         else:
             db_paths = [Path.cwd() / ".org.db"]
-        
+
         return db_paths
-    # TODO
-    # check .orgroot for collabs
-    # if exist, go to .orgceiling, search for .orgroots with matching ids
-    # and add their db paths to list
 
     # NOTE: the collab repos may contain errors, and so WHERE valid = 1 is very important
     # keep an eye on this though. i do believe that the db is usable despite inability to validate
@@ -477,6 +644,7 @@ def main():
         "tidy":   cmd_tidy,
         "ym":     yo_mama,
         "group":  cmd_group,
+        "collab": setup_collaboration,
         "fold":   cmd_old,   # deprecated
     }
 
