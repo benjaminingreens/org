@@ -154,27 +154,24 @@ Below is a table showing the metadata schemas for todo and event files:
 
 Before running through other commands, it is worth mentioning the `org collab` command. This command enables you to set up a connection between two distinct workspaces so that many of the below commands apply to multiple workspaces at once (except for `org tidy` and `org group` - which only apply to the current workspace). `org collab` will ask you to define a 'ceiling' - a reference point from which org will search for other workspaces, which will usually be your `/home`. It will then ask you to enter a workspace id to connect to a workspace. This id can be found in the `.orgroot` file of any workspace.
 
-`org init` - initialises a dir as an org workspace  
-`org notes` - lists all notes managed by org  
-`org todos` - lists all priority 1 & 2 todo items in the workspace  
-`org events` - lists all events of the day  
-(sorting and filtering to be included for the above three in future)  
+| command                          | description                                                                 |
+|----------------------------------|-----------------------------------------------------------------------------|
+| `org init`                       | Initialises a directory as an org workspace                                 |
+| `org notes`                      | Lists all notes managed by org                                              |
+| `org todos`                      | Lists all priority 1 & 2 todo items in the workspace                        |
+| `org events`                     | Lists all events of the day                                                 |
+| `org report`                     | Combination of `org todos` and `org events` (custom reports in future)      |
+| `org tags`                       | Lists all tags found in the workspace                                       |
+| `org tidy`                       | Organises files into `YYYY/MM` folders by modification time or project dirs |
+| `org group <project> [tag1] ...` | Creates `_project` folder and moves notes, todos, and events with those tags into folder|
+| `org add`                       | COMING SOON: Create new notes/todos/events                                       |
+| `org archive`                       | COMING SOON: Move items to archive |
 
-`org report` - combination of `org todos` and `org events` (custom reports to be included in future)  
-`org tags` - lists all tags found in the workspace  
-`org tidy` - organises files into relevant folders: `YYYY/MM` folders based on modification time, or project folders (see below command)  
-`org group <project_name> [tag1] [tag2]` - creates a folder called `_project_name`, and moves all notes, todos, and events of any specified tags into that folder
-
-There are some hidden commands for fun. Many of which are still in development.
-
-`Note`: on flat structure
-
-Commands coming soon:
-
-`org add` - create new notes/todos/events from CLI  
-`org archive`- move old items to archive
-
----
+Notes:
+1. Sorting and filtering to be included for `org notes`, `org todos`, and `org events`, in the future    
+2. Custom reports to be included for `org report` in future
+3. There are some hidden commands for fun. Many of which are still in development.
+4. Note on flat structure...
 
 ## License
 
