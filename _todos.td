@@ -9,6 +9,7 @@
 * t: fix org todos to select items with todo status only
 * t: add org add
 * t: add event and todo tags to org tags
+* t: add modify logic
 
 // priority 2: urgent and not important
 
