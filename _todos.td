@@ -10,6 +10,7 @@
 * t: add org add
 * t: add modification logic for the CL
 * t: add event and todo tags to org tags
+* t: add modify logic
 
 // priority 2: urgent and not important
 
@@ -21,6 +22,7 @@
 * t: allow for custom report building
 * t: remove 'root' key from .orgroot - path will vary per system
 * t: navigate collab complexity when opening a file from a view
+* t: support for markdown and other file types 
 * t: change org report to org agenda, and have org report be a backward looking thing based on stats
 * t: build stats into org
 * t: develop a comparison chart between org and other such apps to show difference
