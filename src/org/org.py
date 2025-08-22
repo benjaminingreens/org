@@ -413,6 +413,59 @@ def cmd_init(c):
 def yo_mama(c):
     print("yo mama")
 
+def cmd_add(c, *args):
+    """
+    Usage:
+      org todo  <content...> -#tag -$prop ...
+      org event <content...> -#tag -$prop ...
+
+    Example:
+      org todo do poo -#poo -$author
+      -> * t: do poo // #poo $author
+    """
+    if not args:
+        print("Usage: org <todo|event> <content...> [-#tag ... -$prop ...]")
+        sys.exit(1)
+
+    subcmd = (sys.argv[1] or "").lower().strip()
+    if subcmd not in {"todo", "event"}:
+        print("Usage: org <todo|event> <content...>")
+        sys.exit(1)
+
+    # split args into content vs props (things starting with "-")
+    content_tokens, prop_tokens = [], []
+    for tok in args:
+        if tok.startswith("-"):
+            prop_tokens.append(tok[1:])  # drop leading '-'
+        else:
+            content_tokens.append(tok)
+
+    content = " ".join(content_tokens).strip()
+    props = " ".join(prop_tokens).strip()
+
+    if subcmd == "todo":
+        target = Path("inbox.td")
+        prefix = "* t: "
+    else:
+        target = Path("inbox.ev")
+        prefix = "* e: "
+
+    # build final line
+    line = prefix + content
+    if props:
+        line += " // " + props
+    line += "\n"
+
+    try:
+        with target.open("a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception as e:
+        print(f"Failed to write to {target}: {e}")
+        sys.exit(1)
+
+    print(f"Added to {target}:")
+    print(line.rstrip())
+
 def setup_collaboration(c):
     """
     1) Ensure a .orgceiling exists somewhere above or create one (prompt user).
@@ -637,15 +690,22 @@ def main():
     cmd, *args = sys.argv[1:]
     dispatch = {
         "init":   cmd_init,
-        "report": cmd_report,
+        "collab": setup_collaboration,
+
         "notes":  cmd_notes,
         "todos":  cmd_todos,
         "events": cmd_events,
+        "report": cmd_report,
+
+        "todo": cmd_add,
+        "event": cmd_add,
+
         "tags":   cmd_tags,
         "tidy":   cmd_tidy,
-        "ym":     yo_mama,
         "group":  cmd_group,
-        "collab": setup_collaboration,
+
+        "ym":     yo_mama,
+
         "fold":   cmd_old,   # deprecated
     }
 
