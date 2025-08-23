@@ -355,6 +355,7 @@ def cmd_group(c, *args):
     base = Path.cwd()  # after init you chdir to root, so use cwd not ROOT
     group_dir = base / f"_{name}"
     tagset_path = group_dir / ".tagset"
+    project_file_path = group_dir / "project"
 
     # Create directory (or ensure it exists and is a dir)
     if group_dir.exists() and not group_dir.is_dir():
@@ -365,6 +366,17 @@ def cmd_group(c, *args):
     # Write .tagset (overwrite by design)
     with tagset_path.open("w", encoding="utf-8") as f:
         f.write("\n".join(tags) + "\n")
+
+    # NOTE: below is too 'much'. not minimalistic in philosophy
+    if False:
+        with project_file_path.open("w", encoding="utf-8") as f:
+            f.write("PRIMARY GOAL\n")
+            f.write("============\n")
+            f.write("Replace this line with a description of this project's big-picture goal\n")
+            f.write("\n")
+            f.write("SUCCESS INDICATOR\n")
+            f.write("=================\n")
+            f.write("Replace this line with a description of indicator(s) of success -- whether one-off or re-occurring")
 
     print(f"Group created: {group_dir}")
     print(f"Wrote tags to: {tagset_path} ({len(tags)} tag(s))")
@@ -696,11 +708,11 @@ def main():
         "todos":  cmd_todos,
         "events": cmd_events,
         "report": cmd_report,
+        "tags":   cmd_tags,
 
         "todo": cmd_add,
         "event": cmd_add,
 
-        "tags":   cmd_tags,
         "tidy":   cmd_tidy,
         "group":  cmd_group,
 
