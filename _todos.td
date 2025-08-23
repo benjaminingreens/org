@@ -26,7 +26,11 @@
 * t: change org report to org agenda, and have org report be a backward looking thing based on stats
 * t: build stats into org
 * t: develop a comparison chart between org and other such apps to show difference
+<<<<<<< Updated upstream
 * t: set org tag command to show all items of particular tag(s) when arguments are used
+=======
+* t: include info about _ dirs in README
+>>>>>>> Stashed changes
 
 // priority 4: not urgent and not important
 * t: find item by id
