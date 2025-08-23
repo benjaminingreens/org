@@ -26,9 +26,11 @@
 * t: change org report to org agenda, and have org report be a backward looking thing based on stats
 * t: build stats into org
 * t: develop a comparison chart between org and other such apps to show difference
+* t: set org tag command to show all items of particular tag(s) when arguments are used
 
 // priority 4: not urgent and not important
 * t: find item by id
 * t: add org projects where a list of projects (and some info?) is shown
 * t: speed of collab workspace location logic
 * t: in views - add a marker showing whether an item is from a collab db
+* t: enforce explicitly expression of goal and of multi-notes when grouping 
