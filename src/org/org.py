@@ -386,8 +386,8 @@ def cmd_tags(c):
     note_counts = {row["tags"]: row["cnt"] for row in c.execute("""
         SELECT json_each.value AS tags, COUNT(*) AS cnt
           FROM all_notes
-          JOIN json_each(notes.tags)
-         WHERE notes.valid = 1
+          JOIN json_each(tags)
+         WHERE valid = 1
          GROUP BY tags
     """)}
     print("Notes by tag:")
