@@ -11,6 +11,8 @@
 * t: add modification logic for the CL
 * t: add event and todo tags to org tags
 * t: add modify logic
+* t: document stream and project manifesto conventions
+* t: build cli logic for stream and project manifesto conventions
 
 // priority 2: urgent and not important
 
