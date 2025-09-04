@@ -262,7 +262,8 @@ def cmd_todos(c, *args):
     rows = c.execute("""
         SELECT todo, path, status, tags
           FROM all_todos
-         WHERE valid = 1
+         WHERE valid = 1 AND
+          status = 'todo'
         ORDER BY creation DESC
     """).fetchall()
 

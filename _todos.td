@@ -6,7 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
-* t: fix org todos to select items with todo status only
+* t: fix org todos to select items with todo status only (or just not 'done' - or whatever)
 * t: add org add
 * t: add modification logic for the CL
 * t: add event and todo tags to org tags
@@ -29,6 +29,7 @@
 * t: build stats into org
 * t: develop a comparison chart between org and other such apps to show difference
 * t: set org tag command to show all items of particular tag(s) when arguments are used
+* t: document tag arguments in org todos/notes/events/report
 * t: include info about _ dirs in README
 
 // priority 4: not urgent and not important
