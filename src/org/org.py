@@ -301,7 +301,15 @@ def cmd_todos(c, *args):
         
 def cmd_events(c, *args):
     """
-    Print today’s events in chronological order, formatted like cmd_todos.
+    Print today’s events in chronological order, grouped by time range.
+    Example:
+
+    =  06:00–09:00
+    *  Stretches & Vitamins // general
+    *  Get kids and self ready // general
+
+    =  09:00–12:00
+    *  personal morning prayer // general
     """
     import json
     from datetime import date, datetime
@@ -328,7 +336,7 @@ def cmd_events(c, *args):
                 cur += " " + w
             else:
                 lines.append(cur)
-                cur, width = w, w2       # after first line switch widths
+                cur, width = w, w2
         if cur:
             lines.append(cur)
         if not lines:
@@ -347,7 +355,7 @@ def cmd_events(c, *args):
     """).fetchall()
 
     # ---- collect all instances for today ----
-    all_instances = []
+    instances = []
     for row in rows:
         tags = json.loads(row["tags"]) if row["tags"] else []
         if tag_filter and tag_filter not in tags:
@@ -367,23 +375,35 @@ def cmd_events(c, *args):
         if row["pattern"]:
             pat = parse_pattern(row["pattern"])
             for s, ee in generate_instances_for_date(pat, start_dt, today):
-                all_instances.append((s, ee, row["event"], name, status, tags))
+                instances.append((s, ee, row["event"], name, status, tags))
         else:
             if start_dt.date() == today:
-                all_instances.append((start_dt, None, row["event"], name, status, tags))
+                instances.append((start_dt, None, row["event"], name, status, tags))
 
-    # ---- sort and print ----
-    all_instances.sort(key=lambda inst: inst[0])
+    # ---- sort by start time ----
+    instances.sort(key=lambda inst: inst[0])
 
-    print()
-    for s, ee, event, name, status, tags in all_instances:
-        # time label (e.g., "09:30–11:00" or "09:30")
-        time_str = f"{s:%H:%M}" + (f"–{ee:%H:%M}" if ee else "")
+    # ---- group by time label (so the time doesn’t repeat per item) ----
+    groups = []  # list of (time_label, [summary, ...]) preserving order
+    index = {}   # time_label -> list reference
+    for s, ee, event, name, status, tags in instances:
+        time_label = f"{s:%H:%M}" + (f" – {ee:%H:%M}" if ee else "")
         tags_str = ", ".join(tags) if tags else "-"
+        summary = f"{event} // {tags_str}"
 
-        # match cmd_todos summary style: main // tags
-        summary = f"{time_str} {event} // {tags_str}"
-        print(wrap_with_prefix(summary))
+        if time_label not in index:
+            bucket = []
+            groups.append((time_label, bucket))
+            index[time_label] = bucket
+        index[time_label].append(summary)
+
+    # ---- print ----
+    print()
+    for time_label, summaries in groups:
+        print(f">  {time_label}")
+        for s in summaries:
+            print(wrap_with_prefix(s))
+        # print()  # blank line between time blocks
 
 def cmd_old(c):
     print("`fold` now runs on the filesystem—SQL index not involved.")
