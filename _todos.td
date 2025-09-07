@@ -7,7 +7,7 @@
 
 // priority 1: urgent and important
 * t: todos (and perhaps others) not actually storing or building all properties (e.g. deadline for todos)
-* t: fix org todos to select items with todo status only (or just not 'done' - or whatever)
+* t: update commands in README
 * t: add org add
 * t: add modification logic for the CL
 * t: add event and todo tags to org tags
