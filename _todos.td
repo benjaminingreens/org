@@ -33,6 +33,7 @@
 * t: document tag arguments in org todos/notes/events/report
 * t: include info about _ dirs in README
 * t: org add has some issues with special characters (apostrophes etc)
+* t: datetime logic is not anchored to user location
 
 // priority 4: not urgent and not important
 * t: find item by id
