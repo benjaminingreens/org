@@ -211,33 +211,39 @@ def generate_instances_for_date(pat_def, start_dt, target_date):
 # -------------------- Commands --------------------
 
 def cmd_report(c, tag=None):
-    # --- Today’s Events ---
-    print("=== Events (today) ===")
-    # reuse cmd_events to print today’s events (it already handles patterns & start dates)
     if tag:
+        print()
+        print("/  EVENTS")
         cmd_events(c, tag)
+
+        print()
+        print("/  TODOS")
+        cmd_todos(c, tag)
+
+        print()
+        print("/  STREAMS")
+        cmd_stream_project(c, "streams")
+
+        print()
+        print("/  PROJECTS")
+        cmd_stream_project(c, "projects")
+
     else:
+        print()
+        print("/  EVENTS")
         cmd_events(c)
 
-    # --- Priority 1 & 2 Todos ---
-    print("\n=== Todos (priority 1 & 2) ===")
-    rows = c.execute("""
-        SELECT todo, status, tags, path
-          FROM all_todos
-         WHERE valid = 1
-           AND priority IN (1,2)
-           AND (? IS NULL OR EXISTS (
-                 SELECT 1
-                   FROM json_each(tags)
-                  WHERE value = ?
-               ))
-        ORDER BY creation DESC
-    """, (tag, tag)).fetchall()
+        print()
+        print("/  TODOS")
+        cmd_todos(c)
 
-    for row in rows:
-        tags = json.loads(row["tags"])
-        name = Path(row["path"]).name
-        print(f"- {row['todo']} ({name}) [{row['status']}] ({', '.join(tags)})")
+        print()
+        print("/  STREAMS")
+        cmd_stream_project(c, "streams")
+
+        print()
+        print("/  PROJECTS")
+        cmd_stream_project(c, "projects")
 
 def cmd_notes(c, *tags):
     if tags:
