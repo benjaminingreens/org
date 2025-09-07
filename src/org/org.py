@@ -9,6 +9,7 @@ import calendar
 import typing as tp
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
+from shutil import get_terminal_size
 from . import init
 
 # -------------------- Helpers --------------------
@@ -250,13 +251,10 @@ def cmd_notes(c, *tags):
         print(f"{Path(row['path']).name}: {row['title']}")
 
 def cmd_todos(c, *args):
-    import json
-    from pathlib import Path
-    from shutil import get_terminal_size
 
     tag_filter = args[0] if args else None
 
-    BULLET = "* "                     # first-line prefix
+    BULLET = "*  "                     # first-line prefix
     CONT   = " " * len(BULLET)        # subsequent-line prefix
     term_w = get_terminal_size((80, 24)).columns
     w1 = max(10, term_w - len(BULLET))  # usable width on first line
@@ -298,18 +296,49 @@ def cmd_todos(c, *args):
 
         tags_str = ", ".join(tags) if tags else "-"
 
-        print(wrap_with_prefix(row["todo"]))
-        print(wrap_with_prefix(f"[{tags_str}]",
-                               first_prefix=CONT, cont_prefix=CONT))
+        print(wrap_with_prefix(f"{row["todo"]} // {tags_str}"))
+        # print(wrap_with_prefix(f"[{tags_str}]", first_prefix=CONT, cont_prefix=CONT))
         
 def cmd_events(c, *args):
     """
-    Print today’s events in chronological order.
+    Print today’s events in chronological order, formatted like cmd_todos.
     """
+    import json
+    from datetime import date, datetime
+    from pathlib import Path
+    from shutil import get_terminal_size
+
+    # ---- optional tag filter ----
     tag_filter = args[0] if args else None
     today = date.today()
 
-    # Fetch all events
+    # ---- wrapping config (match cmd_todos) ----
+    BULLET = "*  "                      # first-line prefix
+    CONT   = " " * len(BULLET)          # subsequent-line prefix
+    term_w = get_terminal_size((80, 24)).columns
+    w1 = max(10, term_w - len(BULLET))  # usable width on first line
+    w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
+
+    def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
+        words, lines, cur, width = text.split(), [], "", w1
+        for w in words:
+            if not cur:
+                cur = w
+            elif len(cur) + 1 + len(w) <= width:
+                cur += " " + w
+            else:
+                lines.append(cur)
+                cur, width = w, w2       # after first line switch widths
+        if cur:
+            lines.append(cur)
+        if not lines:
+            return first_prefix
+        out = first_prefix + lines[0]
+        if len(lines) > 1:
+            out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
+        return out
+
+    # ---- fetch all events ----
     rows = c.execute("""
         SELECT event, start, pattern, tags, path, status
           FROM all_events
@@ -317,14 +346,15 @@ def cmd_events(c, *args):
         ORDER BY creation DESC
     """).fetchall()
 
-    # Collect all instances for today
+    # ---- collect all instances for today ----
     all_instances = []
     for row in rows:
-        tags = json.loads(row["tags"])
+        tags = json.loads(row["tags"]) if row["tags"] else []
         if tag_filter and tag_filter not in tags:
             continue
 
         name = Path(row["path"]).name
+        status = row["status"] or "-"
 
         # parse start datetime
         start_raw = row["start"]
@@ -337,19 +367,23 @@ def cmd_events(c, *args):
         if row["pattern"]:
             pat = parse_pattern(row["pattern"])
             for s, ee in generate_instances_for_date(pat, start_dt, today):
-                all_instances.append((s, ee, row["event"], name, row["status"], tags))
+                all_instances.append((s, ee, row["event"], name, status, tags))
         else:
             if start_dt.date() == today:
-                all_instances.append((start_dt, None, row["event"], name, row["status"], tags))
+                all_instances.append((start_dt, None, row["event"], name, status, tags))
 
-    # Sort all instances by start time
+    # ---- sort and print ----
     all_instances.sort(key=lambda inst: inst[0])
 
-    # Print in order
+    print()
     for s, ee, event, name, status, tags in all_instances:
+        # time label (e.g., "09:30–11:00" or "09:30")
         time_str = f"{s:%H:%M}" + (f"–{ee:%H:%M}" if ee else "")
-        print(f"- {time_str} {event} ({name}) [{status}] ({', '.join(tags)})")
+        tags_str = ", ".join(tags) if tags else "-"
 
+        # match cmd_todos summary style: main // tags
+        summary = f"{time_str} {event} // {tags_str}"
+        print(wrap_with_prefix(summary))
 
 def cmd_old(c):
     print("`fold` now runs on the filesystem—SQL index not involved.")
@@ -393,17 +427,6 @@ def cmd_group(c, *args):
     # Write .tagset (overwrite by design)
     with tagset_path.open("w", encoding="utf-8") as f:
         f.write("\n".join(tags) + "\n")
-
-    # NOTE: below is too 'much'. not minimalistic in philosophy
-    if False:
-        with project_file_path.open("w", encoding="utf-8") as f:
-            f.write("PRIMARY GOAL\n")
-            f.write("============\n")
-            f.write("Replace this line with a description of this project's big-picture goal\n")
-            f.write("\n")
-            f.write("SUCCESS INDICATOR\n")
-            f.write("=================\n")
-            f.write("Replace this line with a description of indicator(s) of success -- whether one-off or re-occurring")
 
     print(f"Group created: {group_dir}")
     print(f"Wrote tags to: {tagset_path} ({len(tags)} tag(s))")
@@ -529,6 +552,7 @@ def cmd_stream_project(c, *args):
     ).fetchall()
 
     found = False
+    print()
     for row in rows:
         tags_raw = row["tags"] if isinstance(row, sqlite3.Row) else row[0]
         try:
@@ -543,7 +567,7 @@ def cmd_stream_project(c, *args):
 
         # Remove the target tag
         other_tags = [t for t in tags if t != target_tag]
-        print(f"* {', '.join(other_tags) if other_tags else '(no other tags)'}")
+        print(f"*  {', '.join(other_tags) if other_tags else '(no other tags)'}")
         found = True
 
     if not found:
