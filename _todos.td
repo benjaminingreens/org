@@ -20,6 +20,7 @@
 
 // priority 3: not urgent and important
 * t: update org todos to show one !3 and !4 todos per day to (maybe random from a certain time period for each day of the week - e.g. on Monday, show random !3 todo from oldest selection)
+* t: links
 * t: log migrations 
 * t: if no title, use file title
 * t: create a backup dir for some kind of fallback?
