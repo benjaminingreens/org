@@ -10,7 +10,7 @@
 * t: todos (and perhaps others) not actually storing or building all properties (e.g. deadline for todos)
 * t: update commands in README
 * t: add org add
-* t: add modification logic for the CL
+* t: add modification logic for the CL - tricky with collaborations
 * t: add event and todo tags to org tags
 * t: add modify logic
 * t: document stream and project manifesto conventions
@@ -37,6 +37,7 @@
 * t: include info about _ dirs in README
 * t: org add has some issues with special characters (apostrophes etc)
 * t: datetime logic is not anchored to user location
+* t: as part of tags command, show which tags are also used together (show groups, bsically)
 
 // priority 4: not urgent and not important
 * t: find item by id
@@ -44,3 +45,7 @@
 * t: speed of collab workspace location logic
 * t: in views - add a marker showing whether an item is from a collab db
 * t: enforce explicitly expression of goal, measurables and of multi-notes when grouping. maybe only if a strict setting is on
+* t: ocr tech to incorporate physical notetaking
+* t: with org add note, allow text file as argument
+* t: encryption - think about it
+* t: if changing a tag name - should this be universal
