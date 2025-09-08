@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: .org.db shouldn't be versioned - merge conflicts cannot be resolved. generate .org.db locally. only issue is resetting of mtime
 * t: todos (and perhaps others) not actually storing or building all properties (e.g. deadline for todos)
 * t: update commands in README
 * t: add org add
