@@ -6,6 +6,9 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: why does it appear that all todo files are being validated every time?
+* t: need a safeguard against multiple high tags being used in the same way - not sure where it should go
+* t: check to see what happens if a tag is '!' - clash with high tag logic?
 * t: .org.db shouldn't be versioned - merge conflicts cannot be resolved. generate .org.db locally. only issue is resetting of mtime
 * t: todos (and perhaps others) not actually storing or building all properties (e.g. deadline for todos)
 * t: update commands in README
@@ -13,8 +16,6 @@
 * t: add modification logic for the CL - tricky with collaborations
 * t: add event and todo tags to org tags
 * t: add modify logic
-* t: document stream and project manifesto conventions
-* t: build cli logic for stream and project manifesto conventions
 
 // priority 2: urgent and not important
 
@@ -36,16 +37,16 @@
 * t: document tag arguments in org todos/notes/events/report
 * t: include info about _ dirs in README
 * t: org add has some issues with special characters (apostrophes etc)
+* t: org add not accepting '-!' for some reason
 * t: datetime logic is not anchored to user location
 * t: as part of tags command, show which tags are also used together (show groups, bsically)
 
 // priority 4: not urgent and not important
 * t: find item by id
-* t: add org projects where a list of projects (and some info?) is shown
 * t: speed of collab workspace location logic
 * t: in views - add a marker showing whether an item is from a collab db
-* t: enforce explicitly expression of goal, measurables and of multi-notes when grouping. maybe only if a strict setting is on
 * t: ocr tech to incorporate physical notetaking
 * t: with org add note, allow text file as argument
 * t: encryption - think about it
 * t: if changing a tag name - should this be universal
+* t: probably should create a separate function in org.py for wrapping

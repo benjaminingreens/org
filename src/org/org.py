@@ -221,12 +221,8 @@ def cmd_report(c, tag=None):
         cmd_todos(c, tag)
 
         print()
-        print("/  STREAMS")
-        cmd_stream_project(c, "streams")
-
-        print()
-        print("/  PROJECTS")
-        cmd_stream_project(c, "projects")
+        print("/  SPECIALS")
+        cmd_special_tags(c)
 
     else:
         print()
@@ -238,12 +234,8 @@ def cmd_report(c, tag=None):
         cmd_todos(c)
 
         print()
-        print("/  STREAMS")
-        cmd_stream_project(c, "streams")
-
-        print()
-        print("/  PROJECTS")
-        cmd_stream_project(c, "projects")
+        print("/  SPECIALS")
+        cmd_special_tags(c)
 
 def cmd_notes(c, *tags):
     if tags:
@@ -405,11 +397,14 @@ def cmd_events(c, *args):
 
     # ---- print ----
     print()
-    for time_label, summaries in groups:
+    for i, (time_label, summaries) in enumerate(groups):
         print(f">  {time_label}")
         for s in summaries:
             print(wrap_with_prefix(s))
-        # print()  # blank line between time blocks
+
+        # only print a blank line if not the last group
+        if i < len(groups) - 1:
+            print()
 
 def cmd_old(c):
     print("`fold` now runs on the filesystem—SQL index not involved.")
@@ -554,31 +549,52 @@ def cmd_add(c, *args):
     print(f"Added to {target}:")
     print(line.rstrip())
 
-def cmd_stream_project(c, *args):
+def cmd_special_tags(c, *args):
     """
-    Usage: org streams | org projects
-    Prints all notes tagged 'stream' or 'project', excluding that tag from the printed list.
+    Usage: org specials
+    Prints notes that have any tag starting with '!', in a flat list grouped by each special tag.
+
+    Format:
+    !  special_tag
+    *  item under special tag
+    *  other item under special tag
+    !  other_special_tag
+    *  item under other special tag
     """
-    effective_args = args or sys.argv[1:]
-    if not effective_args:
-        print("Usage: org streams | org projects")
-        return
 
-    mode = effective_args[0].lower()
-    if mode not in ("streams", "projects"):
-        print("Usage: org streams | org projects")
-        return
+    # ---- wrapping config (match cmd_todos/cmd_events) ----
+    BULLET = "*  "                      # first-line prefix
+    CONT   = " " * len(BULLET)          # subsequent-line prefix
+    term_w = get_terminal_size((80, 24)).columns
+    w1 = max(10, term_w - len(BULLET))  # usable width on first line
+    w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
 
-    target_tag = "stream" if mode == "streams" else "project"
+    def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
+        words, lines, cur, width = text.split(), [], "", w1
+        for w in words:
+            if not cur:
+                cur = w
+            elif len(cur) + 1 + len(w) <= width:
+                cur += " " + w
+            else:
+                lines.append(cur)
+                cur, width = w, w2
+        if cur:
+            lines.append(cur)
+        if not lines:
+            return first_prefix
+        out = first_prefix + lines[0]
+        if len(lines) > 1:
+            out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
+        return out
 
-    # Broad SQL filter (just for performance)
+    # ---- fetch notes with any !tag ----
     rows = c.execute(
-        "SELECT tags FROM all_notes WHERE valid AND tags LIKE ?",
-        (f"%{target_tag}%",)
+        "SELECT tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
     ).fetchall()
 
-    found = False
-    print()
+    specials_map = {}  # { 'stream': [ 'research, 2025', '(no other tags)', ... ], ... }
+
     for row in rows:
         tags_raw = row["tags"] if isinstance(row, sqlite3.Row) else row[0]
         try:
@@ -588,17 +604,38 @@ def cmd_stream_project(c, *args):
         except json.JSONDecodeError:
             continue
 
-        if target_tag not in tags:
+        special_tags = [t for t in tags if isinstance(t, str) and t.startswith("!")]
+        if not special_tags:
             continue
 
-        # Remove the target tag
-        other_tags = [t for t in tags if t != target_tag]
-        print(f"*  {', '.join(other_tags) if other_tags else '(no other tags)'}")
-        found = True
+        other_tags = [t for t in tags if isinstance(t, str) and not t.startswith("!")]
+        item_str = ", ".join(other_tags) if other_tags else "(no other tags)"
 
-    if not found:
-        print(f"No notes found with tag '{target_tag}'.")
-        
+        for s in special_tags:
+            key = s[1:] or "!"  # display without leading '!'
+            specials_map.setdefault(key, []).append(item_str)
+
+    if not specials_map:
+        print("\nNo notes found with special '!tag'.")
+        return
+
+    print()
+    special_keys = sorted(specials_map.keys())
+    for idx, special in enumerate(special_keys):
+        print(f"!  {special}")
+
+        # De-duplicate while preserving order
+        seen = set()
+        for item in specials_map[special]:
+            if item in seen:
+                continue
+            seen.add(item)
+            print(wrap_with_prefix(item))
+
+        # Only print a blank line if not the last iteration
+        if idx < len(special_keys) - 1:
+            print()
+
 def setup_collaboration(c):
     """
     1) Ensure a .orgceiling exists somewhere above or create one (prompt user).
@@ -831,8 +868,7 @@ def main():
         "report": cmd_report,
         "tags":   cmd_tags,
         
-        "streams": cmd_stream_project,
-        "projects": cmd_stream_project,
+        "specials": cmd_special_tags,
 
         "todo": cmd_add,
         "event": cmd_add,

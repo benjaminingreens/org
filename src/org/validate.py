@@ -369,6 +369,26 @@ def _write_front(path: Path, meta: dict, body: str) -> None:
     full = f"---\n{block}\n---\n\n{clean_body}"
     path.write_text(full, encoding="utf-8")
 
+def read_error_paths(file: Path) -> set[Path]:
+    """
+    Read filepaths from an org_errors file.
+    Each line begins with a filepath, ending with ' |'.
+
+    Args:
+        file: Path to the org_errors file
+
+    Returns:
+        A set of Path objects for all filepaths in the file
+    """
+    paths = set()
+    with file.open("r", encoding="utf-8") as f:
+        for line in f:
+            if " |" in line:
+                path_str = line.split(" |", 1)[0].strip()
+                if path_str:
+                    paths.add(Path(path_str))
+    return paths
+
 def validate_notes(conn: sqlite3.Connection, c: sqlite3.Cursor, cfg: Config, to_check, new_files, file_mtimes, metadata_dict) -> tuple[list, list]:
     """
     Description tbc
@@ -710,6 +730,16 @@ def check_cardinality(
     """
 
     cancel_validation = False
+
+    # this was missing from the logic.
+    # everything below this was running even if the
+    # file_type was not in compatible_filetypes
+    if file_type not in compatible_filetypes:
+        error = f"Filetype ({file_type}) not compatible with '{property}'"
+        valids.append(False)            
+        errors.append(error)
+        return value, valids, errors, cancel_validation
+
     if value:
 
         # if value, but property not applicable
@@ -1008,7 +1038,8 @@ def validate_metadata(metadata_dict: dict[str, list], file_type: str, db_row) ->
             continue
 
         if file_type not in compatible_filetypes:
-            continue
+            if not value:
+                continue
 
         log("info", f"Processing property: {key}")
 
@@ -1132,18 +1163,6 @@ def _set_operations(c: sqlite3.Cursor, db_scan: dict[Path, float], file_type: st
     log("info", f"number of common files is: {len(common_files)}")
     modified_files: set = {p for p in common_files if disk_scan[p] > db_scan[p]}
 
-    if False:
-        if file_type == ".txt":
-            with open("debug_mtime_comparisons.debug", "w") as f:
-                for p in common_files:
-                    disk = disk_scan[p]
-                    db = db_scan[p]
-                    is_modified = disk > db
-                    f.write(f"{p}\n")
-                    f.write(f"  disk: {disk:.9f}\n")
-                    f.write(f"  db:   {db:.9f}\n")
-                    f.write(f"  disk > db? {is_modified}\n\n")
-
     log("info", f"number of modified files is: {len(modified_files)}")
     redundant_files: set = db_paths - disk_paths
 
@@ -1163,10 +1182,40 @@ def _set_operations(c: sqlite3.Cursor, db_scan: dict[Path, float], file_type: st
         if table != "notes":
             c.execute("DELETE FROM files WHERE path=?", (str(p),))
 
+    # --- NEW: constrain error_paths to this file_type and normalise ---
+    error_paths: set[Path] = set()
+    error_file = ROOT / "org_errors"
+    if error_file.exists():
+        raw_error_paths = read_error_paths(error_file)
+
+        def to_rel(p: Path) -> Path:
+            # normalise to paths like those in disk_scan (relative to ROOT)
+            if p.is_absolute():
+                try:
+                    return p.relative_to(ROOT)
+                except ValueError:
+                    # outside ROOT; skip
+                    return None
+            return p
+
+        # keep only same-suffix, existing on disk, under ROOT
+        for p in raw_error_paths:
+            if p.suffix.lower() != file_type:
+                continue
+            q = to_rel(p)
+            if q is None:
+                continue
+            if (ROOT / q).exists():
+                error_paths.add(q)
+
+        # Optional: also intersect with disk paths to be extra safe
+        # error_paths &= set(disk_scan.keys())
+
     # 5. get new and modified files in a combined set
-    to_check: set = new_files | modified_files
+    to_check: set[Path] = (new_files | modified_files | error_paths)
 
     log("info", f"New and modified files are: {to_check}")
+    print(to_check)
 
     return to_check, new_files
 
@@ -1192,6 +1241,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
             "priority": "!",
             "creation": "~",
             "end": "<",
+            "deadline": "%",
             "pattern": "^",
             "tags": "#",
             "assignees": "@",
@@ -1497,6 +1547,10 @@ def main(metadata_dict: dict[str,list]):
     if error_file.exists():
         error_file.unlink()
 
+    # FIX: this is a problem:
+    # validation - and therefore the error list - is only run for modified files
+    # so if an error remains in a file which has not recently been
+    # modified, it is overlooked
     if error_list:
         with open(error_file, "w") as f:
             f.write("\n".join(error_list) + "\n")
