@@ -40,7 +40,7 @@ The only package manager which hosts `org` currently is `yay`. Install with: `ya
 For those who don't use `yay`: I plan to make `org` available on as many platforms as I can. For now, the below instructions will suffice while I am alpha testing:
 
 ```bash
-pip install "git+https://github.com/benjaminingreens/org.git@v0.1.4"
+pip install "git+https://github.com/benjaminingreens/org.git@v0.1.6"
 ```
 
 If you have a managed environment, do something like this:
