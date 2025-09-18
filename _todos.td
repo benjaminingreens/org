@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: maybe update the way todo files are structured automatically so that they are intuitive to use without org
 * t: need more advanced org todos with sorting and filtering so i can easily useit with modify
 * t: why does it appear that all todo files are being validated every time?
 * t: need a safeguard against multiple high tags being used in the same way - not sure where it should go
