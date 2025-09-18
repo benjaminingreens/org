@@ -6,16 +6,15 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: need more advanced org todos with sorting and filtering so i can easily useit with modify
 * t: why does it appear that all todo files are being validated every time?
 * t: need a safeguard against multiple high tags being used in the same way - not sure where it should go
 * t: check to see what happens if a tag is '!' - clash with high tag logic?
 * t: .org.db shouldn't be versioned - merge conflicts cannot be resolved. generate .org.db locally. only issue is resetting of mtime
-* t: todos (and perhaps others) not actually storing or building all properties (e.g. deadline for todos)
 * t: update commands in README
 * t: add org add
 * t: add modification logic for the CL - tricky with collaborations
 * t: add event and todo tags to org tags
-* t: add modify logic
 
 // priority 2: urgent and not important
 
