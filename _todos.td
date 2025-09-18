@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: I am testing .gitignoring .org.db - see if it works alright. I think i recall that this should not create any issues
 * t: maybe update the way todo files are structured automatically so that they are intuitive to use without org (e.g. listing all !2 so i can upgrade/downgrade easier etc.). main things i need are: modify to easily change properties, easily view and update properties together, and easily change properties on bulk
 * t: need more advanced org todos with sorting and filtering so i can easily useit with modify
 * t: why does it appear that all todo files are being validated every time?
