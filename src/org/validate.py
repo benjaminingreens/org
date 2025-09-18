@@ -1215,7 +1215,6 @@ def _set_operations(c: sqlite3.Cursor, db_scan: dict[Path, float], file_type: st
     to_check: set[Path] = (new_files | modified_files | error_paths)
 
     log("info", f"New and modified files are: {to_check}")
-    print(to_check)
 
     return to_check, new_files
 
