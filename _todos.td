@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: it would be good to have some way of not having every special tag listed in report 
 * t: I am testing .gitignoring .org.db - see if it works alright. I think i recall that this should not create any issues
 * t: maybe update the way todo files are structured automatically so that they are intuitive to use without org (e.g. listing all !2 so i can upgrade/downgrade easier etc.). main things i need are: modify to easily change properties, easily view and update properties together, and easily change properties on bulk
 * t: need more advanced org todos with sorting and filtering so i can easily useit with modify
@@ -15,12 +16,14 @@
 * t: .org.db shouldn't be versioned - merge conflicts cannot be resolved. generate .org.db locally. only issue is resetting of mtime
 * t: update commands in README
 * t: add org add
-* t: add modification logic for the CL - tricky with collaborations
+* t: add modification logic for the CL - tricky with collaborations - in all honestly, the whole CLI needs proper design. It has just been cobbled together as it currently is 
 * t: add event and todo tags to org tags
 
 // priority 2: urgent and not important
 
 // priority 3: not urgent and important
+* t: have I covered the situation where two ids clash? For whatever reason?
+* t: 'ungroup' command
 * t: update org todos to show one !3 and !4 todos per day to (maybe random from a certain time period for each day of the week - e.g. on Monday, show random !3 todo from oldest selection)
 * t: links
 * t: log migrations 
