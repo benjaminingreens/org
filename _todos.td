@@ -46,6 +46,7 @@
 * t: as part of tags command, show which tags are also used together (show groups, bsically)
 
 // priority 4: not urgent and not important
+* t: try and optimise org report to be as short as possible - add decay for todos, focus for specials, and limit time view for events etc.
 * t: find item by id
 * t: speed of collab workspace location logic
 * t: in views - add a marker showing whether an item is from a collab db
