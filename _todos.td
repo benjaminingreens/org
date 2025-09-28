@@ -22,6 +22,7 @@
 // priority 2: urgent and not important
 
 // priority 3: not urgent and important
+* t: synchronising could be a lot easier - right now it is a cocophony of complex git commands. maybe write some git shorthand scripts to ship with the app
 * t: have I covered the situation where two ids clash? For whatever reason?
 * t: 'ungroup' command
 * t: update org todos to show one !3 and !4 todos per day to (maybe random from a certain time period for each day of the week - e.g. on Monday, show random !3 todo from oldest selection)
