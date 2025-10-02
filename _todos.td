@@ -23,6 +23,8 @@
 // priority 2: urgent and not important
 
 // priority 3: not urgent and important
+* t: build .nt logic into validation - just convert to .txt file structure? (see below todo)
+* t: build an ocr script which takes digital output of scanned pages and sorts them into .ev, .td, and .nt
 * t: synchronising could be a lot easier - right now it is a cocophony of complex git commands. maybe write some git shorthand scripts to ship with the app
 * t: have I covered the situation where two ids clash? For whatever reason?
 * t: 'ungroup' command
