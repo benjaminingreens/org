@@ -1,0 +1,2 @@
+* third tag
+very odd scenario occurring. i created a note in which the third tag was 'qs'. after running 'org tags', the qs tag was not showing up in the list. the other two tags were, however - though those could have been appearing from other places. when i moved 'qs' to the first position, 'qs' showed up as a tag - but interestingly it showed that it had 3 notes associated with it. the other two tags were unchanged in the list. how so very odd
