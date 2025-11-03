@@ -3,3 +3,7 @@
 very odd scenario occurring. i created a note in which the third tag was 'qs'. after running 'org tags', the qs tag was not showing up in the list. the other two tags were, however - though those could have been appearing from other places. when i moved 'qs' to the first position, 'qs' showed up as a tag - but interestingly it showed that it had 3 notes associated with it. the other two tags were unchanged in the list. how so very odd.
 
 the tag is in the db - so nothin is going wrong with actually storing the tag. it had to do with the cli logic, which is a relief, since i literally cba to dive back into validation logic. so the issue is probably just with the 'org tags' command and how it works
+
+* modification
+
+Some items seem to be appearing in a month folder even when they haven't been modified in that month 
