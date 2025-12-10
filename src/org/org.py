@@ -10,6 +10,7 @@ import typing as tp
 from datetime import date, datetime, timedelta, time
 from pathlib import Path
 from shutil import get_terminal_size
+from collections import defaultdict
 from . import init
 
 # -------------------- Helpers --------------------
@@ -46,7 +47,7 @@ def get_db(db_paths=None, union_views: bool = True):
         # Create TEMP views shadowing the table names (read-only!)
         make_union_view("all_notes",  "notes",  "path, title, tags, valid")
         make_union_view("all_todos",  "todos",  "todo, path, status, tags, priority, creation, valid")
-        make_union_view("all_events", "events", "event, start, pattern, tags, path, status, creation, valid")
+        make_union_view("all_events", "events", "event, start, pattern, tags, priority, path, status, creation, valid")
 
     return conn
 
@@ -226,15 +227,21 @@ def cmd_report(c, tag=None):
 
     else:
         print()
-        print("/  EVENTS")
+        print("EVENTS")
+        print("------")
         cmd_events(c)
 
         print()
-        print("/  TODOS")
-        cmd_todos(c)
+        print("TODOS")
+        print("-----")
+        cmd_todos(c, "-priority=1")
+        cmd_todos(c, "-priority=2", 3)
+        cmd_todos(c, "-priority=3", 2)
+        cmd_todos(c, "-priority=4", 1)
 
         print()
-        print("/  SPECIALS")
+        print("SPECIALS")
+        print("--------")
         cmd_special_tags(c)
 
 def cmd_notes(c, *tags):
@@ -249,17 +256,53 @@ def cmd_notes(c, *tags):
         print(f"{Path(row['path']).name}: {row['title']}")
 
 def cmd_todos(c, *args):
+    import json
+    import random
+    from shutil import get_terminal_size
 
-    tag_filter = args[0] if args else None
+    # Parse arguments: -tag=foo, -status=todo, -priority=1, and optional numeric N
+    tag_filter: str | None = None
+    status_filter: list[str] | None = None
+    priority_filter: list[int] | None = None
+    limit_random: int | None = None
 
-    BULLET = "*  "                     # first-line prefix
-    CONT   = " " * len(BULLET)        # subsequent-line prefix
+    for arg in args:
+        if isinstance(arg, str) and arg.isdigit():
+            # numeric argument: limit to N random items
+            limit_random = int(arg)
+            continue
+
+        if not isinstance(arg, str):
+            continue
+
+        if arg.startswith("-tag="):
+            tag_filter = arg.split("=", 1)[1].strip() or None
+        elif arg.startswith("-status="):
+            v = arg.split("=", 1)[1].strip()
+            status_filter = [s.strip() for s in v.split(",") if s.strip()]
+        elif arg.startswith("-priority="):
+            v = arg.split("=", 1)[1].strip()
+            ps: list[int] = []
+            for p in v.split(","):
+                p = p.strip()
+                if p.isdigit():
+                    ps.append(int(p))
+            priority_filter = ps or None
+
+    BULLET = "*  "                      # first-line prefix
+    CONT   = " " * len(BULLET)          # subsequent-line prefix
     term_w = get_terminal_size((80, 24)).columns
     w1 = max(10, term_w - len(BULLET))  # usable width on first line
     w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
 
-    def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
-        words, lines, cur, width = text.split(), [], "", w1
+    def wrap_with_prefix(text: str,
+                         first_prefix: str = BULLET,
+                         cont_prefix: str = CONT) -> str:
+        words = text.split()
+        lines: list[str] = []
+        cur = ""
+        width = w1
+
         for w in words:
             if not cur:
                 cur = w
@@ -267,55 +310,138 @@ def cmd_todos(c, *args):
                 cur += " " + w
             else:
                 lines.append(cur)
-                cur, width = w, w2       # after first line switch widths
+                cur = w
+                width = w2  # after first line switch widths
         if cur:
             lines.append(cur)
+
         if not lines:
             return first_prefix
+
         out = first_prefix + lines[0]
         if len(lines) > 1:
             out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
         return out
 
+    # Base query: allowed statuses and priorities, sorted as requested
     rows = c.execute("""
         SELECT todo, path, status, tags, priority, creation
         FROM all_todos
         WHERE valid = 1
-          AND status = 'todo'
-          AND priority IN (1, 2)
-        ORDER BY creation ASC
+          AND status IN ('todo','inprogress','dependent','blocked','unknown')
+          AND priority BETWEEN 1 AND 4
+        ORDER BY priority ASC, creation DESC, tags ASC
     """).fetchall()
 
-    print()
+    # Apply additional filters from arguments
+    items = []
     for row in rows:
-        tags = json.loads(row["tags"]) if row["tags"] else []
-        if tag_filter and tag_filter not in tags:
+        row_tags = json.loads(row["tags"]) if row["tags"] else []
+
+        if tag_filter and tag_filter not in row_tags:
             continue
 
-        tags_str = ", ".join(tags) if tags else "-"
+        if status_filter and row["status"] not in status_filter:
+            continue
 
-        print(wrap_with_prefix(f"{row["todo"]} // {tags_str}"))
-        # print(wrap_with_prefix(f"[{tags_str}]", first_prefix=CONT, cont_prefix=CONT))
-        
+        if priority_filter and row["priority"] not in priority_filter:
+            continue
+
+        items.append(row)
+
+    # Random subset if requested
+    if limit_random is not None and limit_random < len(items):
+        items = random.sample(items, limit_random)
+
+    for row in items:
+        row_tags = json.loads(row["tags"]) if row["tags"] else []
+        tags_str = ", ".join(row_tags) if row_tags else "-"
+        prio = row["priority"]
+        fname = row["path"]
+
+        display_text = f'{row["todo"]} // {tags_str} !{prio} ... {fname}'
+        print(wrap_with_prefix(display_text))
+
+if False:
+    def cmd_todos(c, *args):
+
+        tag_filter = args[0] if args else None
+
+        BULLET = "*  "                     # first-line prefix
+        CONT   = " " * len(BULLET)        # subsequent-line prefix
+        term_w = get_terminal_size((80, 24)).columns
+        w1 = max(10, term_w - len(BULLET))  # usable width on first line
+        w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
+
+        def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
+            words, lines, cur, width = text.split(), [], "", w1
+            for w in words:
+                if not cur:
+                    cur = w
+                elif len(cur) + 1 + len(w) <= width:
+                    cur += " " + w
+                else:
+                    lines.append(cur)
+                    cur, width = w, w2       # after first line switch widths
+            if cur:
+                lines.append(cur)
+            if not lines:
+                return first_prefix
+            out = first_prefix + lines[0]
+            if len(lines) > 1:
+                out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
+            return out
+
+        rows = c.execute("""
+            SELECT todo, path, status, tags, priority, creation
+            FROM all_todos
+            WHERE valid = 1
+              AND status = 'todo'
+              AND priority IN (1, 2)
+            ORDER BY creation ASC
+        """).fetchall()
+
+        print()
+        for row in rows:
+            tags = json.loads(row["tags"]) if row["tags"] else []
+            if tag_filter and tag_filter not in tags:
+                continue
+
+            tags_str = ", ".join(tags) if tags else "-"
+
+            print(wrap_with_prefix(f"{row["todo"]} // {tags_str}"))
+            # print(wrap_with_prefix(f"[{tags_str}]", first_prefix=CONT, cont_prefix=CONT))
+
 def cmd_events(c, *args):
     """
     Print today’s events in chronological order, grouped by time range.
-    Example:
+    Optional filters:
 
-    =  06:00–09:00
-    *  Stretches & Vitamins // general
-    *  Get kids and self ready // general
-
-    =  09:00–12:00
-    *  personal morning prayer // general
+      org events                 # no filters
+      org events general         # filter by tag 'general' (old behaviour)
+      org events -priority=1     # filter by priority
+      org events general -status=todo -priority=1
     """
     import json
     from datetime import date, datetime
     from pathlib import Path
     from shutil import get_terminal_size
 
-    # ---- optional tag filter ----
-    tag_filter = args[0] if args else None
+    # ---- parse filters ----
+    tag_filter = None          # legacy "first arg is tag" behaviour
+    prop_filters: dict[str, str] = {}
+
+    for i, arg in enumerate(args):
+        # first non-dashed arg = tag filter (backwards compatible)
+        if i == 0 and not arg.startswith("-"):
+            tag_filter = arg
+            continue
+
+        # property filters: -key=value
+        if arg.startswith("-") and "=" in arg:
+            key, value = arg[1:].split("=", 1)
+            prop_filters[key] = value
+
     today = date.today()
 
     # ---- wrapping config (match cmd_todos) ----
@@ -344,9 +470,9 @@ def cmd_events(c, *args):
             out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
         return out
 
-    # ---- fetch all events ----
+    # ---- fetch all events (unchanged ordering) ----
     rows = c.execute("""
-        SELECT event, start, pattern, tags, path, status
+        SELECT event, start, pattern, tags, path, status, priority
           FROM all_events
          WHERE valid = 1
         ORDER BY creation DESC
@@ -356,13 +482,31 @@ def cmd_events(c, *args):
     instances = []
     for row in rows:
         tags = json.loads(row["tags"]) if row["tags"] else []
+
+        # legacy tag filter
         if tag_filter and tag_filter not in tags:
             continue
+
+        # property filters
+        # -priority=1
+        if "priority" in prop_filters:
+            if str(row["priority"]) != prop_filters["priority"]:
+                continue
+
+        # -status=todo / inprogress / etc
+        if "status" in prop_filters:
+            if (row["status"] or "") != prop_filters["status"]:
+                continue
+
+        # example: -file=foo.ev (optional, if you want it)
+        if "file" in prop_filters:
+            if Path(row["path"]).name != prop_filters["file"]:
+                continue
 
         name = Path(row["path"]).name
         status = row["status"] or "-"
 
-        # parse start datetime
+        # parse start datetime (unchanged)
         start_raw = row["start"]
         start_dt = (
             datetime.fromisoformat(start_raw)
@@ -378,10 +522,10 @@ def cmd_events(c, *args):
             if start_dt.date() == today:
                 instances.append((start_dt, None, row["event"], name, status, tags))
 
-    # ---- sort by start time ----
+    # ---- sort by start time (unchanged) ----
     instances.sort(key=lambda inst: inst[0])
 
-    # ---- group by time label (so the time doesn’t repeat per item) ----
+    # ---- group by time label (unchanged) ----
     groups = []  # list of (time_label, [summary, ...]) preserving order
     index = {}   # time_label -> list reference
     for s, ee, event, name, status, tags in instances:
@@ -395,16 +539,123 @@ def cmd_events(c, *args):
             index[time_label] = bucket
         index[time_label].append(summary)
 
-    # ---- print ----
-    print()
+    # ---- print (unchanged) ----
     for i, (time_label, summaries) in enumerate(groups):
         print(f">  {time_label}")
         for s in summaries:
             print(wrap_with_prefix(s))
 
-        # only print a blank line if not the last group
-        if i < len(groups) - 1:
-            print()
+        # if i < len(groups) - 1:
+            # print()
+
+if False:
+    def cmd_events(c, *args):
+        """
+        Print today’s events in chronological order, grouped by time range.
+        Example:
+
+        =  06:00–09:00
+        *  Stretches & Vitamins // general
+        *  Get kids and self ready // general
+
+        =  09:00–12:00
+        *  personal morning prayer // general
+        """
+        import json
+        from datetime import date, datetime
+        from pathlib import Path
+        from shutil import get_terminal_size
+
+        # ---- optional tag filter ----
+        tag_filter = args[0] if args else None
+        today = date.today()
+
+        # ---- wrapping config (match cmd_todos) ----
+        BULLET = "*  "                      # first-line prefix
+        CONT   = " " * len(BULLET)          # subsequent-line prefix
+        term_w = get_terminal_size((80, 24)).columns
+        w1 = max(10, term_w - len(BULLET))  # usable width on first line
+        w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
+
+        def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
+            words, lines, cur, width = text.split(), [], "", w1
+            for w in words:
+                if not cur:
+                    cur = w
+                elif len(cur) + 1 + len(w) <= width:
+                    cur += " " + w
+                else:
+                    lines.append(cur)
+                    cur, width = w, w2
+            if cur:
+                lines.append(cur)
+            if not lines:
+                return first_prefix
+            out = first_prefix + lines[0]
+            if len(lines) > 1:
+                out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
+            return out
+
+        # ---- fetch all events ----
+        rows = c.execute("""
+            SELECT event, start, pattern, tags, path, status
+              FROM all_events
+             WHERE valid = 1
+            ORDER BY creation DESC
+        """).fetchall()
+
+        # ---- collect all instances for today ----
+        instances = []
+        for row in rows:
+            tags = json.loads(row["tags"]) if row["tags"] else []
+            if tag_filter and tag_filter not in tags:
+                continue
+
+            name = Path(row["path"]).name
+            status = row["status"] or "-"
+
+            # parse start datetime
+            start_raw = row["start"]
+            start_dt = (
+                datetime.fromisoformat(start_raw)
+                if isinstance(start_raw, str)
+                else start_raw
+            )
+
+            if row["pattern"]:
+                pat = parse_pattern(row["pattern"])
+                for s, ee in generate_instances_for_date(pat, start_dt, today):
+                    instances.append((s, ee, row["event"], name, status, tags))
+            else:
+                if start_dt.date() == today:
+                    instances.append((start_dt, None, row["event"], name, status, tags))
+
+        # ---- sort by start time ----
+        instances.sort(key=lambda inst: inst[0])
+
+        # ---- group by time label (so the time doesn’t repeat per item) ----
+        groups = []  # list of (time_label, [summary, ...]) preserving order
+        index = {}   # time_label -> list reference
+        for s, ee, event, name, status, tags in instances:
+            time_label = f"{s:%H:%M}" + (f" – {ee:%H:%M}" if ee else "")
+            tags_str = ", ".join(tags) if tags else "-"
+            summary = f"{event} // {tags_str}"
+
+            if time_label not in index:
+                bucket = []
+                groups.append((time_label, bucket))
+                index[time_label] = bucket
+            index[time_label].append(summary)
+
+        # ---- print ----
+        for i, (time_label, summaries) in enumerate(groups):
+            print(f">  {time_label}")
+            for s in summaries:
+                print(wrap_with_prefix(s))
+
+            # only print a blank line if not the last group
+            if i < len(groups) - 1:
+                print()
 
 def cmd_old(c):
     print("`fold` now runs on the filesystem—SQL index not involved.")
@@ -555,6 +806,9 @@ def cmd_special_tags(c, *args):
     Usage: org specials
     Prints notes that have any tag starting with '!', in a flat list grouped by each special tag.
 
+    If a .special_focus file exists in ROOT, it should contain one general tag per line.
+    In that case, only specials whose non-'!' tags intersect this focus list are shown.
+
     Format:
     !  special_tag
     *  item under special tag
@@ -562,6 +816,10 @@ def cmd_special_tags(c, *args):
     !  other_special_tag
     *  item under other special tag
     """
+    import json
+    import sqlite3
+    from shutil import get_terminal_size
+    from pathlib import Path
 
     # ---- wrapping config (match cmd_todos/cmd_events) ----
     BULLET = "*  "                      # first-line prefix
@@ -589,12 +847,28 @@ def cmd_special_tags(c, *args):
             out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
         return out
 
+    # ---- load focus tags from .special_focus (if present) ----
+    focus_tags: set[str] = set()
+    try:
+        focus_path = ROOT / ".special_focus"  # assumes ROOT is defined at module level
+    except NameError:
+        # Fallback: look in current working directory if ROOT isn't available
+        focus_path = Path(".special_focus")
+
+    if focus_path.is_file():
+        with focus_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                tag = line.strip()
+                if tag and not tag.startswith("#"):
+                    focus_tags.add(tag)
+
     # ---- fetch notes with any !tag ----
     rows = c.execute(
         "SELECT tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
     ).fetchall()
 
-    specials_map = {}  # { 'stream': [ 'research, 2025', '(no other tags)', ... ], ... }
+    # store other tags for each special: { 'hi': [ ['theology','thoughts','qs'], ... ], ... }
+    specials_map: dict[str, list[list[str]]] = {}
 
     for row in rows:
         tags_raw = row["tags"] if isinstance(row, sqlite3.Row) else row[0]
@@ -610,32 +884,135 @@ def cmd_special_tags(c, *args):
             continue
 
         other_tags = [t for t in tags if isinstance(t, str) and not t.startswith("!")]
-        item_str = ", ".join(other_tags) if other_tags else "(no other tags)"
-
+        # we keep the raw list of other_tags so we can intersect with focus_tags later
         for s in special_tags:
             key = s[1:] or "!"  # display without leading '!'
-            specials_map.setdefault(key, []).append(item_str)
+            specials_map.setdefault(key, []).append(other_tags)
+
+    # ---- apply focus filter (if .special_focus exists and has tags) ----
+    if focus_tags:
+        filtered: dict[str, list[list[str]]] = {}
+        for special, items in specials_map.items():
+            kept = [
+                tags for tags in items
+                if any(t in focus_tags for t in tags)
+            ]
+            if kept:
+                filtered[special] = kept
+        specials_map = filtered
 
     if not specials_map:
-        print("\nNo notes found with special '!tag'.")
+        if focus_tags:
+            print("\nNo notes found with special '!tag' matching .special_focus.")
+        else:
+            print("\nNo notes found with special '!tag'.")
         return
 
-    print()
+    # ---- print ----
     special_keys = sorted(specials_map.keys())
     for idx, special in enumerate(special_keys):
         print(f"!  {special}")
 
         # De-duplicate while preserving order
-        seen = set()
-        for item in specials_map[special]:
-            if item in seen:
+        seen: set[tuple[str, ...]] = set()
+        for tags in specials_map[special]:
+            key = tuple(tags)
+            if key in seen:
                 continue
-            seen.add(item)
-            print(wrap_with_prefix(item))
+            seen.add(key)
+            item_str = ", ".join(tags) if tags else "(no other tags)"
+            print(wrap_with_prefix(item_str))
 
         # Only print a blank line if not the last iteration
-        if idx < len(special_keys) - 1:
-            print()
+        # if idx < len(special_keys) - 1:
+            # print()
+
+if False:
+    def cmd_special_tags(c, *args):
+        """
+        Usage: org specials
+        Prints notes that have any tag starting with '!', in a flat list grouped by each special tag.
+
+        Format:
+        !  special_tag
+        *  item under special tag
+        *  other item under special tag
+        !  other_special_tag
+        *  item under other special tag
+        """
+
+        # ---- wrapping config (match cmd_todos/cmd_events) ----
+        BULLET = "*  "                      # first-line prefix
+        CONT   = " " * len(BULLET)          # subsequent-line prefix
+        term_w = get_terminal_size((80, 24)).columns
+        w1 = max(10, term_w - len(BULLET))  # usable width on first line
+        w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
+
+        def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
+            words, lines, cur, width = text.split(), [], "", w1
+            for w in words:
+                if not cur:
+                    cur = w
+                elif len(cur) + 1 + len(w) <= width:
+                    cur += " " + w
+                else:
+                    lines.append(cur)
+                    cur, width = w, w2
+            if cur:
+                lines.append(cur)
+            if not lines:
+                return first_prefix
+            out = first_prefix + lines[0]
+            if len(lines) > 1:
+                out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
+            return out
+
+        # ---- fetch notes with any !tag ----
+        rows = c.execute(
+            "SELECT tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
+        ).fetchall()
+
+        specials_map = {}  # { 'stream': [ 'research, 2025', '(no other tags)', ... ], ... }
+
+        for row in rows:
+            tags_raw = row["tags"] if isinstance(row, sqlite3.Row) else row[0]
+            try:
+                tags = json.loads(tags_raw)
+                if not isinstance(tags, list):
+                    continue
+            except json.JSONDecodeError:
+                continue
+
+            special_tags = [t for t in tags if isinstance(t, str) and t.startswith("!")]
+            if not special_tags:
+                continue
+
+            other_tags = [t for t in tags if isinstance(t, str) and not t.startswith("!")]
+            item_str = ", ".join(other_tags) if other_tags else "(no other tags)"
+
+            for s in special_tags:
+                key = s[1:] or "!"  # display without leading '!'
+                specials_map.setdefault(key, []).append(item_str)
+
+        if not specials_map:
+            print("\nNo notes found with special '!tag'.")
+            return
+
+        special_keys = sorted(specials_map.keys())
+        for idx, special in enumerate(special_keys):
+            print(f"!  {special}")
+
+            # De-duplicate while preserving order
+            seen = set()
+            for item in specials_map[special]:
+                if item in seen:
+                    continue
+                seen.add(item)
+                print(wrap_with_prefix(item))
+
+            # Only print a blank line if not the last iteration
+            if idx < len(special_keys) - 1:
+                print()
 
 def setup_collaboration(c):
     """
