@@ -21,13 +21,19 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
     """
     Given wrapped bullet lines and a suffix (filename), either:
 
-    - put " ... suffix" on the last line, right-justified, OR
+    - put ' ... suffix' on the last line, right-justified, OR
     - fill last text line with dots and put the suffix on one or more
-      new lines under CONT, preserving the correct order of characters.
+      new lines under CONT.
 
-    MIN_DOTS only applies to same-line mode.
-    In new-line mode, suffix lines have NO dots at all; only the last
-    text line is dot-filled.
+    Rules:
+    - MIN_DOTS only applies to same-line mode.
+    - In new-line mode:
+        * last text line is dot-filled with one space before the dots
+        * suffix lines never consist only of dots
+        * if suffix fits on one new line, we print 'CONT + dots + space + suffix'
+        * if suffix is longer, we print it on multiple lines:
+            - no dots on suffix lines
+            - last segment is right-justified so the filename ends at the right edge
     """
     BULLET = "*  "
     CONT   = " " * len(BULLET)
@@ -40,7 +46,7 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
 
     last = full_lines[-1]
 
-    # identify prefix + content on last line
+    # Identify prefix + content on the last line
     if last.startswith(BULLET):
         prefix = BULLET
         content = last[len(BULLET):]
@@ -65,30 +71,63 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
 
     # ---- new-line mode ----
     # 1) fill last text line with dots, no suffix
-    remaining = term_w - len(last)
-    if remaining > 0:
-        full_lines[-1] = last + "." * remaining
+    #    ensure exactly one space before dots
+    last = full_lines[-1]
+    # trim any trailing spaces to avoid weirdness
+    last = last.rstrip()
+    used = len(last)
 
-    # 2) suffix lines: no dots, just indent + filename split into chunks
+    if used < term_w:
+        # space + dots to end
+        dot_count = term_w - used - 1
+        if dot_count < 0:
+            dot_count = 0
+        full_lines[-1] = last + " " + ("." * dot_count)
+    else:
+        # already at or beyond width; leave as-is
+        full_lines[-1] = last
+
+    # 2) suffix lines
     indent = CONT
     avail = term_w - len(indent)
     if avail <= 0:
-        # pathological tiny terminal; fall back to no indent
         indent = ""
         avail = term_w
 
-    # If the whole suffix fits on a single new line, just print it there.
-    if len(suffix) <= avail:
-        full_lines.append(indent + suffix)
+    # If suffix fits on one suffix-line with dots+space, use dots + suffix
+    # (this is the 'short filename' case like: '   .......... 2025/12/file.txt')
+    if len(suffix) + 1 + MIN_DOTS <= avail:
+        dots_len = avail - 1 - len(suffix)
+        if dots_len < 0:
+            dots_len = 0
+        dots = "." * dots_len
+        full_lines.append(indent + dots + " " + suffix)
         return "\n".join(full_lines)
 
-    # Otherwise, split suffix across multiple lines, in order.
-    idx = 0
+    # 3) Long filename: multi-line, no dots on suffix lines,
+    #    and last segment right-justified.
+    # We preserve character order.
+
     n = len(suffix)
-    while idx < n:
-        chunk = suffix[idx:idx + avail]
-        full_lines.append(indent + chunk)
-        idx += avail
+    # How many full-width chunks (except last, which we right-justify)?
+    # We'll take chunks from the left.
+    idx = 0
+
+    while True:
+        remaining = n - idx
+        if remaining <= avail:
+            # Last segment: right-justify so end of filename hits right edge
+            seg = suffix[idx:]
+            pad = avail - len(seg)
+            if pad < 0:
+                pad = 0
+            full_lines.append(indent + (" " * pad) + seg)
+            break
+        else:
+            # Middle segment: left-aligned under indent
+            seg = suffix[idx:idx + avail]
+            full_lines.append(indent + seg)
+            idx += avail
 
     return "\n".join(full_lines)
 
