@@ -351,7 +351,7 @@ def cmd_report(c, tag=None):
         print("TODOS")
         print("-----")
         cmd_todos(c, "-priority=1")
-        cmd_todos(c, "-priority=2", 3)
+        cmd_todos(c, "-priority=2")
         cmd_todos(c, "-priority=3", 2)
         cmd_todos(c, "-priority=4", 1)
 
