@@ -453,17 +453,18 @@ def cmd_group(c, *args):
     print(f"Wrote tags to: {tagset_path} ({len(tags)} tag(s))")
 
 def cmd_tags(c):
-    # notes
-    note_counts = {row["tags"]: row["cnt"] for row in c.execute("""
-        SELECT json_each.value AS tags, COUNT(*) AS cnt
-          FROM all_notes
-          JOIN json_each(tags)
-         WHERE valid = 1
-         GROUP BY tags
-    """)}
+    rows = list(c.execute("""
+        SELECT j.value AS tag, COUNT(*) AS cnt
+        FROM notes AS n
+        JOIN json_each(n.tags) AS j
+        WHERE n.valid = 1
+        GROUP BY j.value
+        ORDER BY j.value
+    """))
+
     print("Notes by tag:")
-    for t, cnt in sorted(note_counts.items()):
-        print(f"  {t}: {cnt}")
+    for row in rows:
+        print(f"  {row['tag']}: {row['cnt']}")
     print("(todos/events tags not yet indexed)")
 
 def cmd_tidy(c):
