@@ -21,6 +21,7 @@
 * t: add event and todo tags to org tags
 
 // priority 2: urgent and not important
+* t: enforce special tags only appearing with one other tag? and only once per other tag?
 
 // priority 3: not urgent and important
 * t: build .nt logic into validation - just convert to .txt file structure? (see below todo)
