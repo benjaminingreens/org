@@ -45,7 +45,7 @@ def get_db(db_paths=None, union_views: bool = True):
             cur.execute(sql)
 
         # Create TEMP views shadowing the table names (read-only!)
-        make_union_view("all_notes",  "notes",  "path, title, tags, valid")
+        make_union_view("all_notes",  "notes",  "path, authour, creation, title, tags, valid")
         make_union_view("all_todos",  "todos",  "todo, path, status, tags, priority, creation, valid")
         make_union_view("all_events", "events", "event, start, pattern, tags, priority, path, status, creation, valid")
 
@@ -244,16 +244,162 @@ def cmd_report(c, tag=None):
         print("--------")
         cmd_special_tags(c)
 
-def cmd_notes(c, *tags):
-    if tags:
-        q = "SELECT path, title FROM all_notes WHERE valid = 1 AND (" + \
-            " OR ".join("tags LIKE ?" for _ in tags) + ")"
-        params = [f"%{t}%" for t in tags]
+def cmd_notes(c, *args):
+    """
+    List notes.
+
+    Examples:
+      org notes                      # last 4 weeks, no filters
+      org notes all                  # all notes
+      org notes theology             # legacy: tag filter 'theology'
+      org notes -tag=theology        # filter by tag
+      org notes -title=bible         # title contains 'bible' (case-insensitive)
+      org notes -path=2025/12        # path contains '2025/12'
+    """
+    import json
+    from datetime import datetime, timedelta
+    from pathlib import Path
+    from shutil import get_terminal_size
+
+    # ---- parse args: 'all', legacy tag, and -key=value props ----
+    show_all = False
+    tag_filter: str | None = None
+    prop_filters: dict[str, str] = {}
+
+    for i, arg in enumerate(args):
+        if not isinstance(arg, str):
+            continue
+
+        if arg == "all":
+            show_all = True
+            continue
+
+        # first non-dashed arg (if not 'all') = legacy tag filter
+        if i == 0 and not arg.startswith("-"):
+            tag_filter = arg
+            continue
+
+        # property filters: -key=value
+        if arg.startswith("-") and "=" in arg:
+            key, value = arg[1:].split("=", 1)
+            prop_filters[key] = value.strip()
+            continue
+
+    # ---- terminal / layout config ----
+    BULLET = "*  "
+    term_w = get_terminal_size((80, 24)).columns
+    max_content_width = max(10, term_w - len(BULLET))
+
+    def format_line(title: str, tags_str: str, fname: str) -> str:
+        """
+        Produce:
+          *  Title // tags .... fname
+        with dots filling up to the right margin, without overflowing.
+        """
+        base = f"{title} // {tags_str}" if tags_str else title
+        # If even base alone is too long, just truncate it hard.
+        if len(base) >= max_content_width:
+            return BULLET + base[:max_content_width]
+
+        # We want something like:
+        # base + " " + "." * dots + " " + fname
+        # and total length <= max_content_width
+        # First check if we can at least fit base + space + fname
+        if len(base) + 1 + len(fname) > max_content_width:
+            # Not enough room for dots + full filename; just try to add filename if possible
+            if len(base) + 1 + len(fname) <= max_content_width:
+                return BULLET + base + " " + fname
+            else:
+                # Can't fit filename at all: just base
+                return BULLET + base
+
+        # We can fit base, space, dots, space, fname
+        dots = max_content_width - len(base) - 2 - len(fname)
+        if dots < 0:
+            # Shouldn't happen because of the check above, but be safe
+            return BULLET + base + " " + fname
+
+        return BULLET + base + " " + ("." * dots) + " " + fname
+
+    # ---- build base query: last 4 weeks or all ----
+    params = []
+    if show_all:
+        q = """
+            SELECT path, title, tags, creation
+              FROM all_notes
+             WHERE valid = 1
+             ORDER BY creation DESC
+        """
     else:
-        q = "SELECT path, title FROM all_notes WHERE valid = 1"
-        params = []
-    for row in c.execute(q, params):
-        print(f"{Path(row['path']).name}: {row['title']}")
+        cutoff = datetime.now() - timedelta(days=28)
+        cutoff_str = cutoff.strftime("%Y%m%dT%H%M%S")
+        q = """
+            SELECT path, title, tags, creation
+              FROM all_notes
+             WHERE valid = 1
+               AND creation >= ?
+             ORDER BY creation DESC
+        """
+        params.append(cutoff_str)
+
+    rows = c.execute(q, params).fetchall()
+
+    # ---- apply filters in Python ----
+    filtered = []
+    for row in rows:
+        title = row["title"]
+        path = row["path"]
+        tags_raw = row["tags"] or "[]"
+        try:
+            tags = json.loads(tags_raw)
+        except json.JSONDecodeError:
+            tags = []
+
+        if not isinstance(tags, list):
+            tags = []
+
+        # normalise tags to strings
+        tags = [t for t in tags if isinstance(t, str)]
+
+        # legacy positional tag filter
+        if tag_filter and tag_filter not in tags:
+            continue
+
+        # -tag=foo
+        if "tag" in prop_filters:
+            if prop_filters["tag"] not in tags:
+                continue
+
+        # -title=substr (case-insensitive)
+        if "title" in prop_filters:
+            if prop_filters["title"].lower() not in title.lower():
+                continue
+
+        # -path=substr
+        if "path" in prop_filters:
+            if prop_filters["path"] not in path:
+                continue
+
+        filtered.append((title, tags, path))
+
+    # ---- print ----
+    for title, tags, path in filtered:
+        tags_str = ", ".join(tags) if tags else "-"
+        # path already looks like "2025/12/test.txt" from your schema
+        fname = path
+        print(format_line(title, tags_str, fname))
+
+if False:
+    def cmd_notes(c, *tags):
+        if tags:
+            q = "SELECT path, title FROM all_notes WHERE valid = 1 AND (" + \
+                " OR ".join("tags LIKE ?" for _ in tags) + ")"
+            params = [f"%{t}%" for t in tags]
+        else:
+            q = "SELECT path, title FROM all_notes WHERE valid = 1"
+            params = []
+        for row in c.execute(q, params):
+            print(f"{Path(row['path']).name}: {row['title']}")
 
 def cmd_todos(c, *args):
     import json
@@ -359,8 +505,44 @@ def cmd_todos(c, *args):
         prio = row["priority"]
         fname = row["path"]
 
-        display_text = f'{row["todo"]} // {tags_str} !{prio} ... {fname}'
-        print(wrap_with_prefix(display_text))
+        # Main text (without filename)
+        main_text = f'{row["todo"]} // {tags_str} !{prio}'
+
+        # Wrap main text using existing logic
+        wrapped = wrap_with_prefix(main_text)
+        lines = wrapped.split("\n")
+
+        # Right-justify filename with dotted fill on the LAST line
+        suffix = f" {fname}"           # what appears at the far right
+        last = lines[-1]
+
+        # Work out prefix and content for the last line
+        if last.startswith(BULLET):
+            prefix = BULLET
+            content = last[len(BULLET):]
+        elif last.startswith(CONT):
+            prefix = CONT
+            content = last[len(CONT):]
+        else:
+            prefix = ""
+            content = last
+
+        # Available width for content + dots before suffix
+        available = term_w - len(prefix) - len(suffix)
+        if available > 0:
+            # Truncate content if necessary to make room
+            if len(content) > available:
+                content = content[:available]
+
+            dots_len = max(0, available - len(content) - 1)
+            dots = "." * dots_len
+            new_last = prefix + content + " " + dots + suffix
+        else:
+            # Terminal extremely narrow; fall back to original last line
+            new_last = last
+
+        lines[-1] = new_last
+        print("\n".join(lines))
 
 if False:
     def cmd_todos(c, *args):
@@ -446,29 +628,54 @@ def cmd_events(c, *args):
 
     # ---- wrapping config (match cmd_todos) ----
     BULLET = "*  "                      # first-line prefix
-    CONT   = " " * len(BULLET)          # subsequent-line prefix
     term_w = get_terminal_size((80, 24)).columns
-    w1 = max(10, term_w - len(BULLET))  # usable width on first line
-    w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
 
-    def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
-        words, lines, cur, width = text.split(), [], "", w1
+    def format_event_line(text: str, fname: str) -> str:
+        """
+        Format one event line as:
+
+        *  text ....... fname
+
+        - text may wrap across multiple lines
+        - last line has dot-leader + right-ish aligned fname
+        """
+        # Reserve space for bullet, space, dots, space, filename
+        # line = BULLET + <left_part> + " " + dots + " " + fname
+        reserve = len(BULLET) + 1 + len(fname) + 1
+        left_width = max(10, term_w - reserve)
+
+        words = text.split()
+        lines: list[str] = []
+        cur = ""
+
         for w in words:
             if not cur:
                 cur = w
-            elif len(cur) + 1 + len(w) <= width:
+            elif len(cur) + 1 + len(w) <= left_width:
                 cur += " " + w
             else:
                 lines.append(cur)
-                cur, width = w, w2
+                cur = w
         if cur:
             lines.append(cur)
+
         if not lines:
-            return first_prefix
-        out = first_prefix + lines[0]
-        if len(lines) > 1:
-            out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
-        return out
+            lines = [""]
+
+        out_lines: list[str] = []
+        for i, ln in enumerate(lines):
+            if i < len(lines) - 1:
+                # normal wrapped line, no filename
+                out_lines.append(BULLET + ln)
+            else:
+                # last line: add dot leader + filename
+                dots_needed = left_width - len(ln)
+                if dots_needed < 1:
+                    dots_needed = 1
+                dots = "." * dots_needed
+                out_lines.append(f"{BULLET}{ln} {dots} {fname}")
+
+        return "\n".join(out_lines)
 
     # ---- fetch all events (unchanged ordering) ----
     rows = c.execute("""
@@ -488,22 +695,19 @@ def cmd_events(c, *args):
             continue
 
         # property filters
-        # -priority=1
         if "priority" in prop_filters:
             if str(row["priority"]) != prop_filters["priority"]:
                 continue
 
-        # -status=todo / inprogress / etc
         if "status" in prop_filters:
             if (row["status"] or "") != prop_filters["status"]:
                 continue
 
-        # example: -file=foo.ev (optional, if you want it)
         if "file" in prop_filters:
             if Path(row["path"]).name != prop_filters["file"]:
                 continue
 
-        name = Path(row["path"]).name
+        path_str = row["path"]          # e.g. "_events.ev" or "2025/12/test.ev"
         status = row["status"] or "-"
 
         # parse start datetime (unchanged)
@@ -517,36 +721,39 @@ def cmd_events(c, *args):
         if row["pattern"]:
             pat = parse_pattern(row["pattern"])
             for s, ee in generate_instances_for_date(pat, start_dt, today):
-                instances.append((s, ee, row["event"], name, status, tags))
+                instances.append((s, ee, row["event"], path_str, status, tags))
         else:
             if start_dt.date() == today:
-                instances.append((start_dt, None, row["event"], name, status, tags))
+                instances.append((start_dt, None, row["event"], path_str, status, tags))
 
     # ---- sort by start time (unchanged) ----
     instances.sort(key=lambda inst: inst[0])
 
-    # ---- group by time label (unchanged) ----
-    groups = []  # list of (time_label, [summary, ...]) preserving order
+    # ---- group by time label, keep summary + fname ----
+    groups = []  # list of (time_label, [ (summary, fname), ... ]) preserving order
     index = {}   # time_label -> list reference
-    for s, ee, event, name, status, tags in instances:
+
+    for s, ee, event, path_str, status, tags in instances:
         time_label = f"{s:%H:%M}" + (f" – {ee:%H:%M}" if ee else "")
         tags_str = ", ".join(tags) if tags else "-"
         summary = f"{event} // {tags_str}"
+        fname = path_str  # already like "_events.ev" or "2025/12/test.ev"
 
         if time_label not in index:
-            bucket = []
+            bucket: list[tuple[str, str]] = []
             groups.append((time_label, bucket))
             index[time_label] = bucket
-        index[time_label].append(summary)
+        index[time_label].append((summary, fname))
 
-    # ---- print (unchanged) ----
-    for i, (time_label, summaries) in enumerate(groups):
+    # ---- print ----
+    for i, (time_label, entries) in enumerate(groups):
         print(f">  {time_label}")
-        for s in summaries:
-            print(wrap_with_prefix(s))
+        for summary, fname in entries:
+            print(format_event_line(summary, fname))
 
+        # if you want a blank line between time groups, uncomment:
         # if i < len(groups) - 1:
-            # print()
+        #     print()
 
 if False:
     def cmd_events(c, *args):
@@ -804,55 +1011,53 @@ def cmd_add(c, *args):
 def cmd_special_tags(c, *args):
     """
     Usage: org specials
-    Prints notes that have any tag starting with '!', in a flat list grouped by each special tag.
+    Prints notes that have any tag starting with '!', grouped by each special tag.
 
     If a .special_focus file exists in ROOT, it should contain one general tag per line.
     In that case, only specials whose non-'!' tags intersect this focus list are shown.
 
-    Format:
-    !  special_tag
-    *  item under special tag
-    *  other item under special tag
-    !  other_special_tag
-    *  item under other special tag
+    Format (no .special_focus):
+    !  hi
+    *  theology
+    *  thoughts
+    !  project
+    *  book
+
+    With dotted paths:
+    !  hi
+    *  theology .............................. 2025/12/test.txt
     """
+
     import json
     import sqlite3
     from shutil import get_terminal_size
     from pathlib import Path
 
-    # ---- wrapping config (match cmd_todos/cmd_events) ----
-    BULLET = "*  "                      # first-line prefix
-    CONT   = " " * len(BULLET)          # subsequent-line prefix
+    # ---- wrapping / layout config ----
+    BULLET = "*  "                      # first-line prefix for items
     term_w = get_terminal_size((80, 24)).columns
-    w1 = max(10, term_w - len(BULLET))  # usable width on first line
-    w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
 
-    def wrap_with_prefix(text, first_prefix=BULLET, cont_prefix=CONT):
-        words, lines, cur, width = text.split(), [], "", w1
-        for w in words:
-            if not cur:
-                cur = w
-            elif len(cur) + 1 + len(w) <= width:
-                cur += " " + w
-            else:
-                lines.append(cur)
-                cur, width = w, w2
-        if cur:
-            lines.append(cur)
-        if not lines:
-            return first_prefix
-        out = first_prefix + lines[0]
-        if len(lines) > 1:
-            out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
-        return out
+    def format_with_dots(main: str, suffix: str) -> str:
+        """
+        Format:
+        *  main ........ suffix
+
+        Dots stretch to (approximately) the right edge of the terminal,
+        with exactly one space before the dots and one space before suffix.
+        """
+        base = BULLET + main  # starts at column 0
+        min_dots = 3
+        # space before dots + space before suffix = 2
+        available = term_w - len(base) - len(suffix) - 2
+        dots_len = max(min_dots, available)
+        dots = "." * dots_len
+        return f"{base} {dots} {suffix}"
 
     # ---- load focus tags from .special_focus (if present) ----
     focus_tags: set[str] = set()
     try:
         focus_path = ROOT / ".special_focus"  # assumes ROOT is defined at module level
     except NameError:
-        # Fallback: look in current working directory if ROOT isn't available
         focus_path = Path(".special_focus")
 
     if focus_path.is_file():
@@ -863,15 +1068,21 @@ def cmd_special_tags(c, *args):
                     focus_tags.add(tag)
 
     # ---- fetch notes with any !tag ----
+    # we need both path and tags
     rows = c.execute(
-        "SELECT tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
+        "SELECT path, tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
     ).fetchall()
 
-    # store other tags for each special: { 'hi': [ ['theology','thoughts','qs'], ... ], ... }
-    specials_map: dict[str, list[list[str]]] = {}
+    # specials_map: { special -> { general -> set(paths) } }
+    specials_map: dict[str, dict[str, set[str]]] = {}
 
     for row in rows:
-        tags_raw = row["tags"] if isinstance(row, sqlite3.Row) else row[0]
+        if isinstance(row, sqlite3.Row):
+            path = row["path"]
+            tags_raw = row["tags"]
+        else:
+            path, tags_raw = row
+
         try:
             tags = json.loads(tags_raw)
             if not isinstance(tags, list):
@@ -883,24 +1094,28 @@ def cmd_special_tags(c, *args):
         if not special_tags:
             continue
 
-        other_tags = [t for t in tags if isinstance(t, str) and not t.startswith("!")]
-        # we keep the raw list of other_tags so we can intersect with focus_tags later
+        general_tags = [t for t in tags if isinstance(t, str) and not t.startswith("!")]
+
         for s in special_tags:
-            key = s[1:] or "!"  # display without leading '!'
-            specials_map.setdefault(key, []).append(other_tags)
+            s_key = s[1:] or "!"  # display without leading '!'
 
-    # ---- apply focus filter (if .special_focus exists and has tags) ----
-    if focus_tags:
-        filtered: dict[str, list[list[str]]] = {}
-        for special, items in specials_map.items():
-            kept = [
-                tags for tags in items
-                if any(t in focus_tags for t in tags)
-            ]
-            if kept:
-                filtered[special] = kept
-        specials_map = filtered
+            # Case: there ARE general tags
+            if general_tags:
+                for g in general_tags:
+                    # If we have a focus list and this general tag is not in it, skip
+                    if focus_tags and g not in focus_tags:
+                        continue
+                    specials_map.setdefault(s_key, {}).setdefault(g, set()).add(path)
 
+            # Case: NO other tags
+            else:
+                # Old behaviour: "(no other tags)" only when there is no focus filter
+                if focus_tags:
+                    continue
+                g = "(no other tags)"
+                specials_map.setdefault(s_key, {}).setdefault(g, set()).add(path)
+
+    # ---- nothing to show? ----
     if not specials_map:
         if focus_tags:
             print("\nNo notes found with special '!tag' matching .special_focus.")
@@ -911,21 +1126,31 @@ def cmd_special_tags(c, *args):
     # ---- print ----
     special_keys = sorted(specials_map.keys())
     for idx, special in enumerate(special_keys):
+        general_map = specials_map[special]
+        if not general_map:
+            continue
+
+        # header line for the special tag (no dots, no suffix)
         print(f"!  {special}")
 
-        # De-duplicate while preserving order
-        seen: set[tuple[str, ...]] = set()
-        for tags in specials_map[special]:
-            key = tuple(tags)
-            if key in seen:
+        # De-duplicate generals and print with dotted suffix
+        for general in sorted(general_map.keys()):
+            paths = general_map[general]
+            if not paths:
                 continue
-            seen.add(key)
-            item_str = ", ".join(tags) if tags else "(no other tags)"
-            print(wrap_with_prefix(item_str))
 
-        # Only print a blank line if not the last iteration
+            # Decide suffix: single path or 'multiple'
+            if len(paths) == 1:
+                suffix = next(iter(paths))
+            else:
+                suffix = "multiple"
+
+            print(format_with_dots(general, suffix))
+
+        # No blank line between specials (as per your current style)
+        # If you *do* ever want one:
         # if idx < len(special_keys) - 1:
-            # print()
+        #     print()
 
 if False:
     def cmd_special_tags(c, *args):
