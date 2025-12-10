@@ -15,6 +15,83 @@ from . import init
 
 # -------------------- Helpers --------------------
 
+from shutil import get_terminal_size
+
+def attach_suffix(full_lines: list[str], suffix: str) -> str:
+    """
+    Given wrapped bullet lines and a suffix (filename), either:
+
+    - put " ... suffix" on the last line, right-justified, OR
+    - fill last text line with dots and put the suffix on one or more
+      new lines under CONT, preserving the correct order of characters.
+
+    MIN_DOTS only applies to same-line mode.
+    In new-line mode, suffix lines have NO dots at all; only the last
+    text line is dot-filled.
+    """
+    BULLET = "*  "
+    CONT   = " " * len(BULLET)
+    term_w = get_terminal_size((80, 24)).columns
+    if term_w <= 0:
+        term_w = 80
+
+    if not full_lines:
+        full_lines = [BULLET]
+
+    last = full_lines[-1]
+
+    # identify prefix + content on last line
+    if last.startswith(BULLET):
+        prefix = BULLET
+        content = last[len(BULLET):]
+    elif last.startswith(CONT):
+        prefix = CONT
+        content = last[len(CONT):]
+    else:
+        prefix = ""
+        content = last
+
+    MIN_DOTS = 3
+
+    # ---- try same-line mode ----
+    base_len = len(prefix) + len(content)
+    # spaces: " " + dots + " " + suffix
+    max_dots_same = term_w - base_len - 2 - len(suffix)
+
+    if max_dots_same >= MIN_DOTS:
+        dots = "." * max_dots_same
+        full_lines[-1] = f"{prefix}{content} {dots} {suffix}"
+        return "\n".join(full_lines)
+
+    # ---- new-line mode ----
+    # 1) fill last text line with dots, no suffix
+    remaining = term_w - len(last)
+    if remaining > 0:
+        full_lines[-1] = last + "." * remaining
+
+    # 2) suffix lines: no dots, just indent + filename split into chunks
+    indent = CONT
+    avail = term_w - len(indent)
+    if avail <= 0:
+        # pathological tiny terminal; fall back to no indent
+        indent = ""
+        avail = term_w
+
+    # If the whole suffix fits on a single new line, just print it there.
+    if len(suffix) <= avail:
+        full_lines.append(indent + suffix)
+        return "\n".join(full_lines)
+
+    # Otherwise, split suffix across multiple lines, in order.
+    idx = 0
+    n = len(suffix)
+    while idx < n:
+        chunk = suffix[idx:idx + avail]
+        full_lines.append(indent + chunk)
+        idx += avail
+
+    return "\n".join(full_lines)
+
 def get_db(db_paths=None, union_views: bool = True):
     """
     Return a connection to the first db, with the rest attached.
@@ -435,19 +512,18 @@ def cmd_todos(c, *args):
                     ps.append(int(p))
             priority_filter = ps or None
 
-    BULLET = "*  "                      # first-line prefix
-    CONT   = " " * len(BULLET)          # subsequent-line prefix
+    BULLET = "*  "
+    CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
-    w1 = max(10, term_w - len(BULLET))  # usable width on first line
-    w2 = max(10, term_w - len(CONT))    # usable width on wrapped lines
 
-    def wrap_with_prefix(text: str,
-                         first_prefix: str = BULLET,
-                         cont_prefix: str = CONT) -> str:
+    def wrap_main_text(text: str) -> list[str]:
         words = text.split()
         lines: list[str] = []
         cur = ""
-        width = w1
+
+        first_w = max(10, term_w - len(BULLET))
+        cont_w  = max(10, term_w - len(CONT))
+        width = first_w
 
         for w in words:
             if not cur:
@@ -457,17 +533,22 @@ def cmd_todos(c, *args):
             else:
                 lines.append(cur)
                 cur = w
-                width = w2  # after first line switch widths
+                width = cont_w
         if cur:
             lines.append(cur)
 
         if not lines:
-            return first_prefix
+            lines = [""]
 
-        out = first_prefix + lines[0]
-        if len(lines) > 1:
-            out += "\n" + "\n".join(cont_prefix + s for s in lines[1:])
+        out: list[str] = []
+        for i, ln in enumerate(lines):
+            prefix = BULLET if i == 0 else CONT
+            out.append(prefix + ln)
         return out
+
+    def format_todo_line(main_text: str, fname: str) -> str:
+        lines = wrap_main_text(main_text)
+        return attach_suffix(lines, fname)
 
     # Base query: allowed statuses and priorities, sorted as requested
     rows = c.execute("""
@@ -503,46 +584,10 @@ def cmd_todos(c, *args):
         row_tags = json.loads(row["tags"]) if row["tags"] else []
         tags_str = ", ".join(row_tags) if row_tags else "-"
         prio = row["priority"]
-        fname = row["path"]
+        fname = row["path"]  # e.g. "2025/12/todos.td"
 
-        # Main text (without filename)
         main_text = f'{row["todo"]} // {tags_str} !{prio}'
-
-        # Wrap main text using existing logic
-        wrapped = wrap_with_prefix(main_text)
-        lines = wrapped.split("\n")
-
-        # Right-justify filename with dotted fill on the LAST line
-        suffix = f" {fname}"           # what appears at the far right
-        last = lines[-1]
-
-        # Work out prefix and content for the last line
-        if last.startswith(BULLET):
-            prefix = BULLET
-            content = last[len(BULLET):]
-        elif last.startswith(CONT):
-            prefix = CONT
-            content = last[len(CONT):]
-        else:
-            prefix = ""
-            content = last
-
-        # Available width for content + dots before suffix
-        available = term_w - len(prefix) - len(suffix)
-        if available > 0:
-            # Truncate content if necessary to make room
-            if len(content) > available:
-                content = content[:available]
-
-            dots_len = max(0, available - len(content) - 1)
-            dots = "." * dots_len
-            new_last = prefix + content + " " + dots + suffix
-        else:
-            # Terminal extremely narrow; fall back to original last line
-            new_last = last
-
-        lines[-1] = new_last
-        print("\n".join(lines))
+        print(format_todo_line(main_text, fname))
 
 if False:
     def cmd_todos(c, *args):
@@ -615,67 +660,59 @@ def cmd_events(c, *args):
 
     for i, arg in enumerate(args):
         # first non-dashed arg = tag filter (backwards compatible)
-        if i == 0 and not arg.startswith("-"):
+        if i == 0 and isinstance(arg, str) and not arg.startswith("-"):
             tag_filter = arg
             continue
 
         # property filters: -key=value
-        if arg.startswith("-") and "=" in arg:
+        if isinstance(arg, str) and arg.startswith("-") and "=" in arg:
             key, value = arg[1:].split("=", 1)
             prop_filters[key] = value
 
     today = date.today()
 
-    # ---- wrapping config (match cmd_todos) ----
+    # ---- layout config (shared with todos/specials) ----
     BULLET = "*  "                      # first-line prefix
+    CONT   = " " * len(BULLET)          # continuation indent
     term_w = get_terminal_size((80, 24)).columns
 
-    def format_event_line(text: str, fname: str) -> str:
+    def wrap_main_text(text: str) -> list[str]:
         """
-        Format one event line as:
-
-        *  text ....... fname
-
-        - text may wrap across multiple lines
-        - last line has dot-leader + right-ish aligned fname
+        Wrap 'text' into bullet/continuation lines without filename,
+        returning a list of complete lines (with BULLET / CONT prefixes).
         """
-        # Reserve space for bullet, space, dots, space, filename
-        # line = BULLET + <left_part> + " " + dots + " " + fname
-        reserve = len(BULLET) + 1 + len(fname) + 1
-        left_width = max(10, term_w - reserve)
-
         words = text.split()
         lines: list[str] = []
         cur = ""
 
+        first_w = max(10, term_w - len(BULLET))
+        cont_w  = max(10, term_w - len(CONT))
+        width = first_w
+
         for w in words:
             if not cur:
                 cur = w
-            elif len(cur) + 1 + len(w) <= left_width:
+            elif len(cur) + 1 + len(w) <= width:
                 cur += " " + w
             else:
                 lines.append(cur)
                 cur = w
+                width = cont_w
         if cur:
             lines.append(cur)
 
         if not lines:
             lines = [""]
 
-        out_lines: list[str] = []
+        out: list[str] = []
         for i, ln in enumerate(lines):
-            if i < len(lines) - 1:
-                # normal wrapped line, no filename
-                out_lines.append(BULLET + ln)
-            else:
-                # last line: add dot leader + filename
-                dots_needed = left_width - len(ln)
-                if dots_needed < 1:
-                    dots_needed = 1
-                dots = "." * dots_needed
-                out_lines.append(f"{BULLET}{ln} {dots} {fname}")
+            prefix = BULLET if i == 0 else CONT
+            out.append(prefix + ln)
+        return out
 
-        return "\n".join(out_lines)
+    def format_event_line(summary: str, fname: str) -> str:
+        lines = wrap_main_text(summary)
+        return attach_suffix(lines, fname)
 
     # ---- fetch all events (unchanged ordering) ----
     rows = c.execute("""
@@ -707,7 +744,7 @@ def cmd_events(c, *args):
             if Path(row["path"]).name != prop_filters["file"]:
                 continue
 
-        path_str = row["path"]          # e.g. "_events.ev" or "2025/12/test.ev"
+        path_str = row["path"]          # e.g. "2025/12/events.ev"
         status = row["status"] or "-"
 
         # parse start datetime (unchanged)
@@ -729,15 +766,15 @@ def cmd_events(c, *args):
     # ---- sort by start time (unchanged) ----
     instances.sort(key=lambda inst: inst[0])
 
-    # ---- group by time label, keep summary + fname ----
-    groups = []  # list of (time_label, [ (summary, fname), ... ]) preserving order
-    index = {}   # time_label -> list reference
+    # ---- group by time label ----
+    groups = []  # list of (time_label, [ (summary, fname), ... ])
+    index = {}
 
     for s, ee, event, path_str, status, tags in instances:
         time_label = f"{s:%H:%M}" + (f" – {ee:%H:%M}" if ee else "")
         tags_str = ", ".join(tags) if tags else "-"
         summary = f"{event} // {tags_str}"
-        fname = path_str  # already like "_events.ev" or "2025/12/test.ev"
+        fname = path_str  # keep full path, e.g. "2025/12/events.ev"
 
         if time_label not in index:
             bucket: list[tuple[str, str]] = []
@@ -750,10 +787,6 @@ def cmd_events(c, *args):
         print(f">  {time_label}")
         for summary, fname in entries:
             print(format_event_line(summary, fname))
-
-        # if you want a blank line between time groups, uncomment:
-        # if i < len(groups) - 1:
-        #     print()
 
 if False:
     def cmd_events(c, *args):
@@ -1016,16 +1049,12 @@ def cmd_special_tags(c, *args):
     If a .special_focus file exists in ROOT, it should contain one general tag per line.
     In that case, only specials whose non-'!' tags intersect this focus list are shown.
 
-    Format (no .special_focus):
+    Format:
     !  hi
-    *  theology
-    *  thoughts
+    *  theology ............... 2025/12/test.txt
+    *  thoughts ............... 2025/12/test.txt
     !  project
-    *  book
-
-    With dotted paths:
-    !  hi
-    *  theology .............................. 2025/12/test.txt
+    *  book ................... 2025/12/20251210t141226.txt
     """
 
     import json
@@ -1033,30 +1062,48 @@ def cmd_special_tags(c, *args):
     from shutil import get_terminal_size
     from pathlib import Path
 
-    # ---- wrapping / layout config ----
-    BULLET = "*  "                      # first-line prefix for items
+    BULLET = "*  "
+    CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
-    def format_with_dots(main: str, suffix: str) -> str:
-        """
-        Format:
-        *  main ........ suffix
+    def wrap_main_text(main: str) -> list[str]:
+        words = main.split()
+        lines: list[str] = []
+        cur = ""
 
-        Dots stretch to (approximately) the right edge of the terminal,
-        with exactly one space before the dots and one space before suffix.
-        """
-        base = BULLET + main  # starts at column 0
-        min_dots = 3
-        # space before dots + space before suffix = 2
-        available = term_w - len(base) - len(suffix) - 2
-        dots_len = max(min_dots, available)
-        dots = "." * dots_len
-        return f"{base} {dots} {suffix}"
+        first_w = max(10, term_w - len(BULLET))
+        cont_w  = max(10, term_w - len(CONT))
+        width = first_w
+
+        for w in words:
+            if not cur:
+                cur = w
+            elif len(cur) + 1 + len(w) <= width:
+                cur += " " + w
+            else:
+                lines.append(cur)
+                cur = w
+                width = cont_w
+        if cur:
+            lines.append(cur)
+
+        if not lines:
+            lines = [""]
+
+        out: list[str] = []
+        for i, ln in enumerate(lines):
+            prefix = BULLET if i == 0 else CONT
+            out.append(prefix + ln)
+        return out
+
+    def format_general_line(main: str, suffix: str) -> str:
+        lines = wrap_main_text(main)
+        return attach_suffix(lines, suffix)
 
     # ---- load focus tags from .special_focus (if present) ----
     focus_tags: set[str] = set()
     try:
-        focus_path = ROOT / ".special_focus"  # assumes ROOT is defined at module level
+        focus_path = ROOT / ".special_focus"  # ROOT from module scope
     except NameError:
         focus_path = Path(".special_focus")
 
@@ -1068,7 +1115,6 @@ def cmd_special_tags(c, *args):
                     focus_tags.add(tag)
 
     # ---- fetch notes with any !tag ----
-    # we need both path and tags
     rows = c.execute(
         "SELECT path, tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
     ).fetchall()
@@ -1099,23 +1145,17 @@ def cmd_special_tags(c, *args):
         for s in special_tags:
             s_key = s[1:] or "!"  # display without leading '!'
 
-            # Case: there ARE general tags
             if general_tags:
                 for g in general_tags:
-                    # If we have a focus list and this general tag is not in it, skip
                     if focus_tags and g not in focus_tags:
                         continue
                     specials_map.setdefault(s_key, {}).setdefault(g, set()).add(path)
-
-            # Case: NO other tags
             else:
-                # Old behaviour: "(no other tags)" only when there is no focus filter
                 if focus_tags:
                     continue
                 g = "(no other tags)"
                 specials_map.setdefault(s_key, {}).setdefault(g, set()).add(path)
 
-    # ---- nothing to show? ----
     if not specials_map:
         if focus_tags:
             print("\nNo notes found with special '!tag' matching .special_focus.")
@@ -1123,34 +1163,25 @@ def cmd_special_tags(c, *args):
             print("\nNo notes found with special '!tag'.")
         return
 
-    # ---- print ----
     special_keys = sorted(specials_map.keys())
-    for idx, special in enumerate(special_keys):
+    for special in special_keys:
         general_map = specials_map[special]
         if not general_map:
             continue
 
-        # header line for the special tag (no dots, no suffix)
         print(f"!  {special}")
 
-        # De-duplicate generals and print with dotted suffix
         for general in sorted(general_map.keys()):
             paths = general_map[general]
             if not paths:
                 continue
 
-            # Decide suffix: single path or 'multiple'
             if len(paths) == 1:
                 suffix = next(iter(paths))
             else:
                 suffix = "multiple"
 
-            print(format_with_dots(general, suffix))
-
-        # No blank line between specials (as per your current style)
-        # If you *do* ever want one:
-        # if idx < len(special_keys) - 1:
-        #     print()
+            print(format_general_line(general, suffix))
 
 if False:
     def cmd_special_tags(c, *args):
