@@ -15,23 +15,63 @@ from . import init
 
 # -------------------- Helpers --------------------
 
-from shutil import get_terminal_size
+def attach_arrow_suffix(full_lines: list[str], suffix: str) -> str:
+    """
+    Format:
+    *  main text -> first chunk
+       continuation
+       last continuation...........
+    """
 
-def attach_suffix(full_lines: list[str], suffix: str) -> str:
-    """
-    Simplified: Always print the filename on a new line, with CONT indent,
-    in square brackets. No dots, no justification, no splitting.
-    """
     BULLET = "*  "
-    CONT   = " " * len(BULLET)
+    CONT = " " * len(BULLET)
+    term_w = get_terminal_size((80, 24)).columns
 
-    if not full_lines:
-        full_lines = [BULLET]
+    # If suffix fits on first line, attach there.
+    first = full_lines[0]
+    arrow = " // "
+    first_chunk_space = term_w - len(first) - len(arrow)
 
-    # append filename on its own continuation line
-    full_lines.append(f"{CONT}[{suffix}]")
+    if first_chunk_space > 10:
+        # show as much of suffix as fits
+        first_chunk = suffix[:first_chunk_space]
+        rest = suffix[first_chunk_space:]
+        full_lines[0] = first + arrow + first_chunk
+    else:
+        # no room on first line, arrow goes alone
+        full_lines[0] = first + arrow
+        rest = suffix
 
-    return "\n".join(full_lines)
+    # break remaining suffix into lines
+    chunks = []
+    avail = term_w - len(CONT)
+    while rest:
+        chunks.append(rest[:avail])
+        rest = rest[avail:]
+
+    # last line gets dots
+    out = [full_lines[0]]
+    if chunks:
+        for chunk in chunks[:-1]:
+            out.append(CONT + chunk)
+        last = chunks[-1]
+        dots = "." * max(0, term_w - len(CONT) - len(last))
+        out.append(CONT + last + dots)
+
+    return "\n".join(out)
+
+def dotted_header(prefix: str) -> str:
+    """
+    Produce:
+       >  06:00 – 09:00 ......................
+    or:
+       !  project ............................
+    The dots extend to end of terminal width.
+    """
+    term_w = get_terminal_size((80, 24)).columns or 80
+    base = prefix.rstrip()
+    dots = "." * max(1, term_w - len(base))
+    return base + dots
 
 def get_db(db_paths=None, union_views: bool = True):
     """
@@ -487,9 +527,24 @@ def cmd_todos(c, *args):
             out.append(prefix + ln)
         return out
 
-    def format_todo_line(main_text: str, fname: str) -> str:
-        lines = wrap_main_text(main_text)
-        return attach_suffix(lines, fname)
+    def format_todo_line(todo_text: str, tags_str: str, prio: int, fname: str) -> str:
+        meta_parts: list[str] = []
+        if tags_str and tags_str != "-":
+            meta_parts.append(tags_str)
+        meta_parts.append(f"!{prio}")
+        meta_parts.append(fname)
+        meta = ", ".join(meta_parts)
+
+        base = f"{todo_text} -> {meta}"
+        lines = wrap_main_text(base)
+
+        # dot-fill last line to terminal width
+        last = lines[-1]
+        rem = term_w - len(last)
+        if rem > 0:
+            lines[-1] = last + "." * rem
+
+        return "\n".join(lines)
 
     # Base query: allowed statuses and priorities, sorted as requested
     rows = c.execute("""
@@ -527,8 +582,7 @@ def cmd_todos(c, *args):
         prio = row["priority"]
         fname = row["path"]  # e.g. "2025/12/todos.td"
 
-        main_text = f'{row["todo"]} // {tags_str} !{prio}'
-        print(format_todo_line(main_text, fname))
+        print(format_todo_line(row["todo"], tags_str, prio, fname))
 
 if False:
     def cmd_todos(c, *args):
@@ -583,12 +637,10 @@ if False:
 def cmd_events(c, *args):
     """
     Print today’s events in chronological order, grouped by time range.
-    Optional filters:
 
-      org events                 # no filters
-      org events general         # filter by tag 'general' (old behaviour)
-      org events -priority=1     # filter by priority
-      org events general -status=todo -priority=1
+    Layout:
+      >  06:00 – 09:00.............
+      *  Event name -> tags, file..
     """
     import json
     from datetime import date, datetime
@@ -612,16 +664,11 @@ def cmd_events(c, *args):
 
     today = date.today()
 
-    # ---- layout config (shared with todos/specials) ----
-    BULLET = "*  "                      # first-line prefix
-    CONT   = " " * len(BULLET)          # continuation indent
+    BULLET = "*  "
+    CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
     def wrap_main_text(text: str) -> list[str]:
-        """
-        Wrap 'text' into bullet/continuation lines without filename,
-        returning a list of complete lines (with BULLET / CONT prefixes).
-        """
         words = text.split()
         lines: list[str] = []
         cur = ""
@@ -651,13 +698,27 @@ def cmd_events(c, *args):
             out.append(prefix + ln)
         return out
 
-    def format_event_line(summary: str, fname: str) -> str:
-        lines = wrap_main_text(summary)
-        return attach_suffix(lines, fname)
+    def format_event_line(event_text: str, tags_str: str, fname: str) -> str:
+        meta_parts: list[str] = []
+        if tags_str and tags_str != "-":
+            meta_parts.append(tags_str)
+        meta_parts.append(fname)
+        meta = ", ".join(meta_parts)
 
-    # ---- fetch all events (unchanged ordering) ----
+        base = f"{event_text} -> {meta}"
+        lines = wrap_main_text(base)
+
+        # dot-fill last line to terminal width
+        last = lines[-1]
+        rem = term_w - len(last)
+        if rem > 0:
+            lines[-1] = last + "." * rem
+
+        return "\n".join(lines)
+
+    # ---- fetch all events ----
     rows = c.execute("""
-        SELECT event, start, pattern, tags, path, status, priority
+        SELECT event, start, pattern, tags, path, status, priority, creation
           FROM all_events
          WHERE valid = 1
         ORDER BY creation DESC
@@ -685,10 +746,7 @@ def cmd_events(c, *args):
             if Path(row["path"]).name != prop_filters["file"]:
                 continue
 
-        path_str = row["path"]          # e.g. "2025/12/events.ev"
-        status = row["status"] or "-"
-
-        # parse start datetime (unchanged)
+        path_str = row["path"]
         start_raw = row["start"]
         start_dt = (
             datetime.fromisoformat(start_raw)
@@ -699,35 +757,40 @@ def cmd_events(c, *args):
         if row["pattern"]:
             pat = parse_pattern(row["pattern"])
             for s, ee in generate_instances_for_date(pat, start_dt, today):
-                instances.append((s, ee, row["event"], path_str, status, tags))
+                instances.append((s, ee, row["event"], path_str, tags))
         else:
             if start_dt.date() == today:
-                instances.append((start_dt, None, row["event"], path_str, status, tags))
+                instances.append((start_dt, None, row["event"], path_str, tags))
 
-    # ---- sort by start time (unchanged) ----
+    # ---- sort by start time ----
     instances.sort(key=lambda inst: inst[0])
 
     # ---- group by time label ----
-    groups = []  # list of (time_label, [ (summary, fname), ... ])
+    groups = []  # list of (time_label, [ (event_text, tags_str, fname), ... ])
     index = {}
 
-    for s, ee, event, path_str, status, tags in instances:
+    for s, ee, event, path_str, tags in instances:
         time_label = f"{s:%H:%M}" + (f" – {ee:%H:%M}" if ee else "")
         tags_str = ", ".join(tags) if tags else "-"
-        summary = f"{event} // {tags_str}"
-        fname = path_str  # keep full path, e.g. "2025/12/events.ev"
+        fname = path_str
 
         if time_label not in index:
-            bucket: list[tuple[str, str]] = []
+            bucket: list[tuple[str, str, str]] = []
             groups.append((time_label, bucket))
             index[time_label] = bucket
-        index[time_label].append((summary, fname))
+        index[time_label].append((event, tags_str, fname))
 
     # ---- print ----
-    for i, (time_label, entries) in enumerate(groups):
-        print(f">  {time_label}")
-        for summary, fname in entries:
-            print(format_event_line(summary, fname))
+    for time_label, entries in groups:
+        # heading with dotted fill
+        heading = f">  {time_label}"
+        rem = term_w - len(heading)
+        if rem > 0:
+            heading = heading + "." * rem
+        print(heading)
+
+        for event_text, tags_str, fname in entries:
+            print(format_event_line(event_text, tags_str, fname))
 
 if False:
     def cmd_events(c, *args):
@@ -985,19 +1048,13 @@ def cmd_add(c, *args):
 def cmd_special_tags(c, *args):
     """
     Usage: org specials
+
     Prints notes that have any tag starting with '!', grouped by each special tag.
 
-    If a .special_focus file exists in ROOT, it should contain one general tag per line.
-    In that case, only specials whose non-'!' tags intersect this focus list are shown.
-
-    Format:
-    !  hi
-    *  theology ............... 2025/12/test.txt
-    *  thoughts ............... 2025/12/test.txt
-    !  project
-    *  book ................... 2025/12/20251210t141226.txt
+    Layout:
+      !  hi............................
+      *  theology -> 2025/12/test.txt..
     """
-
     import json
     import sqlite3
     from shutil import get_terminal_size
@@ -1037,9 +1094,18 @@ def cmd_special_tags(c, *args):
             out.append(prefix + ln)
         return out
 
-    def format_general_line(main: str, suffix: str) -> str:
-        lines = wrap_main_text(main)
-        return attach_suffix(lines, suffix)
+    def format_special_line(general: str, paths: set[str]) -> str:
+        # show all paths, comma-separated
+        meta = ", ".join(sorted(paths))
+        base = f"{general} -> {meta}"
+        lines = wrap_main_text(base)
+
+        last = lines[-1]
+        rem = term_w - len(last)
+        if rem > 0:
+            lines[-1] = last + "." * rem
+
+        return "\n".join(lines)
 
     # ---- load focus tags from .special_focus (if present) ----
     focus_tags: set[str] = set()
@@ -1110,19 +1176,18 @@ def cmd_special_tags(c, *args):
         if not general_map:
             continue
 
-        print(f"!  {special}")
+        # heading line with dots to end
+        heading = f"!  {special}"
+        rem = term_w - len(heading)
+        if rem > 0:
+            heading = heading + "." * rem
+        print(heading)
 
         for general in sorted(general_map.keys()):
             paths = general_map[general]
             if not paths:
                 continue
-
-            if len(paths) == 1:
-                suffix = next(iter(paths))
-            else:
-                suffix = "multiple"
-
-            print(format_general_line(general, suffix))
+            print(format_special_line(general, paths))
 
 if False:
     def cmd_special_tags(c, *args):
