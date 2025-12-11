@@ -21,12 +21,11 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
     """
     Given wrapped bullet lines and a suffix (filename), either:
 
-    - put ' ... suffix' on the last line (same-line mode), fully justified,
-      or
+    - put ' ... suffix' on the last line (same-line mode), fully justified, or
     - fill the last text line with dots, then print the suffix right-aligned
       on one or more new lines under CONT (new-line mode).
 
-    In *all* cases:
+    In all cases:
       - no filename characters are lost
       - the last character of the filename is at the far right of the last line
     """
@@ -75,7 +74,7 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
             # just dots if only 1 column left
             full_lines[-1] = last + "." * rem
 
-    # 2) Print the suffix on one or more new lines, right-aligned
+    # 2) Build suffix lines, right-aligned under CONT
     indent = CONT
     avail = term_w - len(indent)
     if avail <= 0:
@@ -83,25 +82,52 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
         indent = ""
         avail = term_w
 
+    # Break the suffix into chunks from the RIGHT, each fitting `avail`
     s = suffix
+    chunks: list[str] = []
+    while s:
+        chunks.append(s[-avail:])
+        s = s[:-avail]
+    chunks.reverse()  # now chunks[0] is the first (top) chunk
+
     suffix_lines: list[str] = []
 
-    # Break the suffix into chunks from the RIGHT, each fitting `avail`,
-    # and right-align each chunk under the indent.
-    while s:
-        chunk = s[-avail:]
-        print(chunk)
-        s = s[:-avail]
-        pad = avail - len(chunk)
-        new_pad = pad - 1
-        new_dots = "." * new_pad
-        # right-align: spaces then chunk
-        suffix_lines.append(indent + new_dots + chunk)
+    if len(chunks) == 1:
+        # Single-line filename in new-line mode:
+        # indent + dots + space + chunk, right-aligned
+        chunk = chunks[0]
+        dots_len = avail - len(chunk) - 1
+        if dots_len < 0:
+            # can't have dots + space, just right-align filename
+            pad = avail - len(chunk)
+            if pad < 0:
+                pad = 0
+            suffix_lines.append(indent + " " * pad + chunk)
+        else:
+            suffix_lines.append(indent + "." * dots_len + " " + chunk)
+    else:
+        # Multi-line filename:
+        #  - all but last line: dots + space + chunk (right-aligned)
+        #  - last line: spaces + chunk (right-aligned, no dots)
+        for i, chunk in enumerate(chunks):
+            if i == len(chunks) - 1:
+                # last line: just spaces + chunk
+                pad = avail - len(chunk)
+                if pad < 0:
+                    pad = 0
+                suffix_lines.append(indent + " " * pad + chunk)
+            else:
+                dots_len = avail - len(chunk) - 1
+                if dots_len < 0:
+                    # no room for dots + space: just chunk right-aligned
+                    pad = avail - len(chunk)
+                    if pad < 0:
+                        pad = 0
+                    suffix_lines.append(indent + " " * pad + chunk)
+                else:
+                    suffix_lines.append(indent + "." * dots_len + " " + chunk)
 
-    # We built from bottom upwards; reverse so top-to-bottom
-    suffix_lines.reverse()
     full_lines.extend(suffix_lines)
-
     return "\n".join(full_lines)
 
 def get_db(db_paths=None, union_views: bool = True):
