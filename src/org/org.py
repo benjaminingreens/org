@@ -21,32 +21,25 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
     """
     Given wrapped bullet lines and a suffix (filename), either:
 
-    - put ' ... suffix' on the last line, right-justified, OR
-    - fill last text line with dots and put the suffix on one or more
-      new lines under CONT.
+    - put ' ... suffix' on the last line (same-line mode), fully justified,
+      or
+    - fill the last text line with dots, then print the suffix right-aligned
+      on one or more new lines under CONT (new-line mode).
 
-    Rules:
-    - MIN_DOTS only applies to same-line mode.
-    - In new-line mode:
-        * last text line is dot-filled with one space before the dots
-        * suffix lines never consist only of dots
-        * if suffix fits on one new line, we print 'CONT + dots + space + suffix'
-        * if suffix is longer, we print it on multiple lines:
-            - no dots on suffix lines
-            - last segment is right-justified so the filename ends at the right edge
+    In *all* cases:
+      - no filename characters are lost
+      - the last character of the filename is at the far right of the last line
     """
     BULLET = "*  "
     CONT   = " " * len(BULLET)
-    term_w = get_terminal_size((80, 24)).columns
-    if term_w <= 0:
-        term_w = 80
+    term_w = get_terminal_size((80, 24)).columns or 80
 
     if not full_lines:
         full_lines = [BULLET]
 
     last = full_lines[-1]
 
-    # Identify prefix + content on the last line
+    # Identify prefix and content on the last line
     if last.startswith(BULLET):
         prefix = BULLET
         content = last[len(BULLET):]
@@ -59,7 +52,7 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
 
     MIN_DOTS = 3
 
-    # ---- try same-line mode ----
+    # ---------- Same-line mode ----------
     base_len = len(prefix) + len(content)
     # spaces: " " + dots + " " + suffix
     max_dots_same = term_w - base_len - 2 - len(suffix)
@@ -69,65 +62,45 @@ def attach_suffix(full_lines: list[str], suffix: str) -> str:
         full_lines[-1] = f"{prefix}{content} {dots} {suffix}"
         return "\n".join(full_lines)
 
-    # ---- new-line mode ----
-    # 1) fill last text line with dots, no suffix
-    #    ensure exactly one space before dots
-    last = full_lines[-1]
-    # trim any trailing spaces to avoid weirdness
-    last = last.rstrip()
-    used = len(last)
+    # ---------- New-line mode ----------
 
-    if used < term_w:
-        # space + dots to end
-        dot_count = term_w - used - 1
-        if dot_count < 0:
-            dot_count = 0
-        full_lines[-1] = last + " " + ("." * dot_count)
-    else:
-        # already at or beyond width; leave as-is
-        full_lines[-1] = last
+    # 1) Fill the last text line with dots up to the right edge
+    last_len = len(last)
+    rem = term_w - last_len
+    if rem > 0:
+        if rem >= 2:
+            # one space, then dots
+            full_lines[-1] = last + " " + "." * (rem - 1)
+        else:
+            # just dots if only 1 column left
+            full_lines[-1] = last + "." * rem
 
-    # 2) suffix lines
+    # 2) Print the suffix on one or more new lines, right-aligned
     indent = CONT
     avail = term_w - len(indent)
     if avail <= 0:
+        # pathological tiny terminal: no room for indent
         indent = ""
         avail = term_w
 
-    # If suffix fits on one suffix-line with dots+space, use dots + suffix
-    # (this is the 'short filename' case like: '   .......... 2025/12/file.txt')
-    if len(suffix) + 1 + MIN_DOTS <= avail:
-        dots_len = avail - 1 - len(suffix)
-        if dots_len < 0:
-            dots_len = 0
-        dots = "." * dots_len
-        full_lines.append(indent + dots + " " + suffix)
-        return "\n".join(full_lines)
+    s = suffix
+    suffix_lines: list[str] = []
 
-    # 3) Long filename: multi-line, no dots on suffix lines,
-    #    and last segment right-justified.
-    # We preserve character order.
+    # Break the suffix into chunks from the RIGHT, each fitting `avail`,
+    # and right-align each chunk under the indent.
+    while s:
+        chunk = s[-avail:]
+        print(chunk)
+        s = s[:-avail]
+        pad = avail - len(chunk)
+        new_pad = pad - 1
+        new_dots = "." * new_pad
+        # right-align: spaces then chunk
+        suffix_lines.append(indent + new_dots + chunk)
 
-    n = len(suffix)
-    # How many full-width chunks (except last, which we right-justify)?
-    # We'll take chunks from the left.
-    idx = 0
-
-    while True:
-        remaining = n - idx
-        if remaining <= avail:
-            # Last segment: right-justify so end of filename hits right edge
-            seg = suffix[idx:]
-            pad = avail - len(seg)
-            if pad < 0:
-                pad = 0
-            full_lines.append(indent + (" " * pad) + seg)
-            break
-        else:
-            # Middle segment: left-aligned under indent
-            seg = suffix[idx:idx + avail]
-            full_lines.append(indent + seg)
-            idx += avail
+    # We built from bottom upwards; reverse so top-to-bottom
+    suffix_lines.reverse()
+    full_lines.extend(suffix_lines)
 
     return "\n".join(full_lines)
 
