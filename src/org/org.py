@@ -19,115 +19,18 @@ from shutil import get_terminal_size
 
 def attach_suffix(full_lines: list[str], suffix: str) -> str:
     """
-    Given wrapped bullet lines and a suffix (filename), either:
-
-    - put ' ... suffix' on the last line (same-line mode), fully justified, or
-    - fill the last text line with dots, then print the suffix right-aligned
-      on one or more new lines under CONT (new-line mode).
-
-    In all cases:
-      - no filename characters are lost
-      - the last character of the filename is at the far right of the last line
+    Simplified: Always print the filename on a new line, with CONT indent,
+    in square brackets. No dots, no justification, no splitting.
     """
     BULLET = "*  "
     CONT   = " " * len(BULLET)
-    term_w = get_terminal_size((80, 24)).columns or 80
 
     if not full_lines:
         full_lines = [BULLET]
 
-    last = full_lines[-1]
+    # append filename on its own continuation line
+    full_lines.append(f"{CONT}[{suffix}]")
 
-    # Identify prefix and content on the last line
-    if last.startswith(BULLET):
-        prefix = BULLET
-        content = last[len(BULLET):]
-    elif last.startswith(CONT):
-        prefix = CONT
-        content = last[len(CONT):]
-    else:
-        prefix = ""
-        content = last
-
-    MIN_DOTS = 3
-
-    # ---------- Same-line mode ----------
-    base_len = len(prefix) + len(content)
-    # spaces: " " + dots + " " + suffix
-    max_dots_same = term_w - base_len - 2 - len(suffix)
-
-    if max_dots_same >= MIN_DOTS:
-        dots = "." * max_dots_same
-        full_lines[-1] = f"{prefix}{content} {dots} {suffix}"
-        return "\n".join(full_lines)
-
-    # ---------- New-line mode ----------
-
-    # 1) Fill the last text line with dots up to the right edge
-    last_len = len(last)
-    rem = term_w - last_len
-    if rem > 0:
-        if rem >= 2:
-            # one space, then dots
-            full_lines[-1] = last + " " + "." * (rem - 1)
-        else:
-            # just dots if only 1 column left
-            full_lines[-1] = last + "." * rem
-
-    # 2) Build suffix lines, right-aligned under CONT
-    indent = CONT
-    avail = term_w - len(indent)
-    if avail <= 0:
-        # pathological tiny terminal: no room for indent
-        indent = ""
-        avail = term_w
-
-    # Break the suffix into chunks from the RIGHT, each fitting `avail`
-    s = suffix
-    chunks: list[str] = []
-    while s:
-        chunks.append(s[-avail:])
-        s = s[:-avail]
-    chunks.reverse()  # now chunks[0] is the first (top) chunk
-
-    suffix_lines: list[str] = []
-
-    if len(chunks) == 1:
-        # Single-line filename in new-line mode:
-        # indent + dots + space + chunk, right-aligned
-        chunk = chunks[0]
-        dots_len = avail - len(chunk) - 1
-        if dots_len < 0:
-            # can't have dots + space, just right-align filename
-            pad = avail - len(chunk)
-            if pad < 0:
-                pad = 0
-            suffix_lines.append(indent + " " * pad + chunk)
-        else:
-            suffix_lines.append(indent + "." * dots_len + " " + chunk)
-    else:
-        # Multi-line filename:
-        #  - all but last line: dots + space + chunk (right-aligned)
-        #  - last line: spaces + chunk (right-aligned, no dots)
-        for i, chunk in enumerate(chunks):
-            if i == len(chunks) - 1:
-                # last line: just spaces + chunk
-                pad = avail - len(chunk)
-                if pad < 0:
-                    pad = 0
-                suffix_lines.append(indent + " " * pad + chunk)
-            else:
-                dots_len = avail - len(chunk) - 1
-                if dots_len < 0:
-                    # no room for dots + space: just chunk right-aligned
-                    pad = avail - len(chunk)
-                    if pad < 0:
-                        pad = 0
-                    suffix_lines.append(indent + " " * pad + chunk)
-                else:
-                    suffix_lines.append(indent + "." * dots_len + " " + chunk)
-
-    full_lines.extend(suffix_lines)
     return "\n".join(full_lines)
 
 def get_db(db_paths=None, union_views: bool = True):

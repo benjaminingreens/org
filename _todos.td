@@ -6,6 +6,8 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: just fix cli to be normal. forget right justified stuff
+* t: something up with .orgceiling? on my phone it started flagging up as an error even though this had never happened before. shouldn't it be prompting me to create one?
 * t: draft architecture for revised cli
 * t: it would be good to have some way of not having every special tag listed in report 
 * t: I am testing .gitignoring .org.db - see if it works alright. I think i recall that this should not create any issues
