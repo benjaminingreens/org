@@ -8,3 +8,5 @@ debug.txt
 /.org
 /.org
 log.txt
+__pycache__/
+*.pyc
