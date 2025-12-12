@@ -607,8 +607,11 @@ def cmd_todos(c, *args, heading=False):
     limit_random: int | None = None
 
     for arg in args:
+        # numeric argument: limit to N random items
+        if isinstance(arg, int):
+            limit_random = arg
+            continue
         if isinstance(arg, str) and arg.isdigit():
-            # numeric argument: limit to N random items
             limit_random = int(arg)
             continue
 
@@ -644,7 +647,6 @@ def cmd_todos(c, *args, heading=False):
     BULLET = "*  "
     CONT = "   "  # exactly three spaces
 
-
     def format_todo_line(todo_text: str, tags_str: str, prio: int, fname: str) -> str:
         meta_parts: list[str] = []
 
@@ -660,28 +662,45 @@ def cmd_todos(c, *args, heading=False):
 
         return flow_line(todo_text, meta, term_w)
 
-    # Base query: allowed statuses and priorities, sorted as requested
+    # Base query: NO AND-filters here (only valid)
     rows = c.execute("""
         SELECT todo, path, status, tags, priority, creation
         FROM all_todos
         WHERE valid = 1
-          AND status IN ('todo','inprogress','dependent','blocked','unknown')
-          AND priority BETWEEN 1 AND 4
         ORDER BY priority ASC, creation DESC, tags ASC
     """).fetchall()
 
-    # Apply additional filters from arguments
+    # If the user supplied ANY filter argument, lift the default status/priority restrictions
+    has_filter_args = any([
+        tag_filter is not None,
+        status_filter is not None,
+        priority_filter is not None,
+    ])
+
+    DEFAULT_STATUSES = {"todo", "inprogress", "dependent", "blocked", "unknown"}
+    DEFAULT_PRIO_MIN = 1
+    DEFAULT_PRIO_MAX = 4
+
+    # Apply filters in Python
     items = []
     for row in rows:
         row_tags = json.loads(row["tags"]) if row["tags"] else []
 
+        # Default filters (only when NO filter args were provided)
+        if not has_filter_args:
+            if row["status"] not in DEFAULT_STATUSES:
+                continue
+            if not (DEFAULT_PRIO_MIN <= int(row["priority"]) <= DEFAULT_PRIO_MAX):
+                continue
+
+        # User-specified filters (always apply if provided)
         if tag_filter and tag_filter not in row_tags:
             continue
 
         if status_filter and row["status"] not in status_filter:
             continue
 
-        if priority_filter and row["priority"] not in priority_filter:
+        if priority_filter and int(row["priority"]) not in priority_filter:
             continue
 
         items.append(row)
