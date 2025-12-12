@@ -21,11 +21,19 @@ def flow_line(
     right: str,
     term_w: int,
     fill: str = " ",
-    min_gap: int = 3,
+    min_gap: int = 7,
     pad: bool = True,
+    max_w: int | None = None,
 ) -> str:
-    BULLET = "* "
-    CONT = "  "
+    orig_term_w = max(1, int(term_w))
+
+    if max_w is not None:
+        term_w = min(orig_term_w, max_w)
+    else:
+        term_w = orig_term_w
+
+    BULLET = "*  "
+    CONT = "   "
 
     prefix_w = len(BULLET)
     content_w = max(1, term_w - prefix_w)
@@ -35,7 +43,6 @@ def flow_line(
     min_gap = max(0, int(min_gap))
 
     def chunks_left(s: str) -> list[str]:
-        # word wrap (hard-breaks very long words)
         if not s:
             return [""]
 
@@ -66,25 +73,60 @@ def flow_line(
         return out or [""]
 
     def chunks_right(s: str) -> list[str]:
+        """
+        Wrap right text using a fixed separator so spacing is preserved.
+        Breaks only between meta fields, not inside them (unless a field is too long).
+        """
         if not s:
             return [""]
 
-        out: list[str] = []
-        i = len(s)
+        SEP = " "  # must match how you build meta
+        sep_len = len(SEP)
 
-        while i > 0:
-            j = max(0, i - content_w)
-            out.append(s[j:i])
-            i = j
+        parts = [p.strip() for p in s.strip().split(SEP) if p.strip()]
+        if not parts:
+            return [""]
 
-        return list(reversed(out))
+        lines: list[str] = []
+        cur: list[str] = []
+
+        def line_len(with_parts: list[str]) -> int:
+            if not with_parts:
+                return 0
+            return sum(len(p) for p in with_parts) + sep_len * (len(with_parts) - 1)
+
+        def flush() -> None:
+            nonlocal cur
+            if cur:
+                lines.append(SEP.join(cur))
+                cur = []
+
+        for part in reversed(parts):
+            if len(part) > content_w:
+                flush()
+                for i in range(len(part), 0, -content_w):
+                    lines.append(part[max(0, i - content_w) : i].lstrip())
+                continue
+
+            if not cur:
+                cur = [part]
+                continue
+
+            candidate = [part] + cur
+            if line_len(candidate) <= content_w:
+                cur = candidate
+            else:
+                flush()
+                cur = [part]
+
+        flush()
+        return list(reversed(lines))
 
     left_chunks = chunks_left(left)
     right_chunks = chunks_right(right)
     m = len(right_chunks)
 
     lines: list[str] = []
-
     for i, ch in enumerate(left_chunks):
         prefix = BULLET if i == 0 else CONT
         body = ch + (" " * max(0, content_w - len(ch)))
@@ -110,8 +152,8 @@ def flow_line(
             line_i = anchor - (m - 1 - ci)
             rch = right_chunks[ci]
             rlen = len(rch)
-            start = content_w - rlen
 
+            start = content_w - rlen
             b = body(line_i)
             region = b[start : start + rlen]
 
@@ -135,8 +177,8 @@ def flow_line(
         line_i = anchor - (m - 1 - ci)
         rch = right_chunks[ci]
         rlen = len(rch)
-        start = content_w - rlen
 
+        start = content_w - rlen
         b = body(line_i)
         lr = last_real_col(b)
         b_list = list(b)
@@ -157,19 +199,18 @@ def flow_line(
     if 0 <= i < len(lines) and i not in right_on_line:
         b = body(i)
         lr = last_real_col(b)
-
         if lr >= 0:
             b_list = list(b)
             for k in range(lr + 1, content_w):
                 if b_list[k] == " ":
                     b_list[k] = fill
-
             prefix = BULLET if i == 0 else CONT
             lines[i] = prefix + "".join(b_list)
 
     rendered = "\n".join(ln.rstrip() for ln in lines)
 
-    if pad:
+    # Only add pad when terminal width is below 40
+    if pad and orig_term_w < 80:
         rendered += "-" * term_w
 
     return rendered
@@ -593,11 +634,11 @@ def cmd_todos(c, *args, heading=False):
     term_w = get_terminal_size((80, 24)).columns
 
     if heading:
-        heading = "TODOS"
+        heading = "=  TODOS"
         rem = term_w - len(heading)
         heading_lines = "=" * (rem - 1)
         print(heading + " " + heading_lines)
-        print("-" * term_w)
+        # print("-" * term_w)
 
 
     BULLET = "*  "
@@ -709,11 +750,11 @@ if False:
 
 def cmd_events(c, *args):
     """
-    Print today’s events in chronological order, grouped by time range.
+    Print today’s events in chronological order, with the time label included
+    in the metadata line (no separate time headings).
 
     Layout:
-      >  06:00 – 09:00.............
-      *  Event name -> tags, file..
+      *  Event name..................06:00 – 09:00, #tag #tag, ~/file.ev
     """
     import json
     from datetime import date, datetime
@@ -721,7 +762,7 @@ def cmd_events(c, *args):
     from shutil import get_terminal_size
 
     # ---- parse filters ----
-    tag_filter = None          # legacy "first arg is tag" behaviour
+    tag_filter = None  # legacy "first arg is tag" behaviour
     prop_filters: dict[str, str] = {}
 
     for i, arg in enumerate(args):
@@ -738,27 +779,29 @@ def cmd_events(c, *args):
     today = date.today()
 
     BULLET = "*  "
-    CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
-    heading = "EVENTS"
+    heading = "=  EVENTS"
     rem = term_w - len(heading)
     heading_lines = "=" * (rem - 1)
     print(heading + " " + heading_lines)
-    print("-" * term_w)
 
-
-    def format_event_line(event_text: str, tags_str: str, fname: str) -> str:
+    def format_event_line(event_text: str, time_label: str, tags_str: str, fname: str) -> str:
         meta_parts: list[str] = []
 
+        # time first
+        if time_label:
+            meta_parts.append(time_label)
+
+        # tags
         if tags_str and tags_str != "-":
             tags = [f"#{t}" for t in tags_str.split(",")]
             meta_parts.append(" ".join(tags))
 
+        # file
         meta_parts.append(f"~/{fname}")
 
         meta = ", ".join(meta_parts)
-
         return flow_line(event_text, meta, term_w)
 
     # ---- fetch all events ----
@@ -770,7 +813,7 @@ def cmd_events(c, *args):
     """).fetchall()
 
     # ---- collect all instances for today ----
-    instances = []
+    instances: list[tuple[datetime, tp.Optional[datetime], str, str, list[str]]] = []
     for row in rows:
         tags = json.loads(row["tags"]) if row["tags"] else []
 
@@ -779,25 +822,16 @@ def cmd_events(c, *args):
             continue
 
         # property filters
-        if "priority" in prop_filters:
-            if str(row["priority"]) != prop_filters["priority"]:
-                continue
-
-        if "status" in prop_filters:
-            if (row["status"] or "") != prop_filters["status"]:
-                continue
-
-        if "file" in prop_filters:
-            if Path(row["path"]).name != prop_filters["file"]:
-                continue
+        if "priority" in prop_filters and str(row["priority"]) != prop_filters["priority"]:
+            continue
+        if "status" in prop_filters and (row["status"] or "") != prop_filters["status"]:
+            continue
+        if "file" in prop_filters and Path(row["path"]).name != prop_filters["file"]:
+            continue
 
         path_str = row["path"]
         start_raw = row["start"]
-        start_dt = (
-            datetime.fromisoformat(start_raw)
-            if isinstance(start_raw, str)
-            else start_raw
-        )
+        start_dt = datetime.fromisoformat(start_raw) if isinstance(start_raw, str) else start_raw
 
         if row["pattern"]:
             pat = parse_pattern(row["pattern"])
@@ -810,32 +844,11 @@ def cmd_events(c, *args):
     # ---- sort by start time ----
     instances.sort(key=lambda inst: inst[0])
 
-    # ---- group by time label ----
-    groups = []  # list of (time_label, [ (event_text, tags_str, fname), ... ])
-    index = {}
-
-    for s, ee, event, path_str, tags in instances:
-        time_label = f"{s:%H:%M}" + (f" – {ee:%H:%M}" if ee else "")
-        tags_str = ", ".join(tags) if tags else "-"
-        fname = path_str
-
-        if time_label not in index:
-            bucket: list[tuple[str, str, str]] = []
-            groups.append((time_label, bucket))
-            index[time_label] = bucket
-        index[time_label].append((event, tags_str, fname))
-
     # ---- print ----
-    for time_label, entries in groups:
-        # heading with dotted fill
-        heading = f">  {time_label}"
-        rem = term_w - len(heading)
-        if rem > 0:
-            heading = heading + " " + "-" * (rem - 1)
-        # print(heading)
-
-        for event_text, tags_str, fname in entries:
-            print(format_event_line(event_text, tags_str, fname))
+    for s, ee, event_text, path_str, tags in instances:
+        time_label = f"{s:%H:%M}" + (f"-{ee:%H:%M}" if ee else "")
+        tags_str = ", ".join(tags) if tags else "-"
+        print(format_event_line(event_text, time_label, tags_str, path_str))
 
 if False:
     def cmd_events(c, *args):
@@ -1109,11 +1122,11 @@ def cmd_special_tags(c, *args):
     CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
-    heading = "SPECIALS"
+    heading = "=  SPECIALS"
     rem = term_w - len(heading)
     heading_lines = "=" * (rem - 1)
     print(heading + " " + heading_lines)
-    print("-" * term_w)
+    # print("-" * term_w)
 
 
     def format_special_line(general: str, paths: set[str]) -> str:
