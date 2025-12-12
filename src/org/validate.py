@@ -468,7 +468,7 @@ def validate_notes(conn: sqlite3.Connection, c: sqlite3.Cursor, cfg: Config, to_
                 meta["id"][0] = make_id()
 
         # validate metadata
-        meta, valids_dict, errors_dict = validate_metadata(meta, ".txt", row)
+        meta, valids_dict, errors_dict = validate_metadata(meta, ".txt", row, normalise_priority_deadline=False)
         collected.append({
             "path": str(p),
             **{ k: v[0] for k, v in meta.items() }
@@ -977,8 +977,79 @@ def check_format(
         return valids, errors
 
     return valids, errors
+
+from datetime import datetime, timedelta
+
+def _parse_deadline(s: str) -> datetime | None:
+    if not s or not isinstance(s, str):
+        return None
+    s = s.strip()
+    try:
+        if "T" in s:
+            # YYYYMMDDTHHMM[SS]
+            if len(s) == 13:   # YYYYMMDDTHHMM
+                return datetime.strptime(s, "%Y%m%dT%H%M")
+            if len(s) == 15:   # YYYYMMDDTHHMMSS
+                return datetime.strptime(s, "%Y%m%dT%H%M%S")
+            return None
+        # YYYYMMDD
+        if len(s) == 8:
+            return datetime.strptime(s, "%Y%m%d")
+    except ValueError:
+        return None
+    return None
+
+def _fmt_deadline(dt: datetime) -> str:
+    # Always date-only to satisfy your regex and keep it simple
+    return dt.strftime("%Y%m%d")
+
+def normalise_priority_and_deadline(metadata_dict: dict[str, list]) -> dict[str, list]:
+    now = datetime.now()
+
+    dval = metadata_dict["deadline"][0]
+    pval = metadata_dict["priority"][0]
+
+    # parse current deadline (if any)
+    deadline_dt = _parse_deadline(dval) if dval else None
+
+    # 1) If no deadline: create one ONLY for priorities 1 and 2
+    if deadline_dt is None:
+        if pval == 1:
+            deadline_dt = now + timedelta(weeks=2)
+            metadata_dict["deadline"][0] = _fmt_deadline(deadline_dt)
+        elif pval == 2:
+            deadline_dt = now + timedelta(weeks=4)
+            metadata_dict["deadline"][0] = _fmt_deadline(deadline_dt)
+        else:
+            # priorities 3/4: user-owned, no system deadline per your spec
+            return metadata_dict
+
+    # 2) Deadline exists: normalise urgency bands
+    delta_days = (deadline_dt - now).total_seconds() / 86400.0
+
+    # future: 4–2 weeks
+    if 14 <= delta_days <= 28:
+        if pval > 2:
+            metadata_dict["priority"][0] = 2
+
+    # future: 2–0 weeks
+    elif 0 <= delta_days < 14:
+        if pval > 1:
+            metadata_dict["priority"][0] = 1
+
+    # past: 2–4 weeks overdue
+    elif -28 <= delta_days <= -14:
+        if pval < 2:
+            metadata_dict["priority"][0] = 2
+
+    # past: more than 4 weeks overdue
+    elif delta_days < -28:
+        if pval < 3:
+            metadata_dict["priority"][0] = 3
+
+    return metadata_dict
     
-def validate_metadata(metadata_dict: dict[str, list], file_type: str, db_row) -> tuple[dict[str, list], dict[str, bool], dict[str, list[str]]]:
+def validate_metadata(metadata_dict: dict[str, list], file_type: str, db_row, normalise_priority_deadline) -> tuple[dict[str, list], dict[str, bool], dict[str, list[str]]]:
     """
     metadata_dict: 
 
@@ -1083,6 +1154,17 @@ def validate_metadata(metadata_dict: dict[str, list], file_type: str, db_row) ->
         # for example, some values which use a date regex pattern - check that they can be parsed
         # by a datetime class. this ensures it is a valid datetime, which format checks don't do
 
+    # --- NEW: post-validate normalisation + single self-call ---
+    has_errors = any(errs for errs in errors_dict.values())
+    if (not has_errors) and normalise_priority_deadline and file_type == ".td":
+        metadata_dict = normalise_priority_and_deadline(metadata_dict)
+        return validate_metadata(
+            metadata_dict,
+            file_type,
+            db_row,
+            normalise_priority_deadline=False,  # bypass on the second pass
+        )
+
     return metadata_dict, valids_dict, errors_dict
 
 def _scan_db(c: sqlite3.Cursor, disk_scan: dict[Path, float], file_type:str):
@@ -1118,6 +1200,46 @@ def _scan_db(c: sqlite3.Cursor, disk_scan: dict[Path, float], file_type:str):
     disk_paths: list[Path] = [p for p in disk_scan if p.suffix.lower() == f"{file_type}"]
 
     return db_scan, disk_paths
+
+def scan_db_for_priority(
+    c: sqlite3.Cursor,
+    *,
+    root: Path = ROOT,
+    include_invalid: bool = False,
+) -> set[Path]:
+    """
+    Return {Path(...)} of .td file paths where any todo row in that file:
+      - has a deadline (non-null and non-empty), OR
+      - has priority 1 or 2
+
+    Uses DISTINCT so each file appears once even if it contains many matching todos.
+    """
+    valid_clause = "" if include_invalid else "AND valid = 1"
+
+    c.execute(f"""
+        SELECT DISTINCT path
+        FROM todos
+        WHERE (
+            (deadline IS NOT NULL AND TRIM(deadline) <> '')
+            OR (priority IN (1, 2))
+        )
+        {valid_clause}
+    """)
+
+    out: set[Path] = set()
+    for row in c.fetchall():
+        p = Path(row["path"])  # row_factory = sqlite3.Row in init_db()
+
+        # normalise to relpaths like your disk_scan uses
+        if p.is_absolute():
+            try:
+                p = p.relative_to(root)
+            except ValueError:
+                pass
+
+        out.add(p)
+
+    return out
 
 def _set_operations(c: sqlite3.Cursor, db_scan: dict[Path, float], file_type: str):
     """
@@ -1315,7 +1437,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
                     meta["id"][0] = make_id()
 
             # this is where validation happens per line            
-            meta, valids_dict, errors_dict = validate_metadata(meta, file_type, db_row_match)
+            meta, valids_dict, errors_dict = validate_metadata(meta, file_type, db_row_match, normalise_priority_deadline=True)
             collected.append({
                 "path": str(p),
                 **{ k: v[0] for k, v in meta.items() }
@@ -1467,7 +1589,10 @@ def main(metadata_dict: dict[str,list]):
         # 4. conduct set operations to get: new and modified paths
         to_check: set[Path]
         new_files: set[Path]
+        priority_files = scan_db_for_priority(c)
         to_check, new_files = _set_operations(c, db_scan, f)
+        if f == ".td":
+            to_check = to_check | priority_files
         check[f] = to_check
         new_filo[f] = new_files
 
