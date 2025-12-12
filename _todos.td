@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: when querying todos, sometimes there is a space between a '#' and the actual tag
 * t: fix filtering in cli - select all items, then apply a default filter for org report - but allow all for filtered queries
 * t: just fix cli to be normal. forget right justified stuff
 * t: something up with .orgceiling? on my phone it started flagging up as an error even though this had never happened before. shouldn't it be prompting me to create one?
