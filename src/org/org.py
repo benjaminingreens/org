@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import sys
 import os
 import sqlite3
@@ -15,63 +16,108 @@ from . import init
 
 # -------------------- Helpers --------------------
 
-def attach_arrow_suffix(full_lines: list[str], suffix: str) -> str:
+def flow_line(
+    left: str,
+    right: str,
+    term_w: int,
+    fill: str = " ",
+    min_gap: int = 3,
+    pad: bool = True,
+) -> str:
     """
-    Format:
-    *  main text -> first chunk
-       continuation
-       last continuation...........
-    """
+    Render two texts into a bullet/continuation wrapped layout.
 
+    If pad=True, the rendered block is padded with a blank line
+    above and below, unconditionally.
+    """
     BULLET = "*  "
-    CONT = " " * len(BULLET)
-    term_w = get_terminal_size((80, 24)).columns
+    CONT = "   "
+    prefix_w = len(BULLET)
+    content_w = max(1, term_w - prefix_w)
 
-    # If suffix fits on first line, attach there.
-    first = full_lines[0]
-    arrow = " // "
-    first_chunk_space = term_w - len(first) - len(arrow)
+    fill = "."
+    fill = (fill or " ")[0]
+    min_gap = max(0, int(min_gap))
 
-    if first_chunk_space > 10:
-        # show as much of suffix as fits
-        first_chunk = suffix[:first_chunk_space]
-        rest = suffix[first_chunk_space:]
-        full_lines[0] = first + arrow + first_chunk
-    else:
-        # no room on first line, arrow goes alone
-        full_lines[0] = first + arrow
-        rest = suffix
+    def chunks_left(s: str) -> list[str]:
+        return [s[i:i + content_w] for i in range(0, len(s), content_w)] or [""]
 
-    # break remaining suffix into lines
-    chunks = []
-    avail = term_w - len(CONT)
-    while rest:
-        chunks.append(rest[:avail])
-        rest = rest[avail:]
+    def chunks_right(s: str) -> list[str]:
+        if not s:
+            return [""]
+        out: list[str] = []
+        i = len(s)
+        while i > 0:
+            j = max(0, i - content_w)
+            out.append(s[j:i])
+            i = j
+        return list(reversed(out))
 
-    # last line gets dots
-    out = [full_lines[0]]
-    if chunks:
-        for chunk in chunks[:-1]:
-            out.append(CONT + chunk)
-        last = chunks[-1]
-        dots = "." * max(0, term_w - len(CONT) - len(last))
-        out.append(CONT + last + dots)
+    left_chunks = chunks_left(left)
+    right_chunks = chunks_right(right)
+    m = len(right_chunks)
 
-    return "\n".join(out)
+    lines: list[str] = []
+    for i, ch in enumerate(left_chunks):
+        prefix = BULLET if i == 0 else CONT
+        body = ch + (fill * max(0, content_w - len(ch)))
+        lines.append(prefix + body)
 
-def dotted_header(prefix: str) -> str:
-    """
-    Produce:
-       >  06:00 – 09:00 ......................
-    or:
-       !  project ............................
-    The dots extend to end of terminal width.
-    """
-    term_w = get_terminal_size((80, 24)).columns or 80
-    base = prefix.rstrip()
-    dots = "." * max(1, term_w - len(base))
-    return base + dots
+    def ensure_lines(n: int) -> None:
+        while len(lines) < n:
+            lines.append(CONT + (fill * content_w))
+
+    def body(i: int) -> str:
+        return lines[i][prefix_w:]
+
+    def last_real_col(b: str) -> int:
+        for j in range(len(b) - 1, -1, -1):
+            if b[j] not in (" ", fill):
+                return j
+        return -1
+
+    def can_place(anchor: int) -> bool:
+        ensure_lines(anchor + 1)
+        for ci in range(m):
+            line_i = anchor - (m - 1 - ci)
+            rch = right_chunks[ci]
+            rlen = len(rch)
+            start = content_w - rlen
+
+            b = body(line_i)
+            region = b[start:start + rlen]
+
+            if any(c not in (" ", fill) for c in region):
+                return False
+
+            lr = last_real_col(b)
+            if lr >= 0 and start <= lr + (min_gap):
+                return False
+
+        return True
+
+    anchor = max(m - 1, 0)
+    while not can_place(anchor):
+        anchor += 1
+
+    ensure_lines(anchor + 1)
+    for ci in range(m):
+        line_i = anchor - (m - 1 - ci)
+        rch = right_chunks[ci]
+        rlen = len(rch)
+        start = content_w - rlen
+        b = body(line_i)
+        new_b = b[:start] + rch + b[start + rlen:]
+        prefix = BULLET if line_i == 0 else CONT
+        lines[line_i] = prefix + new_b
+
+    rendered = "\n".join(ln.rstrip() for ln in lines)
+
+    pad_line = "-" * term_w
+    if pad:
+        rendered = rendered + pad_line
+
+    return rendered
 
 def get_db(db_paths=None, union_views: bool = True):
     """
@@ -285,21 +331,15 @@ def cmd_report(c, tag=None):
 
     else:
         print()
-        print("EVENTS")
-        print("------")
         cmd_events(c)
 
         print()
-        print("TODOS")
-        print("-----")
-        cmd_todos(c, "-priority=1")
+        cmd_todos(c, "-priority=1", heading=True)
         cmd_todos(c, "-priority=2")
         cmd_todos(c, "-priority=3", 2)
         cmd_todos(c, "-priority=4", 1)
 
         print()
-        print("SPECIALS")
-        print("--------")
         cmd_special_tags(c)
 
 def cmd_notes(c, *args):
@@ -354,7 +394,7 @@ def cmd_notes(c, *args):
           *  Title // tags .... fname
         with dots filling up to the right margin, without overflowing.
         """
-        base = f"{title} // {tags_str}" if tags_str else title
+        base = f"{title} ... {tags_str}" if tags_str else title
         # If even base alone is too long, just truncate it hard.
         if len(base) >= max_content_width:
             return BULLET + base[:max_content_width]
@@ -459,7 +499,7 @@ if False:
         for row in c.execute(q, params):
             print(f"{Path(row['path']).name}: {row['title']}")
 
-def cmd_todos(c, *args):
+def cmd_todos(c, *args, heading=False):
     import json
     import random
     from shutil import get_terminal_size
@@ -497,35 +537,17 @@ def cmd_todos(c, *args):
     CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
-    def wrap_main_text(text: str) -> list[str]:
-        words = text.split()
-        lines: list[str] = []
-        cur = ""
+    if heading:
+        heading = "TODOS"
+        rem = term_w - len(heading)
+        heading_lines = "=" * (rem - 1)
+        print(heading + " " + heading_lines)
+        print("-" * term_w)
 
-        first_w = max(10, term_w - len(BULLET))
-        cont_w  = max(10, term_w - len(CONT))
-        width = first_w
 
-        for w in words:
-            if not cur:
-                cur = w
-            elif len(cur) + 1 + len(w) <= width:
-                cur += " " + w
-            else:
-                lines.append(cur)
-                cur = w
-                width = cont_w
-        if cur:
-            lines.append(cur)
+    BULLET = "*  "
+    CONT = "   "  # exactly three spaces
 
-        if not lines:
-            lines = [""]
-
-        out: list[str] = []
-        for i, ln in enumerate(lines):
-            prefix = BULLET if i == 0 else CONT
-            out.append(prefix + ln)
-        return out
 
     def format_todo_line(todo_text: str, tags_str: str, prio: int, fname: str) -> str:
         meta_parts: list[str] = []
@@ -535,16 +557,8 @@ def cmd_todos(c, *args):
         meta_parts.append(fname)
         meta = ", ".join(meta_parts)
 
-        base = f"{todo_text} -> {meta}"
-        lines = wrap_main_text(base)
-
-        # dot-fill last line to terminal width
-        last = lines[-1]
-        rem = term_w - len(last)
-        if rem > 0:
-            lines[-1] = last + "." * rem
-
-        return "\n".join(lines)
+        base = f"{todo_text} ... {meta}"
+        return flow_line(todo_text, meta, term_w)
 
     # Base query: allowed statuses and priorities, sorted as requested
     rows = c.execute("""
@@ -631,7 +645,7 @@ if False:
 
             tags_str = ", ".join(tags) if tags else "-"
 
-            print(wrap_with_prefix(f"{row["todo"]} // {tags_str}"))
+            print(wrap_with_prefix(f"{row["todo"]} ... {tags_str}"))
             # print(wrap_with_prefix(f"[{tags_str}]", first_prefix=CONT, cont_prefix=CONT))
 
 def cmd_events(c, *args):
@@ -668,35 +682,12 @@ def cmd_events(c, *args):
     CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
-    def wrap_main_text(text: str) -> list[str]:
-        words = text.split()
-        lines: list[str] = []
-        cur = ""
+    heading = "EVENTS"
+    rem = term_w - len(heading)
+    heading_lines = "=" * (rem - 1)
+    print(heading + " " + heading_lines)
+    print("-" * term_w)
 
-        first_w = max(10, term_w - len(BULLET))
-        cont_w  = max(10, term_w - len(CONT))
-        width = first_w
-
-        for w in words:
-            if not cur:
-                cur = w
-            elif len(cur) + 1 + len(w) <= width:
-                cur += " " + w
-            else:
-                lines.append(cur)
-                cur = w
-                width = cont_w
-        if cur:
-            lines.append(cur)
-
-        if not lines:
-            lines = [""]
-
-        out: list[str] = []
-        for i, ln in enumerate(lines):
-            prefix = BULLET if i == 0 else CONT
-            out.append(prefix + ln)
-        return out
 
     def format_event_line(event_text: str, tags_str: str, fname: str) -> str:
         meta_parts: list[str] = []
@@ -705,16 +696,8 @@ def cmd_events(c, *args):
         meta_parts.append(fname)
         meta = ", ".join(meta_parts)
 
-        base = f"{event_text} -> {meta}"
-        lines = wrap_main_text(base)
-
-        # dot-fill last line to terminal width
-        last = lines[-1]
-        rem = term_w - len(last)
-        if rem > 0:
-            lines[-1] = last + "." * rem
-
-        return "\n".join(lines)
+        base = f"{event_text} ... {meta}"
+        return flow_line(event_text, meta, term_w)
 
     # ---- fetch all events ----
     rows = c.execute("""
@@ -786,8 +769,8 @@ def cmd_events(c, *args):
         heading = f">  {time_label}"
         rem = term_w - len(heading)
         if rem > 0:
-            heading = heading + "." * rem
-        print(heading)
+            heading = heading + " " + "-" * (rem - 1)
+        # print(heading)
 
         for event_text, tags_str, fname in entries:
             print(format_event_line(event_text, tags_str, fname))
@@ -883,7 +866,7 @@ if False:
         for s, ee, event, name, status, tags in instances:
             time_label = f"{s:%H:%M}" + (f" – {ee:%H:%M}" if ee else "")
             tags_str = ", ".join(tags) if tags else "-"
-            summary = f"{event} // {tags_str}"
+            summary = f"{event} ... {tags_str}"
 
             if time_label not in index:
                 bucket = []
@@ -1064,48 +1047,18 @@ def cmd_special_tags(c, *args):
     CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
-    def wrap_main_text(main: str) -> list[str]:
-        words = main.split()
-        lines: list[str] = []
-        cur = ""
+    heading = "SPECIALS"
+    rem = term_w - len(heading)
+    heading_lines = "=" * (rem - 1)
+    print(heading + " " + heading_lines)
+    print("-" * term_w)
 
-        first_w = max(10, term_w - len(BULLET))
-        cont_w  = max(10, term_w - len(CONT))
-        width = first_w
-
-        for w in words:
-            if not cur:
-                cur = w
-            elif len(cur) + 1 + len(w) <= width:
-                cur += " " + w
-            else:
-                lines.append(cur)
-                cur = w
-                width = cont_w
-        if cur:
-            lines.append(cur)
-
-        if not lines:
-            lines = [""]
-
-        out: list[str] = []
-        for i, ln in enumerate(lines):
-            prefix = BULLET if i == 0 else CONT
-            out.append(prefix + ln)
-        return out
 
     def format_special_line(general: str, paths: set[str]) -> str:
         # show all paths, comma-separated
         meta = ", ".join(sorted(paths))
-        base = f"{general} -> {meta}"
-        lines = wrap_main_text(base)
-
-        last = lines[-1]
-        rem = term_w - len(last)
-        if rem > 0:
-            lines[-1] = last + "." * rem
-
-        return "\n".join(lines)
+        base = f"{general} ... {meta}"
+        return flow_line(general, meta, term_w)
 
     # ---- load focus tags from .special_focus (if present) ----
     focus_tags: set[str] = set()
@@ -1180,8 +1133,8 @@ def cmd_special_tags(c, *args):
         heading = f"!  {special}"
         rem = term_w - len(heading)
         if rem > 0:
-            heading = heading + "." * rem
-        print(heading)
+            heading = heading + " " + "-" * (rem - 1)
+        # print(heading)
 
         for general in sorted(general_map.keys()):
             paths = general_map[general]
