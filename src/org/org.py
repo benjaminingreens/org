@@ -24,14 +24,9 @@ def flow_line(
     min_gap: int = 3,
     pad: bool = True,
 ) -> str:
-    """
-    Render two texts into a bullet/continuation wrapped layout.
+    BULLET = "* "
+    CONT = "  "
 
-    If pad=True, the rendered block is padded with a blank line
-    above and below, unconditionally.
-    """
-    BULLET = "*  "
-    CONT = "   "
     prefix_w = len(BULLET)
     content_w = max(1, term_w - prefix_w)
 
@@ -40,17 +35,48 @@ def flow_line(
     min_gap = max(0, int(min_gap))
 
     def chunks_left(s: str) -> list[str]:
-        return [s[i:i + content_w] for i in range(0, len(s), content_w)] or [""]
+        # word wrap (hard-breaks very long words)
+        if not s:
+            return [""]
+
+        words = s.split()
+        out: list[str] = []
+        line = ""
+
+        for w in words:
+            if len(w) > content_w:
+                if line:
+                    out.append(line)
+                    line = ""
+                for i in range(0, len(w), content_w):
+                    out.append(w[i : i + content_w])
+                continue
+
+            if not line:
+                line = w
+            elif len(line) + 1 + len(w) <= content_w:
+                line += " " + w
+            else:
+                out.append(line)
+                line = w
+
+        if line:
+            out.append(line)
+
+        return out or [""]
 
     def chunks_right(s: str) -> list[str]:
         if not s:
             return [""]
+
         out: list[str] = []
         i = len(s)
+
         while i > 0:
             j = max(0, i - content_w)
             out.append(s[j:i])
             i = j
+
         return list(reversed(out))
 
     left_chunks = chunks_left(left)
@@ -58,9 +84,10 @@ def flow_line(
     m = len(right_chunks)
 
     lines: list[str] = []
+
     for i, ch in enumerate(left_chunks):
         prefix = BULLET if i == 0 else CONT
-        body = ch + (fill * max(0, content_w - len(ch)))
+        body = ch + (" " * max(0, content_w - len(ch)))
         lines.append(prefix + body)
 
     def ensure_lines(n: int) -> None:
@@ -78,6 +105,7 @@ def flow_line(
 
     def can_place(anchor: int) -> bool:
         ensure_lines(anchor + 1)
+
         for ci in range(m):
             line_i = anchor - (m - 1 - ci)
             rch = right_chunks[ci]
@@ -85,13 +113,13 @@ def flow_line(
             start = content_w - rlen
 
             b = body(line_i)
-            region = b[start:start + rlen]
+            region = b[start : start + rlen]
 
             if any(c not in (" ", fill) for c in region):
                 return False
 
             lr = last_real_col(b)
-            if lr >= 0 and start <= lr + (min_gap):
+            if lr >= 0 and start <= lr + min_gap:
                 return False
 
         return True
@@ -100,22 +128,49 @@ def flow_line(
     while not can_place(anchor):
         anchor += 1
 
+    right_on_line: set[int] = set()
     ensure_lines(anchor + 1)
+
     for ci in range(m):
         line_i = anchor - (m - 1 - ci)
         rch = right_chunks[ci]
         rlen = len(rch)
         start = content_w - rlen
+
         b = body(line_i)
-        new_b = b[:start] + rch + b[start + rlen:]
+        lr = last_real_col(b)
+        b_list = list(b)
+
+        if lr >= 0 and start > lr + 1:
+            for k in range(lr + 1, start):
+                if b_list[k] == " ":
+                    b_list[k] = fill
+
+        b_list[start : start + rlen] = list(rch)
+        right_on_line.add(line_i)
+
         prefix = BULLET if line_i == 0 else CONT
-        lines[line_i] = prefix + new_b
+        lines[line_i] = prefix + "".join(b_list)
+
+    # Leader-fill trailing spaces on final left-only line
+    i = len(left_chunks) - 1
+    if 0 <= i < len(lines) and i not in right_on_line:
+        b = body(i)
+        lr = last_real_col(b)
+
+        if lr >= 0:
+            b_list = list(b)
+            for k in range(lr + 1, content_w):
+                if b_list[k] == " ":
+                    b_list[k] = fill
+
+            prefix = BULLET if i == 0 else CONT
+            lines[i] = prefix + "".join(b_list)
 
     rendered = "\n".join(ln.rstrip() for ln in lines)
 
-    pad_line = "-" * term_w
     if pad:
-        rendered = rendered + pad_line
+        rendered += "-" * term_w
 
     return rendered
 
@@ -551,13 +606,17 @@ def cmd_todos(c, *args, heading=False):
 
     def format_todo_line(todo_text: str, tags_str: str, prio: int, fname: str) -> str:
         meta_parts: list[str] = []
+
         if tags_str and tags_str != "-":
-            meta_parts.append(tags_str)
+            # split tags and prefix each with #
+            tags = [f"#{t}" for t in tags_str.split(",")]
+            meta_parts.append(" ".join(tags))
+
         meta_parts.append(f"!{prio}")
-        meta_parts.append(fname)
+        meta_parts.append(f"~/{fname}")
+
         meta = ", ".join(meta_parts)
 
-        base = f"{todo_text} ... {meta}"
         return flow_line(todo_text, meta, term_w)
 
     # Base query: allowed statuses and priorities, sorted as requested
@@ -691,12 +750,15 @@ def cmd_events(c, *args):
 
     def format_event_line(event_text: str, tags_str: str, fname: str) -> str:
         meta_parts: list[str] = []
+
         if tags_str and tags_str != "-":
-            meta_parts.append(tags_str)
-        meta_parts.append(fname)
+            tags = [f"#{t}" for t in tags_str.split(",")]
+            meta_parts.append(" ".join(tags))
+
+        meta_parts.append(f"~/{fname}")
+
         meta = ", ".join(meta_parts)
 
-        base = f"{event_text} ... {meta}"
         return flow_line(event_text, meta, term_w)
 
     # ---- fetch all events ----
@@ -1055,9 +1117,8 @@ def cmd_special_tags(c, *args):
 
 
     def format_special_line(general: str, paths: set[str]) -> str:
-        # show all paths, comma-separated
-        meta = ", ".join(sorted(paths))
-        base = f"{general} ... {meta}"
+        # show all paths, comma-separated, each prefixed with ~/
+        meta = ", ".join(f"~/{p}" for p in sorted(paths))
         return flow_line(general, meta, term_w)
 
     # ---- load focus tags from .special_focus (if present) ----
