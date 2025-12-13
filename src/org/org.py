@@ -426,16 +426,13 @@ def cmd_report(c, tag=None):
         cmd_special_tags(c)
 
     else:
-        print()
         cmd_events(c)
 
-        print()
-        cmd_todos(c, "-priority=1", heading=True)
-        cmd_todos(c, "-priority=2")
-        cmd_todos(c, "-priority=3", 2)
-        cmd_todos(c, "-priority=4", 1)
+        cmd_todos(c, "-priority=1", from_report=True)
+        cmd_todos(c, "-priority=2", heading=False, from_report=True)
+        cmd_todos(c, "-priority=3", 2, heading=False, from_report=True)
+        cmd_todos(c, "-priority=4", 1, heading=False, from_report=True)
 
-        print()
         cmd_special_tags(c)
 
 def cmd_notes(c, *args):
@@ -595,7 +592,7 @@ if False:
         for row in c.execute(q, params):
             print(f"{Path(row['path']).name}: {row['title']}")
 
-def cmd_todos(c, *args, heading=False):
+def cmd_todos(c, *args, heading=True, from_report: bool = False):
     import json
     import random
     from shutil import get_terminal_size
@@ -640,9 +637,9 @@ def cmd_todos(c, *args, heading=False):
         heading = "=  TODOS"
         rem = term_w - len(heading)
         heading_lines = "=" * (rem - 1)
+        print()
         print(heading + " " + heading_lines)
         # print("-" * term_w)
-
 
     BULLET = "*  "
     CONT = "   "  # exactly three spaces
@@ -670,8 +667,8 @@ def cmd_todos(c, *args, heading=False):
         ORDER BY priority ASC, creation DESC, tags ASC
     """).fetchall()
 
-    # If the user supplied ANY filter argument, lift the default status/priority restrictions
-    has_filter_args = any([
+    # Only lift defaults for the standalone `org todos` command, not for `org report`
+    lift_defaults = (not from_report) and any([
         tag_filter is not None,
         status_filter is not None,
         priority_filter is not None,
@@ -681,25 +678,23 @@ def cmd_todos(c, *args, heading=False):
     DEFAULT_PRIO_MIN = 1
     DEFAULT_PRIO_MAX = 4
 
-    # Apply filters in Python
     items = []
+
     for row in rows:
         row_tags = json.loads(row["tags"]) if row["tags"] else []
 
-        # Default filters (only when NO filter args were provided)
-        if not has_filter_args:
+        # Apply defaults unless lifted
+        if not lift_defaults:
             if row["status"] not in DEFAULT_STATUSES:
                 continue
             if not (DEFAULT_PRIO_MIN <= int(row["priority"]) <= DEFAULT_PRIO_MAX):
                 continue
 
-        # User-specified filters (always apply if provided)
+        # User-specified filters always apply
         if tag_filter and tag_filter not in row_tags:
             continue
-
         if status_filter and row["status"] not in status_filter:
             continue
-
         if priority_filter and int(row["priority"]) not in priority_filter:
             continue
 
@@ -803,6 +798,7 @@ def cmd_events(c, *args):
     heading = "=  EVENTS"
     rem = term_w - len(heading)
     heading_lines = "=" * (rem - 1)
+    print()
     print(heading + " " + heading_lines)
 
     def format_event_line(event_text: str, time_label: str, tags_str: str, fname: str) -> str:
@@ -1144,9 +1140,9 @@ def cmd_special_tags(c, *args):
     heading = "=  SPECIALS"
     rem = term_w - len(heading)
     heading_lines = "=" * (rem - 1)
+    print()
     print(heading + " " + heading_lines)
     # print("-" * term_w)
-
 
     def format_special_line(general: str, paths: set[str]) -> str:
         # show all paths, comma-separated, each prefixed with ~/
