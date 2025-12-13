@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: fix the line pad issue for terminal in org report
 * t: add logic for priority shifting (up) based on deadline, and then down afterward. if no deadline, have priority shift down based on creation? (if you want it to go back up, use deadline) - if the deadline is in the past or non-existent, and the priority is changed to 1 or 2, update the deadline. never do the reverse. this should account for everything
 * t: when querying todos, sometimes there is a space between a '#' and the actual tag - notably not the first tag, but all the following ones
 * t: fix filtering in cli - select all items, then apply a default filter for org report - but allow all for filtered queries
