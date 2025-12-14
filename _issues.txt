@@ -40,3 +40,52 @@ So clearly there is some issue in validation - not seemingly major - which is le
 Interestingly, I haven't been able to replicate this issue. I wonder if perhaps it only happens with _todo.td files which have todos from previous months? idk. Seems odd.
 
 I replicated the issue on a separate home (benreb), and had an identical issue. I ran `org tidy` repeatedly after the error, and on the third run the error disappeared, showing this to almost certainly be a cache issue
+
+---
+
+this is a similar but different issue:
+
+Sun 14 Dec 2025 11:38:48
+dir benjamin branch main (!)
+$ mv _dump.txt dump.td
+
+Sun 14 Dec 2025 11:38:54
+dir benjamin branch main (!?)
+$ ls
+2025  dump.td  _dump_two.txt  _prayer_book  report.sh  _routines.ev  _today.txt  _what_is_the_bible.txt  _workflow.txt
+
+Sun 14 Dec 2025 11:38:55
+dir benjamin branch main (!?)
+$ org tidy
+Traceback (most recent call last):
+  File "/sbin/org", line 8, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/usr/lib/python3.13/site-packages/org/org.py", line 1571, in main
+    handler(c, *args)
+    ~~~~~~~^^^^^^^^^^
+  File "/usr/lib/python3.13/site-packages/org/org.py", line 1060, in cmd_tidy
+    validate_main(copy.deepcopy(SCHEMA))
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/site-packages/org/validate.py", line 1642, in main
+    t_e_errors, t_e_collected = undefined(conn, c, t_e_check["both"], metadata_dict, cfg, disk_scan)
+                                ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/site-packages/org/validate.py", line 1384, in undefined
+    orig_lines = full.read_text(encoding="utf-8").splitlines()
+                 ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/pathlib/_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/pathlib/_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/benjamin/documents/benjamin/dump.td'
+
+
+here, the issue is that the *new* file is the one the error reports not being able to find. but then... it would have deleted it during the process after moving the items.
+
+so the issue is around the script deleting empty files but still looking for them. this could explain all types of issue mentioned here
+
