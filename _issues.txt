@@ -93,6 +93,8 @@ so the issue is around the script deleting empty files but still looking for the
 
 the issue repeated, but this time without any name change. i just had a .td file which had been created from scratch, and i had this issue. so... the changing of names doesn't seem to have much to do with it, i don't think?
 
+seems to be occurring in all sorts of situations
+
 * org collab
 
 very odd behaviour - just seems to have stopped working except in one instance. new ids aren't working - even on completely blank repos. only my own personal repo seems to be picking up the benreb repo???
