@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: calendar integration?
 * t: option to see tags with most high priority todos
 * t: sort todos by closest deadline on top (part of redesign of cli anyway)
 * t: for !3 items in org report, have most recent & oldest, and then one random
