@@ -89,3 +89,6 @@ here, the issue is that the *new* file is the one the error reports not being ab
 
 so the issue is around the script deleting empty files but still looking for them. this could explain all types of issue mentioned here
 
+---
+
+the issue repeated, but this time without any name change. i just had a .td file which had been created from scratch, and i had this issue. so... the changing of names doesn't seem to have much to do with it, i don't think?
