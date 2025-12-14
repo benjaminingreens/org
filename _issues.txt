@@ -38,3 +38,5 @@ I ran it again, and got the same issue. Then I ran `org report`(which showed tha
 So clearly there is some issue in validation - not seemingly major - which is leaving the invalid filepath in some state such that validation looks for it.
 
 Interestingly, I haven't been able to replicate this issue. I wonder if perhaps it only happens with _todo.td files which have todos from previous months? idk. Seems odd.
+
+I replicated the issue on a separate home (benreb), and had an identical issue. I ran `org tidy` repeatedly after the error, and on the third run the error disappeared, showing this to almost certainly be a cache issue
