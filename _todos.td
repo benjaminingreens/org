@@ -6,6 +6,8 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: enforce special tags only appearing with one other tag? and only once per other tag?
+* t: show different org repos in cli report file names
 * t: not really a problem - but the fact that the db is not in git means that org tidy has to be run to update it on any device - just bear this in mind
 * t: calendar integration?
 * t: option to see tags with most high priority todos
@@ -33,8 +35,6 @@
 * t: add event and todo tags to org tags
 
 // priority 2: urgent and not important
-* t: enforce special tags only appearing with one other tag? and only once per other tag?
-* t: show different org repos in cli report file names
 
 // priority 3: not urgent and important
 * t: build .nt logic into validation - just convert to .txt file structure? (see below todo)
