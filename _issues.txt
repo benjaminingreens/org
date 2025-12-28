@@ -98,3 +98,7 @@ seems to be occurring in all sorts of situations
 * org collab
 
 very odd behaviour - just seems to have stopped working except in one instance. new ids aren't working - even on completely blank repos. only my own personal repo seems to be picking up the benreb repo???
+
+* events cli
+
+filtering by assignee on events not seeming to work
