@@ -33,6 +33,7 @@
 * t: add org add
 * t: add modification logic for the CL - tricky with collaborations - in all honestly, the whole CLI needs proper design. It has just been cobbled together as it currently is 
 * t: add event and todo tags to org tags
+* t: on org report, it would be good to have greater control over priority 3 and 4 items. for example - mark out which priority 3 items to focus on for a day, or have oldest and newest highlighted as default
 
 // priority 2: urgent and not important
 
