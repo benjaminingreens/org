@@ -2,6 +2,8 @@
 
 Some items seem to be appearing in a month folder even when they haven't been modified in that month 
 
+i noticed that this seems to be a device issue - connected to mod times probably on devices (which have their own versions of .org.db)
+
 * _todo.td issue
 
 I had an underscored .td file named _todo_dump.td. I changed the name to 'todo_dump.td' so that it would be tidied. I ran org tidy, and got this error:
