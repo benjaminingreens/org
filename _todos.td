@@ -35,6 +35,7 @@
 * t: add event and todo tags to org tags
 * t: on org report, it would be good to have greater control over priority 3 and 4 items. for example - mark out which priority 3 items to focus on for a day, or have oldest and newest highlighted as default
 * t: daily default td and ev files which are cleaned as part of org tidy but which remain for easy entry 
+* t: mechanism for identifying potentially similar items to track possible duplicates?
 
 // priority 2: urgent and not important
 
