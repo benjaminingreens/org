@@ -40,6 +40,7 @@
 // priority 2: urgent and not important
 
 // priority 3: not urgent and important
+* t: make events show upcoming events? but not routines. this needs to be thought through, because we can't have routines for multiple days coming through - we just want to see routines for today and other major events for, say, a week
 * t: batch properties at the top of a .td or .ev file perhaps?
 * t: build .nt logic into validation - just convert to .txt file structure? (see below todo)
 * t: build an ocr script which takes digital output of scanned pages and sorts them into .ev, .td, and .nt
