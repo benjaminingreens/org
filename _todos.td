@@ -9,7 +9,7 @@
 * t: enforce special tags only appearing with one other tag? and only once per other tag?
 * t: show different org repos in cli report file names
 * t: not really a problem - but the fact that the db is not in git means that org tidy has to be run to update it on any device - just bear this in mind
-* t: calendar integration?
+* t: calendar integration? - would be good to show events four weeks ahead, but how to distinguish between calendar events and routines - currently no difference
 * t: option to see tags with most high priority todos
 * t: sort todos by closest deadline on top (part of redesign of cli anyway)
 * t: for !3 items in org report, have most recent & oldest, and then one random
