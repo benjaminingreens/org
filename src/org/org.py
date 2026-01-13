@@ -384,16 +384,32 @@ def generate_instances_for_date(pat_def, start_dt, target_date):
         )
     ]
 
-    # 5) Expand time selectors (@h, @n)
+    # 5) Expand time selectors (@h, @n) — COMPOSE them
     times = []
     for dt in cands:
-        for sel in pat_def['selectors']:
-            if sel.startswith('h'):
-                for h in map(int, sel[1:].split(',')):
-                    times.append(datetime.combine(dt.date(), time(h, dt.minute)))
-            if sel.startswith('n'):
-                for m in map(int, sel[1:].split(',')):
-                    times.append(datetime.combine(dt.date(), time(dt.hour, m)))
+        hs = None
+        ns = None
+
+        for sel in pat_def["selectors"]:
+            if sel.startswith("h"):
+                hs = [int(x) for x in sel[1:].split(",") if x.strip()]
+            elif sel.startswith("n"):
+                ns = [int(x) for x in sel[1:].split(",") if x.strip()]
+
+        if hs is None and ns is None:
+            times.append(dt)
+            continue
+
+        if hs is None:
+            hs = [dt.hour]
+        if ns is None:
+            ns = [dt.minute]
+
+        for h in hs:
+            for n in ns:
+                if 0 <= h <= 23 and 0 <= n <= 59:
+                    times.append(datetime.combine(dt.date(), time(h, n)))
+
     if times:
         cands = times
 
