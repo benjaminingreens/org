@@ -6,7 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
-* t: pattern (^) doesn't allow things to start at half hours
+* t: not sure i agree with the logic of any todos or events with the same name being overriden?
 * t: find a way of ensuring report is on one page only perhaps?
 * t: events should automatically change to =done when in the past?
 * t: enforce special tags only appearing with one other tag? and only once per other tag?
