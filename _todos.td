@@ -6,6 +6,7 @@
 * t: write proper release notes for v0.1.0
 
 // priority 1: urgent and important
+* t: would be good to enforce .report.sh so it always fits on one page somehow
 * t: calendar events (without patterns - those are routines) not showing duration
 * t: not sure i agree with the logic of any todos or events with the same name being overriden?
 * t: find a way of ensuring report is on one page only perhaps?
