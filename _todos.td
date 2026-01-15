@@ -4,8 +4,11 @@
 * t: tidy all scripts (ensure docstrings for all functions, and split some functions)
 * t: imrpove error handling and logs
 * t: write proper release notes for v0.1.0
+* t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: generate gantt as part of .report.sh (each section will be non-special tags and special tags, showing priority 1, 2, and 3 tasks, deadline functions with priority as standard, events (without patterns) are milstones, listed outside of gantt: [routines, a few !3 !4 todos, focused specials])
+* t: more interactive todos (dependencies etc) to allow better gantt style todos
 * t: would be good to enforce .report.sh so it always fits on one page somehow
 * t: calendar events (without patterns - those are routines) not showing duration
 * t: not sure i agree with the logic of any todos or events with the same name being overriden?
