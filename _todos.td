@@ -7,6 +7,7 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: i am going to need to implement a way of tracking programmes and portfolios etc.
 * t: generate gantt as part of .report.sh (each section will be non-special tags and special tags, showing priority 1, 2, and 3 tasks, deadline functions with priority as standard, events (without patterns) are milstones, listed outside of gantt: [routines, a few !3 !4 todos, focused specials])
 * t: also, enable generation of above with tag filters
 * t: also maybe just tweak standard .report.sh so that it shows: [events: today and upcoming], [routines], [todos, with some special tag ordering?], [special focus]
