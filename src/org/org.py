@@ -439,7 +439,7 @@ def cmd_report(c, tag=None):
 
         print()
         print("/  SPECIALS")
-        cmd_special_tags(c)
+        cmd_special_tags(c, from_report=True)
 
     else:
         cmd_events(c)
@@ -449,7 +449,7 @@ def cmd_report(c, tag=None):
         cmd_todos(c, "-priority=3", 2, heading=False, from_report=True)
         cmd_todos(c, "-priority=4", 1, heading=False, from_report=True)
 
-        cmd_special_tags(c)
+        cmd_special_tags(c, from_report=True)
 
 def cmd_notes(c, *args):
     """
@@ -1134,7 +1134,7 @@ def cmd_add(c, *args):
     print(f"Added to {target}:")
     print(line.rstrip())
 
-def cmd_special_tags(c, *args):
+def cmd_special_tags(c, *args, from_report: bool = False):
     """
     Usage: org specials
 
@@ -1158,33 +1158,33 @@ def cmd_special_tags(c, *args):
     heading_lines = "=" * (rem - 1)
     print()
     print(heading + " " + heading_lines)
-    # print("-" * term_w)
 
-    def format_special_line(general: str, paths: set[str]) -> str:
-        # show all paths, comma-separated, each prefixed with ~/
-        meta = ", ".join(f"~/{p}" for p in sorted(paths))
+    def format_special_line(general: str, special: str, paths: set[str]) -> str:
+        meta_parts = [f"!{special}"]
+        meta_parts.extend(f"~/{p}" for p in sorted(paths))
+        meta = ", ".join(meta_parts)
         return flow_line(general, meta, term_w)
 
-    # ---- load focus tags from .special_focus (if present) ----
+    # ---- load focus tags from .special_focus ONLY when called from report ----
     focus_tags: set[str] = set()
-    try:
-        focus_path = ROOT / ".special_focus"  # ROOT from module scope
-    except NameError:
-        focus_path = Path(".special_focus")
+    if from_report:
+        try:
+            focus_path = ROOT / ".special_focus"  # ROOT from module scope
+        except NameError:
+            focus_path = Path(".special_focus")
 
-    if focus_path.is_file():
-        with focus_path.open("r", encoding="utf-8") as f:
-            for line in f:
-                tag = line.strip()
-                if tag and not tag.startswith("#"):
-                    focus_tags.add(tag)
+        if focus_path.is_file():
+            with focus_path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    tag = line.strip()
+                    if tag and not tag.startswith("#"):
+                        focus_tags.add(tag)
 
     # ---- fetch notes with any !tag ----
     rows = c.execute(
         "SELECT path, tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
     ).fetchall()
 
-    # specials_map: { special -> { general -> set(paths) } }
     specials_map: dict[str, dict[str, set[str]]] = {}
 
     for row in rows:
@@ -1222,30 +1222,22 @@ def cmd_special_tags(c, *args):
                 specials_map.setdefault(s_key, {}).setdefault(g, set()).add(path)
 
     if not specials_map:
-        if focus_tags:
+        if from_report and focus_tags:
             print("\nNo notes found with special '!tag' matching .special_focus.")
         else:
             print("\nNo notes found with special '!tag'.")
         return
 
-    special_keys = sorted(specials_map.keys())
-    for special in special_keys:
+    for special in sorted(specials_map.keys()):
         general_map = specials_map[special]
         if not general_map:
             continue
-
-        # heading line with dots to end
-        heading = f"!  {special}"
-        rem = term_w - len(heading)
-        if rem > 0:
-            heading = heading + " " + "-" * (rem - 1)
-        # print(heading)
 
         for general in sorted(general_map.keys()):
             paths = general_map[general]
             if not paths:
                 continue
-            print(format_special_line(general, paths))
+            print(format_special_line(general, special, paths))
 
 if False:
     def cmd_special_tags(c, *args):
