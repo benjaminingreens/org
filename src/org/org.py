@@ -14,6 +14,308 @@ from shutil import get_terminal_size
 from collections import defaultdict
 from . import init
 
+# --- see if this works ---
+
+def load_project_hierarchy(path: Path) -> dict[str, tp.Any]:
+    """
+    Parse an indented hierarchy file into a nested dict tree.
+    Returns a root dict: {tag: {childtag: {...}}, ...}
+    """
+    if not path.is_file():
+        return {}
+
+    root: dict[str, tp.Any] = {}
+    stack: list[tuple[int, dict[str, tp.Any]]] = [(0, root)]  # (indent, subtree)
+
+    with path.open("r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.rstrip("\n")
+            if not line.strip():
+                continue
+            if line.lstrip().startswith("#"):
+                continue
+
+            indent = len(line) - len(line.lstrip(" "))
+            tag = line.strip()
+
+            # walk stack back to correct parent level
+            while stack and indent < stack[-1][0]:
+                stack.pop()
+
+            # if same indent as top, keep parent; if deeper, it’s a child
+            if not stack:
+                stack = [(0, root)]
+
+            parent_tree = stack[-1][1]
+            parent_tree.setdefault(tag, {})
+            # push this tag as new parent
+            stack.append((indent + 1, parent_tree[tag]))
+
+    return root
+
+
+def iter_tree_paths(tree: dict[str, tp.Any], prefix: tuple[str, ...] = ()) -> list[tuple[str, ...]]:
+    """Return all tag-paths in the tree as tuples."""
+    out: list[tuple[str, ...]] = []
+    for k, sub in tree.items():
+        p = prefix + (k,)
+        out.append(p)
+        if isinstance(sub, dict) and sub:
+            out.extend(iter_tree_paths(sub, p))
+    return out
+
+
+def flatten_tree_tags(tree: dict[str, tp.Any]) -> set[str]:
+    """All tags appearing anywhere in the hierarchy."""
+    s: set[str] = set()
+    for k, sub in tree.items():
+        s.add(k)
+        if isinstance(sub, dict):
+            s |= flatten_tree_tags(sub)
+    return s
+
+def cmd_calendar(c, days: int = 7):
+    import json
+    from datetime import date, datetime, timedelta
+    from pathlib import Path
+    from shutil import get_terminal_size
+
+    today = date.today()
+    end = today + timedelta(days=days - 1)
+
+    BULLET = "*  "
+    term_w = get_terminal_size((80, 24)).columns
+
+    heading = "=  CALENDAR"
+    rem = term_w - len(heading)
+    print()
+    print(heading + " " + "=" * (rem - 1))
+
+    def format_line(event_text: str, day_label: str, time_label: str, tags_str: str, fname: str) -> str:
+        meta_parts: list[str] = []
+        meta_parts.append(day_label)
+        if time_label:
+            meta_parts.append(time_label)
+        if tags_str and tags_str != "-":
+            meta_parts.append(" ".join(f"#{t}" for t in tags_str.split(",")))
+        meta_parts.append(f"~/{fname}")
+        return flow_line(event_text, ", ".join(meta_parts), term_w)
+
+    rows = c.execute("""
+        SELECT event, start, pattern, tags, path, status, priority, creation
+          FROM all_events
+         WHERE valid = 1
+        ORDER BY creation DESC
+    """).fetchall()
+
+    instances: list[tuple[datetime, tp.Optional[datetime], str, str, list[str]]] = []
+
+    for row in rows:
+        # calendar events = NO pattern
+        if row["pattern"]:
+            continue
+
+        tags = json.loads(row["tags"]) if row["tags"] else []
+        start_raw = row["start"]
+        start_dt = datetime.fromisoformat(start_raw) if isinstance(start_raw, str) else start_raw
+
+        d = start_dt.date()
+        if not (today <= d <= end):
+            continue
+
+        instances.append((start_dt, None, row["event"], row["path"], tags))
+
+    instances.sort(key=lambda x: x[0])
+
+    for s, ee, event_text, path_str, tags in instances:
+        day_label = s.strftime("%a %d %b")
+        time_label = s.strftime("%H:%M") if s.time() != time(0, 0) else ""
+        tags_str = ", ".join(tags) if tags else "-"
+        print(format_line(event_text, day_label, time_label, tags_str, path_str))
+
+def cmd_routines_today(c):
+    import json
+    from datetime import date, datetime
+    from pathlib import Path
+    from shutil import get_terminal_size
+
+    today = date.today()
+    term_w = get_terminal_size((80, 24)).columns
+
+    heading = "=  ROUTINES (TODAY)"
+    rem = term_w - len(heading)
+    print()
+    print(heading + " " + "=" * (rem - 1))
+
+    def format_event_line(event_text: str, time_label: str, tags_str: str, fname: str) -> str:
+        meta_parts: list[str] = []
+        if time_label:
+            meta_parts.append(time_label)
+        if tags_str and tags_str != "-":
+            meta_parts.append(" ".join(f"#{t}" for t in tags_str.split(",")))
+        meta_parts.append(f"~/{fname}")
+        return flow_line(event_text, ", ".join(meta_parts), term_w)
+
+    rows = c.execute("""
+        SELECT event, start, pattern, tags, path, status, priority, creation
+          FROM all_events
+         WHERE valid = 1
+        ORDER BY creation DESC
+    """).fetchall()
+
+    instances: list[tuple[datetime, tp.Optional[datetime], str, str, list[str]]] = []
+
+    for row in rows:
+        # routines = HAS pattern
+        if not row["pattern"]:
+            continue
+
+        tags = json.loads(row["tags"]) if row["tags"] else []
+        start_dt = datetime.fromisoformat(row["start"]) if isinstance(row["start"], str) else row["start"]
+        pat = parse_pattern(row["pattern"])
+
+        for s, ee in generate_instances_for_date(pat, start_dt, today):
+            instances.append((s, ee, row["event"], row["path"], tags))
+
+    instances.sort(key=lambda x: x[0])
+
+    for s, ee, event_text, path_str, tags in instances:
+        time_label = f"{s:%H:%M}" + (f"-{ee:%H:%M}" if ee else "")
+        tags_str = ", ".join(tags) if tags else "-"
+        print(format_event_line(event_text, time_label, tags_str, path_str))
+
+def cmd_projects(c, tree: dict[str, tp.Any]):
+    """
+    Print priority 1–2 todos grouped by hierarchy tag-paths.
+
+    Behaviour:
+    - All priority 1–2 todos are included.
+    - If a todo has any tag present in `.project_hierarchy`, it is shown under that tag’s
+      full hierarchy path (ancestors implied by the hierarchy file), e.g.:
+        the_story_project > prayer_book
+    - If multiple hierarchy tags match, the deepest (longest path) wins.
+    - If no hierarchy tag matches:
+        - todos tagged ONLY with #general go under GENERAL (with #general hidden in meta)
+        - everything else goes under UNFILED (with #general hidden in meta)
+    """
+    import json
+    import typing as tp
+    from shutil import get_terminal_size
+
+    term_w = get_terminal_size((80, 24)).columns
+
+    heading = "=  PROJECTS"
+    rem = term_w - len(heading)
+    print()
+    print(heading + " " + "=" * (rem - 1))
+
+    # Load todos (we filter to prio 1–2 in Python so SQL stays simple)
+    rows = c.execute("""
+        SELECT todo, path, status, tags, priority, creation
+          FROM all_todos
+         WHERE valid = 1
+         ORDER BY priority ASC, creation DESC
+    """).fetchall()
+
+    todos: list[dict[str, tp.Any]] = []
+    for row in rows:
+        prio = int(row["priority"])
+        if prio not in (1, 2):
+            continue
+        row_tags = json.loads(row["tags"]) if row["tags"] else []
+        row_tags = [t for t in row_tags if isinstance(t, str)]
+        todos.append({
+            "todo": row["todo"],
+            "path": row["path"],
+            "tags": set(row_tags),
+            "prio": prio,
+        })
+
+    def format_todo(todo_text: str, tags: set[str], prio: int, fname: str) -> str:
+        meta_parts = []
+        if tags:
+            meta_parts.append(" ".join(f"#{t}" for t in sorted(tags)))
+        meta_parts.append(f"!{prio}")
+        meta_parts.append(f"~/{fname}")
+        return flow_line(todo_text, ", ".join(meta_parts), term_w)
+
+    # Build tag -> full hierarchy path (ancestors implied)
+    tag_to_path: dict[str, tuple[str, ...]] = {}
+
+    def index_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
+        for tag, children in subtree.items():
+            p = prefix + (tag,)
+            tag_to_path[tag] = p
+            if isinstance(children, dict) and children:
+                index_tree(children, p)
+
+    if tree:
+        index_tree(tree)
+
+    # Assign each todo to exactly one bucket (deepest matching hierarchy tag wins)
+    buckets: dict[tuple[str, ...], list[dict[str, tp.Any]]] = {}
+    general: list[dict[str, tp.Any]] = []
+    unfiled: list[dict[str, tp.Any]] = []
+
+    for td in todos:
+        matched_paths = [tag_to_path[t] for t in td["tags"] if t in tag_to_path]
+
+        if matched_paths:
+            # deepest path wins; deterministic tie-breaker
+            best = sorted(matched_paths, key=lambda p: (len(p), p))[-1]
+            buckets.setdefault(best, []).append(td)
+            continue
+
+        # no hierarchy tags — decide GENERAL vs UNFILED
+        non_general = set(td["tags"])
+        non_general.discard("general")
+
+        if not non_general and "general" in td["tags"]:
+            general.append(td)
+        else:
+            unfiled.append(td)
+
+    def path_label(path: tuple[str, ...]) -> str:
+        return " > ".join(path)
+
+    # Print hierarchy buckets in hierarchy order (only nodes with items)
+    def print_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
+        for tag, children in subtree.items():
+            p = prefix + (tag,)
+            items = buckets.get(p, [])
+            if items:
+                print(flow_line(path_label(p), "", term_w))
+                for td in items:
+                    print(format_todo(td["todo"], td["tags"], td["prio"], td["path"]))
+            if isinstance(children, dict) and children:
+                print_tree(children, p)
+
+    if tree:
+        print_tree(tree)
+    else:
+        # still show GENERAL/UNFILED even if hierarchy is missing
+        pass
+
+    # GENERAL (hide #general in meta)
+    if general:
+        print(flow_line("GENERAL", "", term_w))
+        for td in general:
+            tags = set(td["tags"])
+            tags.discard("general")
+            print(format_todo(td["todo"], tags, td["prio"], td["path"]))
+
+    # UNFILED (also hide #general in meta)
+    if unfiled:
+        print(flow_line("UNFILED", "", term_w))
+        for td in unfiled:
+            tags = set(td["tags"])
+            tags.discard("general")
+            print(format_todo(td["todo"], tags, td["prio"], td["path"]))
+
+
+
+# --- see if above works ---
+
 # -------------------- Helpers --------------------
 
 def flow_line(
@@ -425,9 +727,22 @@ def generate_instances_for_date(pat_def, start_dt, target_date):
     return instances
 
 
+
 # -------------------- Commands --------------------
 
 def cmd_report(c, tag=None):
+    """
+    Report layout:
+
+    1) CALENDAR: events with NO pattern (today + next 6 days)
+    2) ROUTINES (TODAY): events WITH pattern (today only)
+    3) TODOS: priority 1–2 excluding any tags that appear in .project_hierarchy
+    4) PROJECTS: priority 1–2 todos grouped by hierarchy tag-paths
+    5) SPECIALS: unchanged (still respects .special_focus when from_report=True)
+    """
+    from pathlib import Path
+
+    # Keep legacy tagged-report behaviour for now
     if tag:
         print()
         print("/  EVENTS")
@@ -440,16 +755,29 @@ def cmd_report(c, tag=None):
         print()
         print("/  SPECIALS")
         cmd_special_tags(c, from_report=True)
+        return
 
-    else:
-        cmd_events(c)
+    # 1) Calendar events (no pattern): today + upcoming week
+    cmd_calendar(c, days=7)
 
-        cmd_todos(c, "-priority=1", from_report=True)
-        cmd_todos(c, "-priority=2", heading=False, from_report=True)
-        cmd_todos(c, "-priority=3", 2, heading=False, from_report=True)
-        cmd_todos(c, "-priority=4", 1, heading=False, from_report=True)
+    # 2) Routines (patterned events): today only
+    cmd_routines_today(c)
 
-        cmd_special_tags(c, from_report=True)
+    # 3) Plain prio 1–2 todos excluding project tags
+    tree = load_project_hierarchy(Path(".project_hierarchy"))
+    project_tags = flatten_tree_tags(tree)
+
+    todo_args = ["-priority=1,2"]
+    if project_tags:
+        todo_args.append(f"-notag={','.join(sorted(project_tags))}")
+
+    cmd_todos(c, *todo_args, heading=True, from_report=True)
+
+    # 4) Project-view prio 1–2 todos
+    cmd_projects(c, tree)
+
+    # 5) Specials (unchanged)
+    cmd_special_tags(c, from_report=True)
 
 def cmd_notes(c, *args):
     """
@@ -618,6 +946,7 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
     status_filter: list[str] | None = None
     priority_filter: list[int] | None = None
     limit_random: int | None = None
+    exclude_tags: set[str] = set()
 
     for arg in args:
         # numeric argument: limit to N random items
@@ -644,6 +973,9 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
                 if p.isdigit():
                     ps.append(int(p))
             priority_filter = ps or None
+        elif arg.startswith("-notag="):
+            v = arg.split("=", 1)[1].strip()
+            exclude_tags |= {x.strip() for x in v.split(",") if x.strip()}
 
     BULLET = "*  "
     CONT   = " " * len(BULLET)
@@ -698,6 +1030,8 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
 
     for row in rows:
         row_tags = json.loads(row["tags"]) if row["tags"] else []
+        if exclude_tags and any(t in exclude_tags for t in row_tags):
+            continue
 
         # Apply defaults unless lifted
         if not lift_defaults:
