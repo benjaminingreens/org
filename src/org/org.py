@@ -16,6 +16,48 @@ from . import init
 
 # --- see if this works ---
 
+def derive_project_tags_from_special_notes(c) -> set[str]:
+    """
+    Project tag definition:
+    Any non-! tag that appears alongside at least one !tag in a NOTE.
+    """
+    import json
+
+    rows = c.execute("""
+        SELECT tags
+          FROM all_notes
+         WHERE valid = 1
+           AND tags LIKE '%!%'
+    """).fetchall()
+
+    out: set[str] = set()
+
+    for row in rows:
+        tags_raw = row["tags"] if isinstance(row, sqlite3.Row) else row[0]
+        try:
+            tags = json.loads(tags_raw) if tags_raw else []
+        except Exception:
+            continue
+        if not isinstance(tags, list):
+            continue
+
+        has_special = any(isinstance(t, str) and t.startswith("!") for t in tags)
+        if not has_special:
+            continue
+
+        for t in tags:
+            if not isinstance(t, str):
+                continue
+            if t.startswith("!"):
+                continue
+            tt = t.strip().lstrip("#").strip().lower()
+            if tt:
+                out.add(tt)
+
+    # You probably never want 'general' treated as a project tag:
+    out.discard("general")
+    return out
+
 def load_project_hierarchy(path: Path) -> dict[str, tp.Any]:
     """
     Parse an indented hierarchy file into a nested dict tree.
@@ -184,23 +226,34 @@ def cmd_routines_today(c):
         tags_str = ", ".join(tags) if tags else "-"
         print(format_event_line(event_text, time_label, tags_str, path_str))
 
+
 def cmd_projects(c, tree: dict[str, tp.Any]):
     """
-    Print priority 1–2 todos grouped by hierarchy tag-paths.
-
-    Behaviour:
-    - All priority 1–2 todos are included.
-    - If a todo has any tag present in `.project_hierarchy`, it is shown under that tag’s
-      full hierarchy path (ancestors implied by the hierarchy file), e.g.:
-        the_story_project > prayer_book
-    - If multiple hierarchy tags match, the deepest (longest path) wins.
-    - If no hierarchy tag matches:
-        - todos tagged ONLY with #general go under GENERAL (with #general hidden in meta)
-        - everything else goes under UNFILED (with #general hidden in meta)
+    PROJECTS:
+      - status='todo'
+      - priority in (1,2)
+      - include if todo has ANY project tag, where:
+          a) hierarchy project tag: appears in `.project_hierarchy` (bucketed by deepest path)
+          b) derived project tag: appears next to a `!tag` in a NOTE (bucketed under UNFILED if not in hierarchy)
     """
     import json
     import typing as tp
     from shutil import get_terminal_size
+    def print_project_header(label: str):
+        prefix = "-  "
+        base = prefix + label + " "
+        width = get_terminal_size((80, 24)).columns
+
+        if len(base) >= width:
+            print(base.rstrip())
+            return
+
+        fill = "-" * (width - len(base))
+        print(base + fill)
+
+
+    def norm_tag(t: str) -> str:
+        return t.strip().lstrip("#").strip().lower()
 
     term_w = get_terminal_size((80, 24)).columns
 
@@ -209,7 +262,29 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
     print()
     print(heading + " " + "=" * (rem - 1))
 
-    # Load todos (we filter to prio 1–2 in Python so SQL stays simple)
+    # --- build tag -> hierarchy path map ---
+    tag_to_path: dict[str, tuple[str, ...]] = {}
+
+    def index_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
+        for tag, children in subtree.items():
+            t = norm_tag(tag)
+            p = prefix + (t,)
+            tag_to_path[t] = p
+            if isinstance(children, dict) and children:
+                index_tree(children, p)
+
+    if tree:
+        index_tree(tree)
+
+    hier_project_tags = set(tag_to_path.keys())
+    derived_project_tags = derive_project_tags_from_special_notes(c)
+    all_project_tags = hier_project_tags | derived_project_tags
+
+    if not all_project_tags:
+        print("\n(no project tags found: .project_hierarchy empty AND no project tags derived from !tag notes)")
+        return
+
+    # --- load candidate todos ---
     rows = c.execute("""
         SELECT todo, path, status, tags, priority, creation
           FROM all_todos
@@ -219,72 +294,69 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
 
     todos: list[dict[str, tp.Any]] = []
     for row in rows:
-        prio = int(row["priority"])
+        if (row["status"] or "").strip().lower() != "todo":
+            continue
+
+        try:
+            prio = int(row["priority"])
+        except Exception:
+            continue
         if prio not in (1, 2):
             continue
-        row_tags = json.loads(row["tags"]) if row["tags"] else []
-        row_tags = [t for t in row_tags if isinstance(t, str)]
+
+        raw_tags = json.loads(row["tags"]) if row["tags"] else []
+        raw_tags = [t for t in raw_tags if isinstance(t, str)]
+        tagset = {norm_tag(t) for t in raw_tags if norm_tag(t)}
+
+        # must have at least one project tag (hier or derived)
+        if not any(t in all_project_tags for t in tagset):
+            continue
+
+        # if any hierarchy tags exist, bucket by deepest hierarchy path; else UNFILED
+        matched_paths = [tag_to_path[t] for t in tagset if t in tag_to_path]
+        if matched_paths:
+            bucket = sorted(matched_paths, key=lambda p: (len(p), p))[-1]
+        else:
+            bucket = ("unfiled",)
+
         todos.append({
             "todo": row["todo"],
             "path": row["path"],
-            "tags": set(row_tags),
+            "tags": tagset,
             "prio": prio,
+            "bucket": bucket,
         })
 
+    if not todos:
+        print("\n(no prio 1–2 project todos)")
+        return
+
     def format_todo(todo_text: str, tags: set[str], prio: int, fname: str) -> str:
-        meta_parts = []
+        meta_parts: list[str] = []
         if tags:
             meta_parts.append(" ".join(f"#{t}" for t in sorted(tags)))
         meta_parts.append(f"!{prio}")
         meta_parts.append(f"~/{fname}")
         return flow_line(todo_text, ", ".join(meta_parts), term_w)
 
-    # Build tag -> full hierarchy path (ancestors implied)
-    tag_to_path: dict[str, tuple[str, ...]] = {}
-
-    def index_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
-        for tag, children in subtree.items():
-            p = prefix + (tag,)
-            tag_to_path[tag] = p
-            if isinstance(children, dict) and children:
-                index_tree(children, p)
-
-    if tree:
-        index_tree(tree)
-
-    # Assign each todo to exactly one bucket (deepest matching hierarchy tag wins)
-    buckets: dict[tuple[str, ...], list[dict[str, tp.Any]]] = {}
-    general: list[dict[str, tp.Any]] = []
-    unfiled: list[dict[str, tp.Any]] = []
-
-    for td in todos:
-        matched_paths = [tag_to_path[t] for t in td["tags"] if t in tag_to_path]
-
-        if matched_paths:
-            # deepest path wins; deterministic tie-breaker
-            best = sorted(matched_paths, key=lambda p: (len(p), p))[-1]
-            buckets.setdefault(best, []).append(td)
-            continue
-
-        # no hierarchy tags — decide GENERAL vs UNFILED
-        non_general = set(td["tags"])
-        non_general.discard("general")
-
-        if not non_general and "general" in td["tags"]:
-            general.append(td)
-        else:
-            unfiled.append(td)
-
     def path_label(path: tuple[str, ...]) -> str:
+        if path == ("unfiled",):
+            return "UNFILED"
         return " > ".join(path)
 
-    # Print hierarchy buckets in hierarchy order (only nodes with items)
+    # bucket -> items
+    buckets: dict[tuple[str, ...], list[dict[str, tp.Any]]] = {}
+    for td in todos:
+        buckets.setdefault(td["bucket"], []).append(td)
+
+    # print hierarchy buckets in hierarchy order
     def print_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
         for tag, children in subtree.items():
-            p = prefix + (tag,)
+            t = norm_tag(tag)
+            p = prefix + (t,)
             items = buckets.get(p, [])
             if items:
-                print(flow_line(path_label(p), "", term_w))
+                print_project_header(path_label(p))
                 for td in items:
                     print(format_todo(td["todo"], td["tags"], td["prio"], td["path"]))
             if isinstance(children, dict) and children:
@@ -292,26 +364,13 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
 
     if tree:
         print_tree(tree)
-    else:
-        # still show GENERAL/UNFILED even if hierarchy is missing
-        pass
 
-    # GENERAL (hide #general in meta)
-    if general:
-        print(flow_line("GENERAL", "", term_w))
-        for td in general:
-            tags = set(td["tags"])
-            tags.discard("general")
-            print(format_todo(td["todo"], tags, td["prio"], td["path"]))
-
-    # UNFILED (also hide #general in meta)
+    # print UNFILED last
+    unfiled = buckets.get(("unfiled",), [])
     if unfiled:
-        print(flow_line("UNFILED", "", term_w))
+        print_project_header("UNFILED")
         for td in unfiled:
-            tags = set(td["tags"])
-            tags.discard("general")
-            print(format_todo(td["todo"], tags, td["prio"], td["path"]))
-
+            print(format_todo(td["todo"], td["tags"], td["prio"], td["path"]))
 
 
 # --- see if above works ---
@@ -765,7 +824,11 @@ def cmd_report(c, tag=None):
 
     # 3) Plain prio 1–2 todos excluding project tags
     tree = load_project_hierarchy(Path(".project_hierarchy"))
-    project_tags = flatten_tree_tags(tree)
+    hier_project_tags = {t.strip().lstrip("#").strip().lower() for t in flatten_tree_tags(tree)}
+
+    derived_project_tags = derive_project_tags_from_special_notes(c)
+
+    project_tags = hier_project_tags | derived_project_tags
 
     todo_args = ["-priority=1,2"]
     if project_tags:
@@ -941,7 +1004,19 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
     import random
     from shutil import get_terminal_size
 
-    # Parse arguments: -tag=foo, -status=todo, -priority=1, and optional numeric N
+    # ----------------------------
+    # Tag normalisation + rules
+    # ----------------------------
+    def norm_tag(t: str) -> str:
+        return t.strip().lstrip("#").strip().lower()
+
+    def is_project_tags(tags: list[str]) -> bool:
+        """Project todo = any non-general tag."""
+        return any(t != "general" for t in tags)
+
+    # ----------------------------
+    # Parse args
+    # ----------------------------
     tag_filter: str | None = None
     status_filter: list[str] | None = None
     priority_filter: list[int] | None = None
@@ -949,22 +1024,23 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
     exclude_tags: set[str] = set()
 
     for arg in args:
-        # numeric argument: limit to N random items
         if isinstance(arg, int):
             limit_random = arg
             continue
         if isinstance(arg, str) and arg.isdigit():
             limit_random = int(arg)
             continue
-
         if not isinstance(arg, str):
             continue
 
         if arg.startswith("-tag="):
-            tag_filter = arg.split("=", 1)[1].strip() or None
+            v = arg.split("=", 1)[1].strip()
+            tag_filter = norm_tag(v) if v else None
+
         elif arg.startswith("-status="):
             v = arg.split("=", 1)[1].strip()
-            status_filter = [s.strip() for s in v.split(",") if s.strip()]
+            status_filter = [s.strip().lower() for s in v.split(",") if s.strip()]
+
         elif arg.startswith("-priority="):
             v = arg.split("=", 1)[1].strip()
             ps: list[int] = []
@@ -973,49 +1049,38 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
                 if p.isdigit():
                     ps.append(int(p))
             priority_filter = ps or None
+
         elif arg.startswith("-notag="):
             v = arg.split("=", 1)[1].strip()
-            exclude_tags |= {x.strip() for x in v.split(",") if x.strip()}
+            exclude_tags |= {norm_tag(x) for x in v.split(",") if x.strip()}
 
-    BULLET = "*  "
-    CONT   = " " * len(BULLET)
     term_w = get_terminal_size((80, 24)).columns
 
     if heading:
-        heading = "=  TODOS"
-        rem = term_w - len(heading)
-        heading_lines = "=" * (rem - 1)
+        heading_txt = "=  TODOS"
+        rem = term_w - len(heading_txt)
         print()
-        print(heading + " " + heading_lines)
-        # print("-" * term_w)
+        print(heading_txt + " " + "=" * (rem - 1))
 
-    BULLET = "*  "
-    CONT = "   "  # exactly three spaces
-
-    def format_todo_line(todo_text: str, tags_str: str, prio: int, fname: str) -> str:
+    def format_todo_line(todo_text: str, tags: list[str], prio: int, fname: str) -> str:
         meta_parts: list[str] = []
-
-        if tags_str and tags_str != "-":
-            # split tags and prefix each with #
-            tags = [f"#{t}" for t in tags_str.split(",")]
-            meta_parts.append(" ".join(tags))
-
+        if tags:
+            meta_parts.append(" ".join(f"#{t}" for t in tags))
         meta_parts.append(f"!{prio}")
         meta_parts.append(f"~/{fname}")
+        return flow_line(todo_text, ", ".join(meta_parts), term_w)
 
-        meta = ", ".join(meta_parts)
-
-        return flow_line(todo_text, meta, term_w)
-
-    # Base query: NO AND-filters here (only valid)
+    # ----------------------------
+    # Fetch
+    # ----------------------------
     rows = c.execute("""
         SELECT todo, path, status, tags, priority, creation
-        FROM all_todos
-        WHERE valid = 1
-        ORDER BY priority ASC, creation DESC, tags ASC
+          FROM all_todos
+         WHERE valid = 1
+         ORDER BY priority ASC, creation DESC, tags ASC
     """).fetchall()
 
-    # Only lift defaults for the standalone `org todos` command, not for `org report`
+    # Your existing “defaults” behaviour
     lift_defaults = (not from_report) and any([
         tag_filter is not None,
         status_filter is not None,
@@ -1027,40 +1092,49 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
     DEFAULT_PRIO_MAX = 4
 
     items = []
-
     for row in rows:
-        row_tags = json.loads(row["tags"]) if row["tags"] else []
+        # parse + normalise tags
+        raw_tags = json.loads(row["tags"]) if row["tags"] else []
+        raw_tags = [t for t in raw_tags if isinstance(t, str)]
+        row_tags = [norm_tag(t) for t in raw_tags]
+        row_tags = [t for t in row_tags if t]  # drop blanks
+
+        # explicit exclusions (still supported)
         if exclude_tags and any(t in exclude_tags for t in row_tags):
             continue
 
-        # Apply defaults unless lifted
+        status = (row["status"] or "").strip().lower()
+        prio = int(row["priority"])
+
+        # defaults
         if not lift_defaults:
-            if row["status"] not in DEFAULT_STATUSES:
+            if status not in DEFAULT_STATUSES:
                 continue
-            if not (DEFAULT_PRIO_MIN <= int(row["priority"]) <= DEFAULT_PRIO_MAX):
+            if not (DEFAULT_PRIO_MIN <= prio <= DEFAULT_PRIO_MAX):
                 continue
 
-        # User-specified filters always apply
+        # user filters
         if tag_filter and tag_filter not in row_tags:
             continue
-        if status_filter and row["status"] not in status_filter:
+        if status_filter and status not in status_filter:
             continue
-        if priority_filter and int(row["priority"]) not in priority_filter:
+        if priority_filter and prio not in priority_filter:
             continue
 
-        items.append(row)
+        # ----------------------------
+        # CRITICAL RULE FOR REPORT:
+        # TODOS shows ONLY non-project todos (no tags or only #general)
+        # ----------------------------
+        if from_report and is_project_tags(row_tags):
+            continue
 
-    # Random subset if requested
+        items.append((row["todo"], row["path"], row_tags, prio))
+
     if limit_random is not None and limit_random < len(items):
         items = random.sample(items, limit_random)
 
-    for row in items:
-        row_tags = json.loads(row["tags"]) if row["tags"] else []
-        tags_str = ", ".join(row_tags) if row_tags else "-"
-        prio = row["priority"]
-        fname = row["path"]  # e.g. "2025/12/todos.td"
-
-        print(format_todo_line(row["todo"], tags_str, prio, fname))
+    for todo_text, path, tags, prio in items:
+        print(format_todo_line(todo_text, tags, prio, path))
 
 if False:
     def cmd_todos(c, *args):
