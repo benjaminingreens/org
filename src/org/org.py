@@ -262,6 +262,26 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
     print()
     print(heading + " " + "=" * (rem - 1))
 
+    printed_any_group = False
+    def print_project_header(label: str):
+        nonlocal printed_any_group
+
+        # Blank line ONLY between groups (not before the first)
+        if printed_any_group:
+            print()
+
+        prefix = "-  "
+        base = prefix + label + " "
+        width = get_terminal_size((80, 24)).columns
+
+        if len(base) >= width:
+            print(base.rstrip())
+        else:
+            fill = "-" * (width - len(base))
+            print(base + fill)
+
+        printed_any_group = True
+
     # --- build tag -> hierarchy path map ---
     tag_to_path: dict[str, tuple[str, ...]] = {}
 
@@ -1002,6 +1022,7 @@ if False:
 def cmd_todos(c, *args, heading=True, from_report: bool = False):
     import json
     import random
+    from datetime import datetime
     from shutil import get_terminal_size
 
     # ----------------------------
@@ -1013,6 +1034,18 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
     def is_project_tags(tags: list[str]) -> bool:
         """Project todo = any non-general tag."""
         return any(t != "general" for t in tags)
+
+    def parse_creation(s: str) -> datetime | None:
+        """
+        Your creation is typically like: YYYYMMDDTHHMMSS
+        Return None if it can't be parsed.
+        """
+        if not s:
+            return None
+        try:
+            return datetime.strptime(s, "%Y%m%dT%H%M%S")
+        except Exception:
+            return None
 
     # ----------------------------
     # Parse args
@@ -1091,7 +1124,14 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
     DEFAULT_PRIO_MIN = 1
     DEFAULT_PRIO_MAX = 4
 
-    items = []
+    # ----------------------------
+    # Build main list (printed immediately)
+    # ----------------------------
+    items: list[tuple[str, str, list[str], int]] = []
+    # Pools for the tail samples (only used when from_report=True)
+    pool3: list[tuple[str, str, list[str], int, datetime | None]] = []
+    pool4: list[tuple[str, str, list[str], int, datetime | None]] = []
+
     for row in rows:
         # parse + normalise tags
         raw_tags = json.loads(row["tags"]) if row["tags"] else []
@@ -1104,7 +1144,10 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
             continue
 
         status = (row["status"] or "").strip().lower()
-        prio = int(row["priority"])
+        try:
+            prio = int(row["priority"])
+        except Exception:
+            continue
 
         # defaults
         if not lift_defaults:
@@ -1122,19 +1165,95 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
             continue
 
         # ----------------------------
-        # CRITICAL RULE FOR REPORT:
-        # TODOS shows ONLY non-project todos (no tags or only #general)
+        # Main "TODOS" print list behaviour
         # ----------------------------
-        if from_report and is_project_tags(row_tags):
-            continue
+        if from_report:
+            # report TODOS should only show priorities 1–2 (as you’re calling it)
+            # and only NON-project (no tags or only #general)
+            if is_project_tags(row_tags):
+                continue
 
         items.append((row["todo"], row["path"], row_tags, prio))
 
+    # Random subset if requested (unchanged)
     if limit_random is not None and limit_random < len(items):
         items = random.sample(items, limit_random)
 
+    # Print main list
     for todo_text, path, tags, prio in items:
         print(format_todo_line(todo_text, tags, prio, path))
+
+    # ----------------------------
+    # Tail samples (only at end of TODOS in report)
+    # ----------------------------
+    if not from_report:
+        return
+
+    # Build pools for !3 and !4 from DB, but:
+    # - still require status=todo
+    # - for !3: apply the same non-project rule as TODOS
+    # - for !4: DO NOT apply the non-project rule (so it actually shows up)
+    for row in rows:
+        raw_tags = json.loads(row["tags"]) if row["tags"] else []
+        raw_tags = [t for t in raw_tags if isinstance(t, str)]
+        row_tags = [norm_tag(t) for t in raw_tags]
+        row_tags = [t for t in row_tags if t]
+
+        if exclude_tags and any(t in exclude_tags for t in row_tags):
+            continue
+
+        status = (row["status"] or "").strip().lower()
+        if status != "todo":
+            continue
+
+        try:
+            prio = int(row["priority"])
+        except Exception:
+            continue
+
+        # Only enforce "non-project" for prio 3
+        if prio == 3 and is_project_tags(row_tags):
+            continue
+
+        created = parse_creation(row["creation"]) if isinstance(row["creation"], str) else None
+        rec = (row["todo"], row["path"], row_tags, prio, created)
+
+        if prio == 3:
+            pool3.append(rec)
+        elif prio == 4:
+            pool4.append(rec)
+
+    def print_tail_heading(label: str) -> None:
+        # simple blank line before tail block (keeps it visually separate)
+        print()
+        # you can change prefix if you prefer, but keep it minimal
+        print(f"-  {label}")
+
+    def print_one(rec: tuple[str, str, list[str], int, datetime | None]) -> None:
+        todo_text, path, tags, prio, _created = rec
+        print(format_todo_line(todo_text, tags, prio, path))
+
+    # !3: most recent, oldest, random
+    if pool3:
+        # "most recent" = max creation (fallback: keep current order)
+        with_dt = [r for r in pool3 if r[4] is not None]
+        if with_dt:
+            most_recent = max(with_dt, key=lambda r: r[4])
+            oldest = min(with_dt, key=lambda r: r[4])
+        else:
+            most_recent = pool3[0]
+            oldest = pool3[-1]
+
+        rand3 = random.choice(pool3)
+
+        print_one(most_recent)
+        print_one(oldest)
+        print_one(rand3)
+
+    # !4: random (no non-project restriction)
+    if pool4:
+        rand4 = random.choice(pool4)
+        print_one(rand4)
 
 if False:
     def cmd_todos(c, *args):
