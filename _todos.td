@@ -7,6 +7,8 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: really need to be able to build custom reports 
+* t: re below: admin tag should be a project and should perhaps come last amongst projects? Also, in report, rank projects by those with most urgent tasks - so most important is at top
 * t: use .project_hierarchy as a way of defining project tags, rather than the !special system?
 * t: org specials is showing .special focus - this should only happen in org report
 * t: i am going to need to implement a way of tracking programmes and portfolios etc.
