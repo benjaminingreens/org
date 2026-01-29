@@ -229,82 +229,105 @@ def cmd_routines_today(c):
 
 def cmd_projects(c, tree: dict[str, tp.Any]):
     """
-    PROJECTS:
-      - status='todo'
-      - priority in (1,2)
-      - include if todo has ANY project tag, where:
-          a) hierarchy project tag: appears in `.project_hierarchy` (bucketed by deepest path)
-          b) derived project tag: appears next to a `!tag` in a NOTE (bucketed under UNFILED if not in hierarchy)
+    PROJECT TODOS (sorted by urgency), no headers.
+
+    Output:
+      - Starred projects are printed even if they have ZERO todos.
+      - If a project is starred (*) and has no todos at all, print the header + "(no active todos)".
+
+    Print rules:
+      - Print a project if it has any prio 1–2 todos, OR it is starred (*).
+      - Non-starred projects with no prio 1–2 todos are NOT printed.
+
+    Tail (per printed project):
+      - most recent prio 3 (by creation)
+      - oldest prio 3 (by creation)
+      - one random prio 3
+      - one random prio 4
+      - no repeats; if pools too small, print fewer.
     """
     import json
     import typing as tp
+    import random
+    from datetime import datetime
     from shutil import get_terminal_size
-    def print_project_header(label: str):
-        prefix = "-  "
-        base = prefix + label + " "
-        width = get_terminal_size((80, 24)).columns
 
-        if len(base) >= width:
-            print(base.rstrip())
-            return
-
-        fill = "-" * (width - len(base))
-        print(base + fill)
-
+    def print_project_label(p: tuple[str, ...], suffix: str = "") -> None:
+        # suffix should already include parentheses if desired
+        if suffix:
+            print(f"@  {project_label(p)} {suffix}")
+        else:
+            print(f"@  {project_label(p)}")
 
     def norm_tag(t: str) -> str:
         return t.strip().lstrip("#").strip().lower()
 
+    def parse_creation(s: str) -> datetime | None:
+        if not s:
+            return None
+        try:
+            return datetime.strptime(s, "%Y%m%dT%H%M%S")
+        except Exception:
+            return None
+
+    def split_star(raw: str) -> tuple[str, bool]:
+        s = str(raw).strip()
+        starred = s.endswith("*")
+        if starred:
+            s = s[:-1].rstrip()
+        return s, starred
+
     term_w = get_terminal_size((80, 24)).columns
 
-    heading = "=  PROJECTS"
+    heading = "=  PROJECT TODOS"
     rem = term_w - len(heading)
     print()
     print(heading + " " + "=" * (rem - 1))
 
-    printed_any_group = False
-    def print_project_header(label: str):
-        nonlocal printed_any_group
-
-        # Blank line ONLY between groups (not before the first)
-        if printed_any_group:
-            print()
-
-        prefix = "-  "
-        base = prefix + label + " "
-        width = get_terminal_size((80, 24)).columns
-
-        if len(base) >= width:
-            print(base.rstrip())
-        else:
-            fill = "-" * (width - len(base))
-            print(base + fill)
-
-        printed_any_group = True
-
-    # --- build tag -> hierarchy path map ---
+    # --- build tag -> hierarchy path map, and set of starred project paths ---
     tag_to_path: dict[str, tuple[str, ...]] = {}
+    starred_paths: set[tuple[str, ...]] = set()
 
     def index_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
-        for tag, children in subtree.items():
-            t = norm_tag(tag)
+        for raw_tag, children in subtree.items():
+            clean_raw, starred = split_star(raw_tag)
+            t = norm_tag(clean_raw)
+            if not t:
+                continue
+
             p = prefix + (t,)
             tag_to_path[t] = p
+            if starred:
+                starred_paths.add(p)
+
             if isinstance(children, dict) and children:
                 index_tree(children, p)
 
     if tree:
         index_tree(tree)
 
-    hier_project_tags = set(tag_to_path.keys())
-    derived_project_tags = derive_project_tags_from_special_notes(c)
-    all_project_tags = hier_project_tags | derived_project_tags
-
-    if not all_project_tags:
-        print("\n(no project tags found: .project_hierarchy empty AND no project tags derived from !tag notes)")
+    if not tag_to_path:
+        print("\n(no project tags found: .project_hierarchy empty or missing)")
         return
 
-    # --- load candidate todos ---
+    # --- hierarchy paths (every node) in file order, cleaned ---
+    raw_paths = iter_tree_paths(tree)
+    all_paths: list[tuple[str, ...]] = []
+    for rp in raw_paths:
+        cleaned: list[str] = []
+        for part in rp:
+            clean_part, _star = split_star(part)
+            tt = norm_tag(clean_part)
+            if tt:
+                cleaned.append(tt)
+        if cleaned:
+            all_paths.append(tuple(cleaned))
+
+    # dedupe while preserving order (safety)
+    seen: set[tuple[str, ...]] = set()
+    all_paths = [p for p in all_paths if not (p in seen or seen.add(p))]
+
+    # --- load todos ---
     rows = c.execute("""
         SELECT todo, path, status, tags, priority, creation
           FROM all_todos
@@ -312,85 +335,174 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
          ORDER BY priority ASC, creation DESC
     """).fetchall()
 
-    todos: list[dict[str, tp.Any]] = []
+    def bucket_for_tagset(tagset: set[str]) -> tuple[str, ...] | None:
+        matched_paths = [tag_to_path[t] for t in tagset if t in tag_to_path]
+        if not matched_paths:
+            return None
+        return sorted(matched_paths, key=lambda p: (len(p), p))[-1]
+
+    buckets_main: dict[tuple[str, ...], list[dict[str, tp.Any]]] = {}
+    buckets_3: dict[tuple[str, ...], list[tuple[str, str, set[str], int, datetime | None]]] = {}
+    buckets_4: dict[tuple[str, ...], list[tuple[str, str, set[str], int, datetime | None]]] = {}
+
+    # urgency stats for prio 1–2
+    stats: dict[tuple[str, ...], dict[str, tp.Any]] = {}
+
     for row in rows:
-        if (row["status"] or "").strip().lower() != "todo":
+        status = (row["status"] or "").strip().lower()
+        if status != "todo":
             continue
 
         try:
             prio = int(row["priority"])
         except Exception:
             continue
-        if prio not in (1, 2):
-            continue
 
         raw_tags = json.loads(row["tags"]) if row["tags"] else []
         raw_tags = [t for t in raw_tags if isinstance(t, str)]
         tagset = {norm_tag(t) for t in raw_tags if norm_tag(t)}
 
-        # must have at least one project tag (hier or derived)
-        if not any(t in all_project_tags for t in tagset):
+        bucket = bucket_for_tagset(tagset)
+        if bucket is None:
             continue
 
-        # if any hierarchy tags exist, bucket by deepest hierarchy path; else UNFILED
-        matched_paths = [tag_to_path[t] for t in tagset if t in tag_to_path]
-        if matched_paths:
-            bucket = sorted(matched_paths, key=lambda p: (len(p), p))[-1]
-        else:
-            bucket = ("unfiled",)
+        created = parse_creation(row["creation"]) if isinstance(row["creation"], str) else None
+        rec = (row["todo"], row["path"], tagset, prio, created)
 
-        todos.append({
-            "todo": row["todo"],
-            "path": row["path"],
-            "tags": tagset,
-            "prio": prio,
-            "bucket": bucket,
-        })
+        if prio in (1, 2):
+            buckets_main.setdefault(bucket, []).append({
+                "todo": row["todo"],
+                "path": row["path"],
+                "tags": tagset,
+                "prio": prio,
+            })
 
-    if not todos:
-        print("\n(no prio 1–2 project todos)")
-        return
+            st = stats.setdefault(bucket, {"min_prio": 99, "oldest": None, "c1": 0, "c2": 0})
+            st["min_prio"] = min(st["min_prio"], prio)
+            if prio == 1:
+                st["c1"] += 1
+            else:
+                st["c2"] += 1
+            if created is not None:
+                if st["oldest"] is None or created < st["oldest"]:
+                    st["oldest"] = created
 
-    def format_todo(todo_text: str, tags: set[str], prio: int, fname: str) -> str:
+        elif prio == 3:
+            buckets_3.setdefault(bucket, []).append(rec)
+        elif prio == 4:
+            buckets_4.setdefault(bucket, []).append(rec)
+
+    def project_label(p: tuple[str, ...]) -> str:
+        return " > ".join(p).upper()
+
+    def format_todo_with_project(todo_text: str, tags: set[str], prio: int, fname: str, project: tuple[str, ...]) -> str:
         meta_parts: list[str] = []
         if tags:
             meta_parts.append(" ".join(f"#{t}" for t in sorted(tags)))
         meta_parts.append(f"!{prio}")
         meta_parts.append(f"~/{fname}")
+        meta_parts.append(project_label(project))
         return flow_line(todo_text, ", ".join(meta_parts), term_w)
 
-    def path_label(path: tuple[str, ...]) -> str:
-        if path == ("unfiled",):
-            return "UNFILED"
-        return " > ".join(path)
+    def rec_key(rec: tuple[str, str, set[str], int, datetime | None]) -> tuple[str, str]:
+        return (rec[0], rec[1])
 
-    # bucket -> items
-    buckets: dict[tuple[str, ...], list[dict[str, tp.Any]]] = {}
-    for td in todos:
-        buckets.setdefault(td["bucket"], []).append(td)
+    def pick_prio3_no_repeats(pool3: list[tuple[str, str, set[str], int, datetime | None]]):
+        if not pool3:
+            return []
 
-    # print hierarchy buckets in hierarchy order
-    def print_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
-        for tag, children in subtree.items():
-            t = norm_tag(tag)
-            p = prefix + (t,)
-            items = buckets.get(p, [])
-            if items:
-                print_project_header(path_label(p))
-                for td in items:
-                    print(format_todo(td["todo"], td["tags"], td["prio"], td["path"]))
-            if isinstance(children, dict) and children:
-                print_tree(children, p)
+        out: list[tuple[str, str, set[str], int, datetime | None]] = []
+        used: set[tuple[str, str]] = set()
 
-    if tree:
-        print_tree(tree)
+        with_dt = [r for r in pool3 if r[4] is not None]
+        if with_dt:
+            most_recent = max(with_dt, key=lambda r: r[4])
+            oldest = min(with_dt, key=lambda r: r[4])
+        else:
+            most_recent = pool3[0]
+            oldest = pool3[-1]
 
-    # print UNFILED last
-    unfiled = buckets.get(("unfiled",), [])
-    if unfiled:
-        print_project_header("UNFILED")
-        for td in unfiled:
-            print(format_todo(td["todo"], td["tags"], td["prio"], td["path"]))
+        def maybe_add(r):
+            k = rec_key(r)
+            if k in used:
+                return
+            used.add(k)
+            out.append(r)
+
+        maybe_add(most_recent)
+        maybe_add(oldest)
+
+        remaining = [r for r in pool3 if rec_key(r) not in used]
+        if remaining:
+            maybe_add(random.choice(remaining))
+
+        return out
+
+    def pick_prio4_random(pool4: list[tuple[str, str, set[str], int, datetime | None]]):
+        if not pool4:
+            return None
+        return random.choice(pool4)
+
+    def should_print_bucket(bucket: tuple[str, ...]) -> bool:
+        if buckets_main.get(bucket):
+            return True
+        if bucket in starred_paths:
+            return True
+        return False
+
+    # ----------------------------
+    # URGENCY SORT OF PROJECTS
+    # ----------------------------
+    printable = [p for p in all_paths if should_print_bucket(p)]
+    if not printable:
+        print("\n(no project todos)")
+        return
+
+    def urgency_key(p: tuple[str, ...]):
+        st = stats.get(p)
+        if st is None:
+            starred_rank = 0 if (p in starred_paths) else 1
+            return (9, starred_rank, datetime.max, 0, 0, project_label(p))
+
+        min_prio = st["min_prio"]
+        oldest = st["oldest"] or datetime.max
+        c1 = st["c1"]
+        c2 = st["c2"]
+        return (min_prio, 0, oldest, -c1, -c2, project_label(p))
+
+    printable.sort(key=urgency_key)
+
+    # ----------------------------
+    # PRINT
+    # ----------------------------
+    for p in printable:
+        main = buckets_main.get(p, [])
+        pool3 = buckets_3.get(p, [])
+        pool4 = buckets_4.get(p, [])
+
+        print()
+        print("-" * term_w)
+
+        # starred + zero todos -> header shows "(no active todos)"
+        if (p in starred_paths) and not (main or pool3 or pool4):
+            print_project_label(p, "(no active todos)")
+            print("-" * term_w)
+            continue
+
+        print_project_label(p)
+        print("-" * term_w)
+
+        for td in main:
+            print(format_todo_with_project(td["todo"], td["tags"], td["prio"], td["path"], p))
+
+        for rec in pick_prio3_no_repeats(pool3):
+            todo_text, path, tagset, prio, _created = rec
+            print(format_todo_with_project(todo_text, tagset, prio, path, p))
+
+        r4 = pick_prio4_random(pool4)
+        if r4 is not None:
+            todo_text, path, tagset, prio, _created = r4
+            print(format_todo_with_project(todo_text, tagset, prio, path, p))
 
 
 # --- see if above works ---
@@ -842,25 +954,18 @@ def cmd_report(c, tag=None):
     # 2) Routines (patterned events): today only
     cmd_routines_today(c)
 
-    # 3) Plain prio 1–2 todos excluding project tags
+    # 3) Plain prio 1–2 todos excluding project tags from hierarchy
     tree = load_project_hierarchy(Path(".project_hierarchy"))
     hier_project_tags = {t.strip().lstrip("#").strip().lower() for t in flatten_tree_tags(tree)}
 
-    derived_project_tags = derive_project_tags_from_special_notes(c)
-
-    project_tags = hier_project_tags | derived_project_tags
-
     todo_args = ["-priority=1,2"]
-    if project_tags:
-        todo_args.append(f"-notag={','.join(sorted(project_tags))}")
+    if hier_project_tags:
+        todo_args.append(f"-notag={','.join(sorted(hier_project_tags))}")
 
     cmd_todos(c, *todo_args, heading=True, from_report=True)
 
     # 4) Project-view prio 1–2 todos
     cmd_projects(c, tree)
-
-    # 5) Specials (unchanged)
-    cmd_special_tags(c, from_report=True)
 
 def cmd_notes(c, *args):
     """
@@ -1564,19 +1669,71 @@ def cmd_group(c, *args):
     print(f"Wrote tags to: {tagset_path} ({len(tags)} tag(s))")
 
 def cmd_tags(c):
+    """
+    Show all tags across notes/todos/events, with counts per type.
+    Assumes each table has: valid (0/1) and tags (JSON array).
+    """
     rows = list(c.execute("""
-        SELECT j.value AS tag, COUNT(*) AS cnt
-        FROM notes AS n
-        JOIN json_each(n.tags) AS j
-        WHERE n.valid = 1
-        GROUP BY j.value
-        ORDER BY j.value
+        WITH
+        note_tags AS (
+            SELECT j.value AS tag, 1 AS n, 0 AS t, 0 AS e
+              FROM notes AS x
+              JOIN json_each(x.tags) AS j
+             WHERE x.valid = 1
+        ),
+        todo_tags AS (
+            SELECT j.value AS tag, 0 AS n, 1 AS t, 0 AS e
+              FROM todos AS x
+              JOIN json_each(x.tags) AS j
+             WHERE x.valid = 1
+        ),
+        event_tags AS (
+            SELECT j.value AS tag, 0 AS n, 0 AS t, 1 AS e
+              FROM events AS x
+              JOIN json_each(x.tags) AS j
+             WHERE x.valid = 1
+        ),
+        all_tag_rows AS (
+            SELECT * FROM note_tags
+            UNION ALL
+            SELECT * FROM todo_tags
+            UNION ALL
+            SELECT * FROM event_tags
+        )
+        SELECT
+            tag,
+            SUM(n) AS notes_cnt,
+            SUM(t) AS todos_cnt,
+            SUM(e) AS events_cnt,
+            SUM(n + t + e) AS total_cnt
+        FROM all_tag_rows
+        GROUP BY tag
+        ORDER BY total_cnt DESC, tag
     """))
 
-    print("Notes by tag:")
-    for row in rows:
-        print(f"  {row['tag']}: {row['cnt']}")
-    print("(todos/events tags not yet indexed)")
+    if not rows:
+        print("No tags found (or no valid rows).")
+        return
+
+    # --- pretty print ---
+    tag_w = max(len("tag"), max(len(r["tag"]) for r in rows))
+    n_w   = max(len("notes"),  max(len(str(r["notes_cnt"]))  for r in rows))
+    t_w   = max(len("todos"),  max(len(str(r["todos_cnt"]))  for r in rows))
+    e_w   = max(len("events"), max(len(str(r["events_cnt"])) for r in rows))
+    tot_w = max(len("total"),  max(len(str(r["total_cnt"]))  for r in rows))
+
+    print()
+    print("tag: notes, todos, events, total")
+    print("--------------------------------")
+
+    for r in rows:
+        print(
+            f"{r['tag']}: "
+            f"{r['notes_cnt']}, "
+            f"{r['todos_cnt']}, "
+            f"{r['events_cnt']}, "
+            f"{r['total_cnt']}"
+        )
 
 def cmd_tidy(c):
     from .tidy import main as tidy_main
@@ -1663,108 +1820,137 @@ def cmd_add(c, *args):
 
 def cmd_special_tags(c, *args, from_report: bool = False):
     """
-    Usage: org specials
+    Legacy command name kept: `org specials`
 
-    Prints notes that have any tag starting with '!', grouped by each special tag.
-
-    Layout:
-      !  hi............................
-      *  theology -> 2025/12/test.txt..
+    Behaviour:
+      - Title: PROJECTS
+      - For each project in `.project_hierarchy` (every node/path),
+        show the path to the MOST RECENT `manifesto.txt` note for that project
+        (using `creation`), if any exists.
+      - If none exists for that project, still show it with "no manifesto yet".
+      - One line per project, using flow_line.
+      - Any trailing '*' in `.project_hierarchy` is ignored.
     """
     import json
-    import sqlite3
-    from shutil import get_terminal_size
+    import typing as tp
+    from datetime import datetime
     from pathlib import Path
+    from shutil import get_terminal_size
 
-    BULLET = "*  "
-    CONT   = " " * len(BULLET)
+    def norm_tag(t: str) -> str:
+        return t.strip().lstrip("#").strip().lower()
+
+    def clean_hierarchy_tag(raw: str) -> str:
+        """
+        Remove trailing '*' marker if present.
+        """
+        raw = raw.strip()
+        if raw.endswith("*"):
+            raw = raw[:-1].rstrip()
+        return raw
+
+    def parse_creation(s: str) -> datetime | None:
+        if not s:
+            return None
+        try:
+            return datetime.strptime(s, "%Y%m%dT%H%M%S")
+        except Exception:
+            return None
+
     term_w = get_terminal_size((80, 24)).columns
 
-    heading = "=  SPECIALS"
+    heading = "=  PROJECTS"
     rem = term_w - len(heading)
-    heading_lines = "=" * (rem - 1)
     print()
-    print(heading + " " + heading_lines)
+    print(heading + " " + "=" * (rem - 1))
 
-    def format_special_line(general: str, special: str, paths: set[str]) -> str:
-        meta_parts = [f"!{special}"]
-        meta_parts.extend(f"~/{p}" for p in sorted(paths))
-        meta = ", ".join(meta_parts)
-        return flow_line(general, meta, term_w)
-
-    # ---- load focus tags from .special_focus ONLY when called from report ----
-    focus_tags: set[str] = set()
-    if from_report:
-        try:
-            focus_path = ROOT / ".special_focus"  # ROOT from module scope
-        except NameError:
-            focus_path = Path(".special_focus")
-
-        if focus_path.is_file():
-            with focus_path.open("r", encoding="utf-8") as f:
-                for line in f:
-                    tag = line.strip()
-                    if tag and not tag.startswith("#"):
-                        focus_tags.add(tag)
-
-    # ---- fetch notes with any !tag ----
-    rows = c.execute(
-        "SELECT path, tags FROM all_notes WHERE valid AND tags LIKE '%!%'"
-    ).fetchall()
-
-    specials_map: dict[str, dict[str, set[str]]] = {}
-
-    for row in rows:
-        if isinstance(row, sqlite3.Row):
-            path = row["path"]
-            tags_raw = row["tags"]
-        else:
-            path, tags_raw = row
-
-        try:
-            tags = json.loads(tags_raw)
-            if not isinstance(tags, list):
-                continue
-        except json.JSONDecodeError:
-            continue
-
-        special_tags = [t for t in tags if isinstance(t, str) and t.startswith("!")]
-        if not special_tags:
-            continue
-
-        general_tags = [t for t in tags if isinstance(t, str) and not t.startswith("!")]
-
-        for s in special_tags:
-            s_key = s[1:] or "!"  # display without leading '!'
-
-            if general_tags:
-                for g in general_tags:
-                    if focus_tags and g not in focus_tags:
-                        continue
-                    specials_map.setdefault(s_key, {}).setdefault(g, set()).add(path)
-            else:
-                if focus_tags:
-                    continue
-                g = "(no other tags)"
-                specials_map.setdefault(s_key, {}).setdefault(g, set()).add(path)
-
-    if not specials_map:
-        if from_report and focus_tags:
-            print("\nNo notes found with special '!tag' matching .special_focus.")
-        else:
-            print("\nNo notes found with special '!tag'.")
+    # --- load hierarchy ---
+    tree = load_project_hierarchy(Path(".project_hierarchy"))
+    if not tree:
+        print("\n(no project hierarchy found)")
         return
 
-    for special in sorted(specials_map.keys()):
-        general_map = specials_map[special]
-        if not general_map:
+    # --- build tag -> hierarchy path map (normalised, '*' stripped) ---
+    tag_to_path: dict[str, tuple[str, ...]] = {}
+
+    def index_tree(subtree: dict[str, tp.Any], prefix: tuple[str, ...] = ()):
+        for raw_tag, children in subtree.items():
+            clean = clean_hierarchy_tag(str(raw_tag))
+            t = norm_tag(clean)
+            if not t:
+                continue
+
+            p = prefix + (t,)
+            tag_to_path[t] = p
+
+            if isinstance(children, dict) and children:
+                index_tree(children, p)
+
+    index_tree(tree)
+
+    # all project paths (every node), cleaned
+    project_paths = [
+        tuple(norm_tag(clean_hierarchy_tag(x)) for x in p)
+        for p in iter_tree_paths(tree)
+    ]
+
+    if not project_paths:
+        print("\n(no projects in hierarchy)")
+        return
+
+    # --- fetch candidate manifesto notes only ---
+    rows = c.execute("""
+        SELECT path, tags, creation
+          FROM all_notes
+         WHERE valid = 1
+           AND path LIKE '%manifesto.txt'
+         ORDER BY creation DESC
+    """).fetchall()
+
+    # bucket -> (best_path, best_creation_dt)
+    best_manifesto: dict[tuple[str, ...], tuple[str, datetime]] = {}
+
+    for row in rows:
+        path = row["path"]
+        created = parse_creation(row["creation"]) if isinstance(row["creation"], str) else None
+        if created is None:
             continue
 
-        for general in sorted(general_map.keys()):
-            paths = general_map[general]
-            if not paths:
-                continue
-            print(format_special_line(general, special, paths))
+        tags_raw = row["tags"] or "[]"
+        try:
+            tags = json.loads(tags_raw)
+        except Exception:
+            continue
+        if not isinstance(tags, list):
+            continue
+
+        tagset = {norm_tag(t) for t in tags if isinstance(t, str) and norm_tag(t)}
+
+        matched_paths = [tag_to_path[t] for t in tagset if t in tag_to_path]
+        if not matched_paths:
+            continue
+
+        bucket = sorted(matched_paths, key=lambda p: (len(p), p))[-1]
+
+        prev = best_manifesto.get(bucket)
+        if prev is None or created > prev[1]:
+            best_manifesto[bucket] = (path, created)
+
+    def path_label(p: tuple[str, ...]) -> str:
+        return " > ".join(p)
+
+    def format_line(project_label: str, meta: str) -> str:
+        return flow_line(project_label, meta, term_w)
+
+    # --- print ---
+    for p in project_paths:
+        rec = best_manifesto.get(p)
+        if rec:
+            manifesto_path, _dt = rec
+            meta = f"~/{manifesto_path}"
+        else:
+            meta = "no manifesto yet"
+        print(format_line(path_label(p), meta))
 
 if False:
     def cmd_special_tags(c, *args):
