@@ -791,9 +791,9 @@ def flow_line(
 
     rendered = "\n".join(ln.rstrip() for ln in lines)
 
-    # Only add pad when terminal width is below 40
+    # Only add pad when terminal width is below 80
     if pad and orig_term_w < 80:
-        rendered += "-" * term_w
+        rendered += "\n" + ("-" * term_w)
 
     return rendered
 
