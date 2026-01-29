@@ -229,11 +229,17 @@ def cmd_routines_today(c):
 
 def cmd_projects(c, tree: dict[str, tp.Any]):
     """
-    PROJECT TODOS (sorted by urgency), no headers.
+    PROJECT TODOS (sorted by urgency).
 
-    Output:
-      - Starred projects are printed even if they have ZERO todos.
-      - If a project is starred (*) and has no todos at all, print the header + "(no active todos)".
+    Header formatting:
+      - Prints:
+          ----------------------------------------------------------------
+          @  PROJECT PATH...
+          ----------------------------------------------------------------
+      - If the header wraps, continuation lines align under the start of the title,
+        not under the "@  ".
+        i.e. continuation lines are indented by 3 spaces.
+      - If starred project has no todos at all: show "(no active todos)" in header.
 
     Print rules:
       - Print a project if it has any prio 1–2 todos, OR it is starred (*).
@@ -252,13 +258,6 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
     from datetime import datetime
     from shutil import get_terminal_size
 
-    def print_project_label(p: tuple[str, ...], suffix: str = "") -> None:
-        # suffix should already include parentheses if desired
-        if suffix:
-            print(f"@  {project_label(p)} {suffix}")
-        else:
-            print(f"@  {project_label(p)}")
-
     def norm_tag(t: str) -> str:
         return t.strip().lstrip("#").strip().lower()
 
@@ -276,6 +275,106 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
         if starred:
             s = s[:-1].rstrip()
         return s, starred
+
+    def project_label(p: tuple[str, ...]) -> str:
+        return " > ".join(p).upper()
+
+    def wrap_header_text(text: str, width: int) -> list[str]:
+        """
+        Wrap text to terminal width WITHOUT breaking words.
+        If a single "word" is longer than the available width, hard-wrap it.
+        """
+        text = text.strip()
+        if width <= 1:
+            return [text] if text else [""]
+
+        words = text.split(" ")
+        lines: list[str] = []
+        cur = ""
+
+        for w in words:
+            if not cur:
+                cur = w
+                continue
+
+            if len(cur) + 1 + len(w) <= width:
+                cur = cur + " " + w
+            else:
+                lines.append(cur)
+                cur = w
+
+        if cur:
+            lines.append(cur)
+
+        # hard-wrap any overlong line (rare: single token > width)
+        out: list[str] = []
+        for line in lines or [""]:
+            while len(line) > width:
+                out.append(line[:width])
+                line = line[width:]
+            out.append(line)
+
+        return out
+
+    def print_project_label(p: tuple[str, ...], suffix: str = "", term_w: int = 80) -> None:
+        """
+        First line begins with "@  ".
+        Continuation lines begin with 3 spaces, so they align under the title start.
+        """
+        title = project_label(p)
+        if suffix:
+            title = f"{title} {suffix}"
+
+        first_prefix = "@  "
+        cont_prefix = "   "
+
+        avail_first = max(1, term_w - len(first_prefix))
+        avail_cont = max(1, term_w - len(cont_prefix))
+
+        # wrap the title as a whole; first line has different available width
+        # Strategy: produce words once, then pack into first line (avail_first),
+        # then continue packing into continuation lines (avail_cont).
+        words = title.split(" ")
+
+        lines: list[str] = []
+        cur = ""
+        cur_avail = avail_first
+
+        for w in words:
+            if not cur:
+                cur = w
+                continue
+
+            if len(cur) + 1 + len(w) <= cur_avail:
+                cur = cur + " " + w
+            else:
+                lines.append(cur)
+                cur = w
+                cur_avail = avail_cont  # after first line, switch to cont width
+
+        if cur:
+            lines.append(cur)
+
+        # hard-wrap tokens that exceed avail (very long single word)
+        fixed: list[str] = []
+        for i, line in enumerate(lines or [""]):
+            avail = avail_first if i == 0 else avail_cont
+            while len(line) > avail:
+                fixed.append(line[:avail])
+                line = line[avail:]
+                # after we split, subsequent pieces are continuation-width
+                avail = avail_cont
+            fixed.append(line)
+        lines = fixed
+
+        if not lines:
+            print(first_prefix.rstrip())
+            return
+
+        # print
+        print(first_prefix + lines[0].ljust(avail_first))
+        for ln in lines[1:]:
+            print(cont_prefix + ln.ljust(avail_cont))
 
     term_w = get_terminal_size((80, 24)).columns
 
@@ -392,9 +491,6 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
         elif prio == 4:
             buckets_4.setdefault(bucket, []).append(rec)
 
-    def project_label(p: tuple[str, ...]) -> str:
-        return " > ".join(p).upper()
-
     def format_todo_with_project(todo_text: str, tags: set[str], prio: int, fname: str, project: tuple[str, ...]) -> str:
         meta_parts: list[str] = []
         if tags:
@@ -450,9 +546,6 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
             return True
         return False
 
-    # ----------------------------
-    # URGENCY SORT OF PROJECTS
-    # ----------------------------
     printable = [p for p in all_paths if should_print_bucket(p)]
     if not printable:
         print("\n(no project todos)")
@@ -472,9 +565,6 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
 
     printable.sort(key=urgency_key)
 
-    # ----------------------------
-    # PRINT
-    # ----------------------------
     for p in printable:
         main = buckets_main.get(p, [])
         pool3 = buckets_3.get(p, [])
@@ -483,13 +573,12 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
         print()
         print("-" * term_w)
 
-        # starred + zero todos -> header shows "(no active todos)"
         if (p in starred_paths) and not (main or pool3 or pool4):
-            print_project_label(p, "(no active todos)")
+            print_project_label(p, "(no active todos)", term_w=term_w)
             print("-" * term_w)
             continue
 
-        print_project_label(p)
+        print_project_label(p, term_w=term_w)
         print("-" * term_w)
 
         for td in main:
