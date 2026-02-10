@@ -7,6 +7,9 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: one page report 
+* t: improve creation by linking it to inode maybe? or does this not work on all devices? hence using time of validation?
+* t: is there any point in getting a project todo overview command? Same as viewing all todos for a tag, no? (Though this needs help)
 * t: allow comments in .project_hierarchy
 * t: multiple !3 todos appearing in project todos
 * t: get 'org specials' to look for manifesto tag rather than manifesto in the title of a text file when showing the manifesto file in 'org specials' command
