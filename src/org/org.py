@@ -1045,7 +1045,15 @@ def cmd_report(c, tag=None):
 
     # 3) Plain prio 1–2 todos excluding project tags from hierarchy
     tree = load_project_hierarchy(Path(".project_hierarchy"))
-    hier_project_tags = {t.strip().lstrip("#").strip().lower() for t in flatten_tree_tags(tree)}
+
+    def clean_hier_tag(t: str) -> str:
+        t = (t or "").strip()
+        if t.endswith("*"):
+            t = t[:-1].rstrip()
+        return t.strip().lstrip("#").strip().lower()
+
+    hier_project_tags = {clean_hier_tag(t) for t in flatten_tree_tags(tree)}
+    hier_project_tags.discard("")
 
     todo_args = ["-priority=1,2"]
     if hier_project_tags:
@@ -1362,9 +1370,7 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
         # Main "TODOS" print list behaviour
         # ----------------------------
         if from_report:
-            # report TODOS should only show priorities 1–2 (as you’re calling it)
-            # and only NON-project (no tags or only #general)
-            if is_project_tags(row_tags):
+            if exclude_tags and any(t in exclude_tags for t in row_tags):
                 continue
 
         items.append((row["todo"], row["path"], row_tags, prio))
