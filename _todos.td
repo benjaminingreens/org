@@ -7,6 +7,7 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: add deadlines and other projects to reports so ai gets views of everything needed when reports fed to them
 * t: in !3 and !4 todos in report, ensure not being limited to #general, and simply exluding .project_hierarchy tags
 * t: one page report 
 * t: improve creation by linking it to inode maybe? or does this not work on all devices? hence using time of validation?
