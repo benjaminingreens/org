@@ -7,6 +7,7 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: in !3 and !4 todos in report, ensure not being limited to #general, and simply exluding .project_hierarchy tags
 * t: one page report 
 * t: improve creation by linking it to inode maybe? or does this not work on all devices? hence using time of validation?
 * t: is there any point in getting a project todo overview command? Same as viewing all todos for a tag, no? (Though this needs help)
@@ -15,11 +16,8 @@
 * t: get 'org specials' to look for manifesto tag rather than manifesto in the title of a text file when showing the manifesto file in 'org specials' command
 * t: fix issues with '>' in really small terminal windows for project todos titles
 * t: really need to be able to build custom reports 
-* t: i am going to need to implement a way of tracking programmes and portfolios etc.
 * t: generate gantt as part of .report.sh (each section will be non-special tags and special tags, showing priority 1, 2, and 3 tasks, deadline functions with priority as standard, events (without patterns) are milstones, listed outside of gantt: [routines, a few !3 !4 todos, focused specials])
 * t: also, enable generation of above with tag filters
-* t: also maybe just tweak standard .report.sh so that it shows: [events: today and upcoming], [routines], [todos, with some special tag ordering?], [special focus]
-* t: or maybe: [routines], and then, for general and special tags: [events: today and upcoming], [todos], then: [special focus]
 * t: more interactive todos (dependencies etc) to allow better gantt style todos
 * t: would be good to enforce .report.sh so it always fits on one page somehow
 * t: calendar events (without patterns - those are routines) not showing duration
