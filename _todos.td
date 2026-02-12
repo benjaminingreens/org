@@ -7,6 +7,7 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: protocols for ai usage of reports (what it needs to know etc)
 * t: use the manifesto tag to find manifestos with the org special command
 * t: apart from the report i already generate, allow for custom reports, and show query at top of report
 * t: add deadlines and other projects to reports so ai gets views of everything needed when reports fed to them
