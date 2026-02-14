@@ -7,6 +7,7 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: the publish mechanism - perhaps i should stop notes being published from being archived when i develop the archiving mechanism
 * t: find way of backdating so i can add historical notes in
 * t: for publish function, get all metadata
 * t: for publish function, get no publish tag for those tags who have global publish on
