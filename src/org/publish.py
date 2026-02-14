@@ -23,6 +23,31 @@ def _dbg(enabled: bool, msg: str) -> None:
 # HTML templates (from your script)
 # ----------------------------
 
+def _yaml_to_meta_lines(yaml_text: str | None) -> str:
+    if not yaml_text or not yaml_text.strip():
+        return ""
+
+    out: list[str] = []
+    for raw in yaml_text.splitlines():
+        line = raw.rstrip()
+        if not line.strip():
+            continue
+
+        m = re.match(r"^\s*([^:]+)\s*:\s*(.*)$", line)
+        if m:
+            key = m.group(1).strip()
+            val = m.group(2).strip()
+            if key.lower() in ("title", "tags"):
+                continue
+            out.append(
+                f"<strong>{_html_escape(key)}</strong>: "
+                f"{_html_escape(val)}<br>"
+            )
+        else:
+            out.append(f"{_html_escape(line)}<br>")
+
+    return "".join(out)
+
 CSS_CONTENT = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -408,7 +433,6 @@ function heading(text, level,    id) {
   print "<h" level " id=\"" id "\">" inline(text) "</h" level ">"
 }
 
-# Respect every line: every printed line ends with <br>
 function print_line_as_linebreak(line) {
   print inline(line) "<br>"
 }
@@ -418,116 +442,59 @@ function close_ul() { if (in_ul) { print "</ul>";       in_ul=0 } }
 function close_ol() { if (in_ol) { print "</ol>";       in_ol=0 } }
 function close_bq() { if (in_bq) { close_p(); print "</blockquote>"; in_bq=0 } }
 
-BEGIN { in_p=0; in_ul=0; in_ol=0; in_bq=0; prev_nonempty="" }
+BEGIN {
+  in_p=0; in_ul=0; in_ol=0; in_bq=0;
+  prev_nonempty="";
+  prev_was_blank=1;
+  pending_hr=0;
+}
 
 {
   line = $0
 
-  # blank line: emit a visual blank line (extra <br>), not a paragraph close
+  if (pending_hr) {
+    pending_hr = 0
+    if (line ~ /^[[:space:]]*$/) {
+      close_p(); close_ul(); close_ol(); close_bq()
+      print "<hr>"
+    } else {
+      if (!in_p) { print "<p>"; in_p=1 }
+      print inline("---") "<br>"
+    }
+  }
+
   if (line ~ /^[[:space:]]*$/) {
-    # end lists/blockquote if we're in them (keeps sensible structure)
+    prev_was_blank = 1
     if (in_ul) close_ul()
     if (in_ol) close_ol()
     if (in_bq) close_bq()
-
     if (!in_p) { print "<p>"; in_p=1 }
     print "<br>"
     next
   }
 
-  # ----------------------------
-  # HR / underline disambiguation
-  # ----------------------------
-
-  # EXACTLY three dashes:
-  # - treat as underline if previous nonempty line is short (<= 16 chars)
-  # - otherwise treat as <hr>
+  # Structural HR rule
   if (line ~ /^[[:space:]]*---[[:space:]]*$/) {
-    if (prev_nonempty != "" && length(prev_nonempty) <= 16) {
+    if (prev_was_blank) {
+      pending_hr = 1
+      prev_was_blank = 0
+      next
+    } else {
       if (!in_p) { print "<p>"; in_p=1 }
       print inline("---") "<br>"
-    } else {
-      close_p(); close_ul(); close_ol(); close_bq()
-      print "<hr>"
+      prev_was_blank = 0
+      next
     }
-    next
   }
 
-  # 4+ dashes: ALWAYS literal text
-  if (line ~ /^[[:space:]]*----+[[:space:]]*$/) {
-    if (!in_p) { print "<p>"; in_p=1 }
-    trimmed_dash = line
-    sub(/^[[:space:]]+/, "", trimmed_dash)
-    sub(/[[:space:]]+$/, "", trimmed_dash)
-    print inline(trimmed_dash) "<br>"
-    next
-  }
-
-  # image line
-  if (line ~ /^!\[[^]]*\]\([^)]+\)[[:space:]]*$/) {
-    close_p(); close_ul(); close_ol(); close_bq()
-    alt = line; sub(/^!\[/, "", alt); sub(/\]\([^)]+\)[[:space:]]*$/, "", alt)
-    src = line; sub(/^!\[[^]]*\]\(/, "", src); sub(/\)[[:space:]]*$/, "", src)
-    print "<p><img src=\"" src "\" alt=\"" esc(alt) "\"></p>"
-    trimmed = line
-    sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
-    if (trimmed != "") prev_nonempty = trimmed
-    next
-  }
-
-  # headings
-  if (line ~ /^###[[:space:]]+/) {
-    close_p(); close_ul(); close_ol(); close_bq()
-    sub(/^###[[:space:]]+/, "", line)
-    heading(line, 3)
-    trimmed = line
-    sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
-    if (trimmed != "") prev_nonempty = trimmed
-    next
-  }
-  if (line ~ /^##[[:space:]]+/) {
-    close_p(); close_ul(); close_ol(); close_bq()
-    sub(/^##[[:space:]]+/, "", line)
-    heading(line, 2)
-    trimmed = line
-    sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
-    if (trimmed != "") prev_nonempty = trimmed
-    next
-  }
-  if (line ~ /^#[[:space:]]+/) {
-    close_p(); close_ul(); close_ol(); close_bq()
-    sub(/^#[[:space:]]+/, "", line)
-    heading(line, 1)
-    trimmed = line
-    sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
-    if (trimmed != "") prev_nonempty = trimmed
-    next
-  }
-
-  # blockquote
-  if (line ~ /^>[[:space:]]+/) {
-    close_ul(); close_ol()
-    if (!in_bq) { print "<blockquote>"; in_bq=1 }
-    sub(/^>[[:space:]]+/, "", line)
-    if (!in_p) { print "<p>"; in_p=1 }
-    print_line_as_linebreak(line)
-    trimmed = line
-    sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
-    if (trimmed != "") prev_nonempty = trimmed
-    next
-  } else if (in_bq) {
-    close_bq()
-  }
-
-  # ordered list item
+  # Ordered list
   if (line ~ /^[[:space:]]*[0-9]+\.[[:space:]]+/) {
+    prev_was_blank = 0
     close_p()
     close_ul()
     if (!in_ol) { print "<ol>"; in_ol=1 }
     sub(/^[[:space:]]*[0-9]+\.[[:space:]]+/, "", line)
-    printf "<li>"
-    print_line_as_linebreak(line)
-    printf "</li>\n"
+    print "<li>" inline(line) "</li>"
     trimmed = line
     sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
     if (trimmed != "") prev_nonempty = trimmed
@@ -536,15 +503,14 @@ BEGIN { in_p=0; in_ul=0; in_ol=0; in_bq=0; prev_nonempty="" }
     close_ol()
   }
 
-  # unordered list item
+  # Unordered list
   if (line ~ /^[[:space:]]*[-*][[:space:]]+/) {
+    prev_was_blank = 0
     close_p()
     close_ol()
     if (!in_ul) { print "<ul>"; in_ul=1 }
     sub(/^[[:space:]]*[-*][[:space:]]+/, "", line)
-    printf "<li>"
-    print_line_as_linebreak(line)
-    printf "</li>\n"
+    print "<li>" inline(line) "</li>"
     trimmed = line
     sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
     if (trimmed != "") prev_nonempty = trimmed
@@ -553,19 +519,44 @@ BEGIN { in_p=0; in_ul=0; in_ol=0; in_bq=0; prev_nonempty="" }
     close_ul()
   }
 
-  # plain text line
+  # Headings
+  if (line ~ /^###[[:space:]]+/) {
+    prev_was_blank = 0
+    close_p(); close_ul(); close_ol(); close_bq()
+    sub(/^###[[:space:]]+/, "", line)
+    heading(line, 3)
+    next
+  }
+  if (line ~ /^##[[:space:]]+/) {
+    prev_was_blank = 0
+    close_p(); close_ul(); close_ol(); close_bq()
+    sub(/^##[[:space:]]+/, "", line)
+    heading(line, 2)
+    next
+  }
+  if (line ~ /^#[[:space:]]+/) {
+    prev_was_blank = 0
+    close_p(); close_ul(); close_ol(); close_bq()
+    sub(/^#[[:space:]]+/, "", line)
+    heading(line, 1)
+    next
+  }
+
+  # Plain text
+  prev_was_blank = 0
   if (!in_p) { print "<p>"; in_p=1 }
   print_line_as_linebreak(line)
-
-  trimmed = line
-  sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed)
-  if (trimmed != "") prev_nonempty = trimmed
 }
 
 END {
+  if (pending_hr) {
+    if (!in_p) { print "<p>"; in_p=1 }
+    print inline("---") "<br>"
+  }
   close_bq(); close_ul(); close_ol(); close_p()
 }
 """
+
 
 # ----------------------------
 # Small helpers
@@ -880,18 +871,53 @@ def render_and_write_site(
     # NOTE: hyphens:auto only works when the browser knows the language; we already have <html lang="en">
     extra_css = """
 <style>
-  /* tighter paragraphs across the whole page */
-  p { margin: 0 0 0.55em 0; }
+  /* uniform vertical rhythm */
 
-  /* make horizontal rules tight + even */
-  hr { margin: 0.8em 0; }
+  p {
+    margin: 0 0 0.45em 0;
+  }
 
-  /* stop long tokens forcing horizontal scroll */
-  .content { overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
+  h1, h2, h3 {
+    margin: 0 0 0.45em 0;
+    line-height: 1.2;
+  }
 
-  /* belt-and-braces: ensure metadata and links also wrap */
-  .meta, .meta * { overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
-  a { overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
+  ul, ol {
+    margin: 0 0 0.45em 0;
+    padding: 0;
+  }
+
+  ul li,
+  ol > li {
+    margin: 0;
+  }
+
+  hr {
+    margin: 0.7em 0;
+  }
+
+  .meta {
+    padding: 0.35em 0;
+  }
+
+  /* prevent overflow */
+  .content {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  .meta, .meta * {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+  }
+
+  a {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+  }
 </style>
 """
 
@@ -915,11 +941,15 @@ def render_and_write_site(
 
         # Use <div> not <p> so we fully control spacing and avoid uneven hr gaps.
         # CHANGE: add <hr> just above metadata as well
+
+        other_fm = _yaml_to_meta_lines(yaml_text)
+
         metadata_html = (
             f"<hr>"
             f'<div class="meta">'
             f'<strong>Title</strong>: {_html_escape(title)}<br>'
             f'<strong>Tags</strong>: {_html_escape(tag_list)}<br>'
+            f"{other_fm}"
             f'<strong>Repo</strong>: {_html_escape(repo_name)}<br>'
             f'<strong>Path</strong>: {_html_escape(rec.path)}'
             f"</div>"
@@ -936,7 +966,7 @@ def render_and_write_site(
             + footer
         )
 
-        fname = safe_filename(rec.path)
+        fname = safe_filename(Path(rec.path).name)
 
         publish_tags = [t for t in rec.tags if t and t != "publish"]
         if not publish_tags:
