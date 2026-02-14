@@ -13,6 +13,7 @@ from pathlib import Path
 from shutil import get_terminal_size
 from collections import defaultdict
 from . import init
+from .publish import publish_site
 
 # --- see if this works ---
 
@@ -798,11 +799,6 @@ def flow_line(
     return rendered
 
 def get_db(db_paths=None, union_views: bool = True):
-    """
-    Return a connection to the first db, with the rest attached.
-    If union_views=True, create TEMP views 'notes', 'todos', 'events'
-    that UNION ALL across main + attached DBs (read-only).
-    """
     if not db_paths:
         db_paths = [Path.cwd() / ".org.db"]
 
@@ -817,19 +813,55 @@ def get_db(db_paths=None, union_views: bool = True):
         cur.execute(f"ATTACH DATABASE ? AS {alias}", (str(path),))
 
     if union_views:
-        # collect db names in order: main, db1, db2, ...
-        dbs = [row["name"] for row in cur.execute("PRAGMA database_list") if row["name"] != "temp"]
-        # helper to build a union view
-        def make_union_view(view_name: str, table: str, cols: str):
-            selects = [f"SELECT {cols} FROM {db}.{table}" for db in dbs]
+        # PRAGMA database_list gives: seq, name, file
+        db_rows = list(cur.execute("PRAGMA database_list"))
+        # keep main + attached, skip temp
+        dbs: list[tuple[str, str]] = [
+            (r["name"], r["file"])
+            for r in db_rows
+            if r["name"] != "temp"
+        ]
+
+        def make_union_view(view_name: str, table: str, cols_sql: str):
+            selects: list[str] = []
+            for db_name, db_file in dbs:
+                # src_root = directory containing that db file
+                src_root = str(Path(db_file).resolve().parent)
+                selects.append(
+                    "SELECT "
+                    + f"'{src_root}' AS src_root, "
+                    + cols_sql
+                    + f" FROM {db_name}.{table}"
+                )
             sql = f"CREATE TEMP VIEW {view_name} AS " + " UNION ALL ".join(selects)
             cur.execute(f"DROP VIEW IF EXISTS {view_name}")
             cur.execute(sql)
 
-        # Create TEMP views shadowing the table names (read-only!)
-        make_union_view("all_notes",  "notes",  "path, authour, creation, title, tags, valid")
-        make_union_view("all_todos",  "todos",  "todo, path, status, tags, priority, creation, valid")
-        make_union_view("all_events", "events", "event, start, pattern, tags, priority, path, status, creation, valid")
+        # NOTE: add src_root only where you need it.
+        # For publishing you need it for notes at least.
+        make_union_view(
+            "all_notes",
+            "notes",
+            "path, authour, creation, title, tags, valid"
+        )
+
+        # You can leave these without src_root if you don’t need it elsewhere.
+        # (Or add src_root to them too if you want.)
+        selects = []
+        for db_name, _db_file in dbs:
+            selects.append(
+                f"SELECT todo, path, status, tags, priority, creation, valid FROM {db_name}.todos"
+            )
+        cur.execute("DROP VIEW IF EXISTS all_todos")
+        cur.execute("CREATE TEMP VIEW all_todos AS " + " UNION ALL ".join(selects))
+
+        selects = []
+        for db_name, _db_file in dbs:
+            selects.append(
+                f"SELECT event, start, pattern, tags, priority, path, status, creation, valid FROM {db_name}.events"
+            )
+        cur.execute("DROP VIEW IF EXISTS all_events")
+        cur.execute("CREATE TEMP VIEW all_events AS " + " UNION ALL ".join(selects))
 
     return conn
 
@@ -2234,50 +2266,27 @@ def setup_collaboration(c):
 # -------------------- Main ---------------------------------------------------
 
 def main():
-    # TODO: fix whatever this was fixing
-    if False:
-        if len(sys.argv) != 2:
-            print("Usage: org <command>")
-            print("(Only one command allowed)")
-            sys.exit(1)
-
     arg_init = len(sys.argv) > 1 and sys.argv[1] == "init"
     root = init.handle_init(arg_init)
     os.chdir(root)
 
     from .validate import main as validate_main, SCHEMA
-    from .my_logger import log
-    from .yo_mama import main as yo_mama
 
-    file = Path(".org.log")
-    if file.exists():
-        os.remove(".org.log")
-    else:
-        pass
+    # reset log if you want
+    log_file = Path(".org.log")
+    if log_file.exists():
+        log_file.unlink()
 
     validate_main(copy.deepcopy(SCHEMA))
     errors_file = Path("org_errors")
     if errors_file.exists():
         sys.exit("You have errors in your repo (outlined in 'org_errors'). Please resolve these before running any commands")
-   
-    def get_multiple_db_paths(data: dict) -> list[Path]:
-        """
-        Given a dict with optional key 'collabs' (list of workspace IDs):
-          - Find the nearest .orgceiling by walking upwards from cwd.
-          - Recursively scan under it for .orgroot files.
-          - For each .orgroot, if its 'id' matches one of the collab IDs, 
-            add <that_dir>/.org.db to the results.
-          - Always include the current repo’s .org.db first (if it exists).
-        Returns a list of Path objects (deduped, absolute).
-        """
-        # TODO: add logs for if collab id isn't found etc
 
-        # --- 1. Gather requested IDs ---
+    def get_multiple_db_paths(data: dict) -> list[Path]:
         ids: tp.Set[str] = set(data.get("collabs") or [])
         if not ids:
             return [Path.cwd() / ".org.db"]
 
-        # --- 2. Find ceiling marker ---
         def find_ceiling(start: Path, marker: str = ".orgceiling") -> Path:
             for candidate in (start, *start.parents):
                 if (candidate / marker).is_file():
@@ -2286,7 +2295,6 @@ def main():
 
         ceiling_dir = find_ceiling(Path.cwd())
 
-        # --- 3. Walk with scandir (faster than os.walk) ---
         def iter_orgroots(root: Path):
             stack = [root]
             while stack:
@@ -2304,7 +2312,6 @@ def main():
                 except PermissionError:
                     continue
 
-        # --- 4. Scan and match IDs ---
         needed = set(ids)
         results: tp.Set[Path] = set()
 
@@ -2322,38 +2329,31 @@ def main():
                     results.add(db_path)
                     needed.discard(wid)
                     if not needed:
-                        break  # found everything
+                        break
 
-        # --- 5. Ensure current repo’s db is first ---
         curr_db = Path.cwd() / ".org.db"
         ordered = [curr_db] if curr_db.is_file() else []
         for p in sorted(results):
             if p != curr_db:
                 ordered.append(p)
-
         return ordered
-        
-    def get_db_paths():
-        
+
+    def get_db_paths() -> list[Path]:
         orgroot = Path(".orgroot")
         with orgroot.open("r", encoding="utf-8") as f:
             data = json.load(f)
-        
-        if 'collabs' in data:
-            db_paths = get_multiple_db_paths(data)
-        else:
-            db_paths = [Path.cwd() / ".org.db"]
 
-        return db_paths
-
-    # NOTE: the collab repos may contain errors, and so WHERE valid = 1 is very important
-    # keep an eye on this though. i do believe that the db is usable despite inability to validate
-    # since we can just use what was last valid with the valid flag
+        if data.get("collabs"):
+            return get_multiple_db_paths(data)
+        return [Path.cwd() / ".org.db"]
 
     db_paths = get_db_paths()
-    conn = get_db(db_paths)
+    conn = get_db(db_paths, union_views=True)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
+
+    # If you want publishing every run:
+    publish_site(repo_root=Path.cwd(), conn=conn, debug=True)
 
     cmd, *args = sys.argv[1:]
     dispatch = {
@@ -2365,7 +2365,6 @@ def main():
         "events": cmd_events,
         "report": cmd_report,
         "tags":   cmd_tags,
-        
         "specials": cmd_special_tags,
 
         "todo": cmd_add,
@@ -2374,9 +2373,8 @@ def main():
         "tidy":   cmd_tidy,
         "group":  cmd_group,
 
-        "ym":     yo_mama,
-
-        "fold":   cmd_old,   # deprecated
+        "ym":     yo_mama,  # keep ONLY one yo_mama (remove the import OR rename)
+        "fold":   cmd_old,
     }
 
     handler = dispatch.get(cmd)
