@@ -2353,7 +2353,7 @@ def main():
     c = conn.cursor()
 
     # If you want publishing every run:
-    publish_site(repo_root=Path.cwd(), conn=conn, debug=True)
+    publish_site(repo_root=Path.cwd(), conn=conn, debug=False)
 
     cmd, *args = sys.argv[1:]
     dispatch = {
