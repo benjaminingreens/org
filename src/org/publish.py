@@ -11,12 +11,66 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from datetime import datetime
 
 
 # --- add near the top (after imports is fine) ---
 def _dbg(enabled: bool, msg: str) -> None:
     if enabled:
         print(f"[publish] {msg}", file=sys.stderr)
+
+# -- helpers
+
+def _inject_wbr_in_text_nodes(html: str) -> str:
+    """
+    Insert <wbr> into:
+      - long comma runs: ,,,,,
+      - long runs of a single repeated char: nnnnnnnn...
+    Only in TEXT nodes (never inside tags/attributes).
+    """
+    parts = re.split(r"(<[^>]+>)", html)  # keep tags
+
+    for i in range(0, len(parts), 2):  # text segments only
+        s = parts[i]
+
+        # commas: add <wbr> between each comma (3+ commas)
+        s = re.sub(r",{3,}", lambda m: "<wbr>".join(m.group(0)), s)
+
+        # single-character runs (letters/digits/punct) 30+ long:
+        # add <wbr> between every character so wrapping is "flush"
+        s = re.sub(r"(.)\1{29,}", lambda m: "<wbr>".join(m.group(0)), s)
+
+        parts[i] = s
+
+    return "".join(parts)
+
+def _parse_creation_key(s: str | None) -> tuple[int, int, int, int, int, int]:
+    """
+    Sortable key; unknown/invalid dates become very old.
+    Accepts ISO-ish strings; tolerates 'Z'.
+    """
+    if not s:
+        return (0, 0, 0, 0, 0, 0)
+    t = s.strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(t)
+        return (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+    except Exception:
+        return (0, 0, 0, 0, 0, 0)
+
+def _extract_summary_from_body(body_text: str) -> str | None:
+    """
+    If the first non-empty line starts with 'SUMMARY:', return the remainder.
+    """
+    for line in body_text.splitlines():
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("SUMMARY:"):
+            out = s[len("SUMMARY:"):].strip()
+            return out or None
+        return None
+    return None
 
 
 # ----------------------------
@@ -62,7 +116,6 @@ CSS_CONTENT = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Optional monospace (serif-ish feel): IBM Plex Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
@@ -75,111 +128,120 @@ CSS_CONTENT = """<!DOCTYPE html>
         *, *::before, *::after {
             box-sizing: inherit;
         }
+
         body {
             font-family: "IBM Plex Mono",
-                 ui-monospace,
-                 SFMono-Regular,
-                 Menlo,
-                 Monaco,
-                 Consolas,
-                 "Liberation Mono",
-                 "Courier New",
-                 monospace;
+                         ui-monospace,
+                         SFMono-Regular,
+                         Menlo,
+                         Monaco,
+                         Consolas,
+                         "Liberation Mono",
+                         "Courier New",
+                         monospace;
+
             display: flex;
             justify-content: center;
             align-items: flex-start;
+
             min-height: 100%;
             margin: 0;
             padding: 14px 20px 20px 20px;
+
             background-color: black;
             color: white;
+
             font-size: 19px;
             line-height: 1.7;
+
+            overflow-x: hidden;
         }
+
         @media (min-width: 768px) {
             body {
                 padding: 28px 50px 50px 50px;
                 font-size: 22px;
             }
         }
+
         .content {
             max-width: 600px;
             width: 100%;
+            min-width: 0;
         }
+
         @media (min-width: 1024px) {
             .content {
                 max-width: 900px;
+                min-width: 0;
             }
         }
 
-        /* Typography */
-        p,
-        blockquote {
-            text-align: left;
-            text-justify: inter-word;
+        /* Force wrapping everywhere */
+        .content,
+        .content * {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: auto;
         }
 
-        /* IMPORTANT: do NOT justify list items (mobile spacing stretches) */
+        /* Typography */
+        p, blockquote {
+            text-align: left;
+        }
+
         li {
             text-align: left;
-            text-justify: auto;
         }
 
         p {
-            margin-bottom: 1em;
+            margin: 0 0 0.45em 0;
         }
 
-        /* Headings: left-aligned */
         h1, h2, h3 {
             text-align: left;
+            line-height: 1.2;
+            margin: 0 0 0.45em 0;
         }
 
-        h1 {
-            font-size: 2em;
-            margin: 0 0 0.5em 0;
-            font-weight: 700;
-        }
-        h2 {
-            font-size: 1.5em;
-            margin: 1.2em 0 1em 0;
-            font-weight: 700;
-        }
-        h3 {
-            font-size: 1.25em;
-            margin: 1.1em 0 0.9em 0;
-            font-weight: 600;
-        }
+        h1 { font-size: 2em; font-weight: 700; }
+        h2 { font-size: 1.5em; font-weight: 700; }
+        h3 { font-size: 1.25em; font-weight: 600; }
 
-        /* Unordered lists: visible markers, aligned nicely on mobile */
-        ul {
-            list-style-type: none;   /* custom marker */
+        ul, ol {
+            margin: 0 0 0.45em 0;
             padding: 0;
-            margin: 0.8em 0;
         }
+
+        ul li,
+        ol > li {
+            margin: 0;
+        }
+
+        ul {
+            list-style-type: none;
+        }
+
         ul li {
-            margin: 0.2em 0;         /* tighter spacing */
             text-indent: -1.2em;
             padding-left: 1.2em;
         }
+
         ul li::before {
             content: "* ";
         }
 
-        /* Ordered lists: align with paragraph left edge on mobile */
         ol {
-            margin: 0.8em 0;
-            padding: 0;
             counter-reset: item;
         }
+
         ol > li {
             list-style: none;
             counter-increment: item;
-
             padding-left: 2.2em;
             text-indent: -2.2em;
-
-            margin: 0.2em 0;   /* tighter spacing */
         }
+
         ol > li::before {
             content: counter(item) ". ";
         }
@@ -188,31 +250,16 @@ CSS_CONTENT = """<!DOCTYPE html>
             color: white;
             text-decoration: underline;
         }
+
         a:hover {
             text-decoration: none;
         }
 
-        blockquote {
-            margin: 2.5em;
-        }
-        @media (max-width: 768px) {
-            blockquote {
-                margin: 1em;
-                border-left: none;
-                font-style: normal;
-                color: white;
-                font-size: 17px;
-            }
-        }
-
-        /* Horizontal rule support (---) */
         hr {
             border: none;
             border-top: 1px solid #444;
-            margin: 3em 0;
+            margin: 0.7em 0;
         }
-
-        .content > p:first-child { margin-top: 0; }
 
         img {
             max-width: 100%;
@@ -221,22 +268,25 @@ CSS_CONTENT = """<!DOCTYPE html>
             margin: 1.5em auto;
         }
 
-        /* Optional: use IBM Plex Mono for inline code if you later add it */
         code, pre {
-            font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-family: "IBM Plex Mono", monospace;
             font-size: 0.95em;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: pre-wrap;
         }
 
-        /* YAML front matter block */
         .frontmatter {
             margin: 1.2em 0 1.6em 0;
             padding: 0.8em 1em;
             border: 1px solid #444;
             border-radius: 10px;
-            overflow-x: auto;
+            overflow-x: hidden;
+            max-width: 100%;
             white-space: pre-wrap;
-            word-break: break-word;
+            word-break: break-all;
         }
+
         .frontmatter-title {
             margin: 0 0 0.6em 0;
             font-size: 1em;
@@ -255,7 +305,6 @@ INDEX_CSS = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Same font as pages: IBM Plex Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
@@ -268,6 +317,7 @@ INDEX_CSS = """<!DOCTYPE html>
         *, *::before, *::after {
             box-sizing: inherit;
         }
+
         body {
             font-family: "IBM Plex Mono",
                          ui-monospace,
@@ -278,49 +328,56 @@ INDEX_CSS = """<!DOCTYPE html>
                          "Liberation Mono",
                          "Courier New",
                          monospace;
+
             display: flex;
             justify-content: center;
             align-items: flex-start;
+
             min-height: 100%;
             margin: 0;
             padding: 14px 20px 20px 20px;
+
             background-color: black;
             color: white;
+
             font-size: 19px;
             line-height: 1.7;
+
+            overflow-x: hidden;
         }
+
         @media (min-width: 768px) {
             body {
                 padding: 28px 50px 50px 50px;
                 font-size: 22px;
             }
         }
+
         .content {
             max-width: 600px;
             width: 100%;
+            min-width: 0;
         }
+
         @media (min-width: 1024px) {
             .content {
                 max-width: 900px;
+                min-width: 0;
             }
         }
 
-        /* Index headings: left-aligned (match pages) */
-        h1, h2 {
-            text-align: left;
+        .content,
+        .content * {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: auto;
         }
 
         h1 {
             font-size: 2em;
             margin: 0 0 0.5em 0;
             font-weight: 700;
-        }
-        h2 {
-            font-size: 1em;
-            font-style: italic;
-            color: grey;
-            margin: 0 0 1.2em 0;
-            font-weight: normal;
+            text-align: left;
         }
 
         ul {
@@ -328,6 +385,7 @@ INDEX_CSS = """<!DOCTYPE html>
             padding: 0;
             margin: 0;
         }
+
         li {
             margin: 0.5em 0;
             text-indent: -1em;
@@ -338,15 +396,25 @@ INDEX_CSS = """<!DOCTYPE html>
             color: white;
             text-decoration: underline;
         }
+
         a:hover {
             text-decoration: none;
+        }
+
+        p {
+            margin: 0 0 0.45em 0;
+        }
+
+        .tag-summary {
+            margin: 1em 0 2em 0;
+            text-align: justify;
+            text-justify: inter-word;
         }
     </style>
 </head>
 <body>
     <div class="content">
 """
-
 
 # ----------------------------
 # Your awk markdown converter (verbatim, embedded)
@@ -679,9 +747,9 @@ def _run_awk_md_to_html(md: str) -> str:
 class NoteRec:
     src_root: str              # absolute path to the repo root that owns this note
     path: str                  # repo-relative path to the note file
+    creation: str | None       # NEW: ISO-ish datetime string (or None)
     title: str
     tags: tuple[str, ...]
-
 
 def build_publish_set(
     *,
@@ -731,40 +799,77 @@ def build_publish_set(
     # ----------------------------
     if conn is not None:
         c = conn.cursor()
-        rows = c.execute(
-            f"SELECT src_root, path, title, tags, valid FROM {source_table}"
-        ).fetchall()
+
+        # tolerate older schemas that may not have creation
+        try:
+            rows = c.execute(
+                f"SELECT src_root, path, creation, title, tags, valid FROM {source_table}"
+            ).fetchall()
+            has_creation = True
+        except sqlite3.OperationalError:
+            rows = c.execute(
+                f"SELECT src_root, path, title, tags, valid FROM {source_table}"
+            ).fetchall()
+            has_creation = False
+
+        def unpack_row(r):
+            if has_creation:
+                src_root = r[0]
+                path = r[1]
+                creation = r[2]
+                title = r[3]
+                tags_raw = r[4]
+                valid = r[5]
+            else:
+                src_root = r[0]
+                path = r[1]
+                creation = None
+                title = r[2]
+                tags_raw = r[3]
+                valid = r[4]
+            return src_root, path, creation, title, tags_raw, valid
 
         # Pass 1: match .publish tags
         if publish_tags:
             for r in rows:
-                if int(r[4] or 0) != 1:
+                src_root, path, creation, title, tags_raw, valid = unpack_row(r)
+                if int(valid or 0) != 1:
                     continue
-                src_root = r[0] if r[0] else str(repo_root)
-                path = r[1]
-                title = r[2] or ""
-                tags = row_tags_from_json(r[3])
+
+                src_root = src_root if src_root else str(repo_root)
+                title = title or ""
+
+                tags = row_tags_from_json(tags_raw)
                 if not tags:
                     continue
+                if "nopublish" in tags:
+                    continue
+
                 if any(t in publish_tags for t in tags):
-                    rec = NoteRec(src_root=src_root, path=path, title=title, tags=tuple(tags))
+                    rec = NoteRec(src_root=src_root, path=path, creation=creation, title=title, tags=tuple(tags))
                     picked[(rec.src_root, rec.path)] = rec
                     all_tags_seen |= set(tags)
 
         # Pass 2: add notes tagged 'publish'
         for r in rows:
-            if int(r[4] or 0) != 1:
+            src_root, path, creation, title, tags_raw, valid = unpack_row(r)
+            if int(valid or 0) != 1:
                 continue
-            src_root = r[0] if r[0] else str(repo_root)
-            path = r[1]
-            title = r[2] or ""
-            tags = row_tags_from_json(r[3])
+
+            src_root = src_root if src_root else str(repo_root)
+            title = title or ""
+
+            tags = row_tags_from_json(tags_raw)
+            if "nopublish" in tags:
+                continue
             if "publish" not in tags:
                 continue
+
             key = (src_root, path)
             if key in picked:
                 continue
-            rec = NoteRec(src_root=src_root, path=path, title=title, tags=tuple(tags))
+
+            rec = NoteRec(src_root=src_root, path=path, creation=creation, title=title, tags=tuple(tags))
             picked[key] = rec
             all_tags_seen |= set(tags)
 
@@ -782,23 +887,39 @@ def build_publish_set(
     try:
         local.row_factory = sqlite3.Row
         c = local.cursor()
-        rows = c.execute("""
-            SELECT path, title, tags, valid
-              FROM notes
-        """).fetchall()
+
+        # tolerate older schemas that may not have creation
+        try:
+            rows = c.execute("""
+                SELECT path, creation, title, tags, valid
+                  FROM notes
+            """).fetchall()
+            has_creation = True
+        except sqlite3.OperationalError:
+            rows = c.execute("""
+                SELECT path, title, tags, valid
+                  FROM notes
+            """).fetchall()
+            has_creation = False
 
         # Pass 1: match .publish tags
         if publish_tags:
             for r in rows:
                 if int(r["valid"] or 0) != 1:
                     continue
+
                 path = r["path"]
+                creation = (r["creation"] if has_creation else None)
                 title = r["title"] or ""
                 tags = row_tags_from_json(r["tags"])
+
                 if not tags:
                     continue
+                if "nopublish" in tags:
+                    continue
+
                 if any(t in publish_tags for t in tags):
-                    rec = NoteRec(src_root=str(repo_root), path=path, title=title, tags=tuple(tags))
+                    rec = NoteRec(src_root=str(repo_root), path=path, creation=creation, title=title, tags=tuple(tags))
                     picked[(rec.src_root, rec.path)] = rec
                     all_tags_seen |= set(tags)
 
@@ -806,15 +927,21 @@ def build_publish_set(
         for r in rows:
             if int(r["valid"] or 0) != 1:
                 continue
+
             tags = row_tags_from_json(r["tags"])
+            if "nopublish" in tags:
+                continue
             if "publish" not in tags:
                 continue
+
             path = r["path"]
+            creation = (r["creation"] if has_creation else None)
             title = r["title"] or ""
             key = (str(repo_root), path)
             if key in picked:
                 continue
-            rec = NoteRec(src_root=str(repo_root), path=path, title=title, tags=tuple(tags))
+
+            rec = NoteRec(src_root=str(repo_root), path=path, creation=creation, title=title, tags=tuple(tags))
             picked[key] = rec
             all_tags_seen |= set(tags)
 
@@ -845,6 +972,10 @@ def render_and_write_site(
     wrote_pages = 0
     skipped_missing_files = 0
 
+    # NEW: per-tag summary chosen from most recent manifesto note that also has that tag
+    # tag -> (creation_key, summary_text)
+    tag_summary: dict[str, tuple[tuple[int, int, int, int, int, int], str]] = {}
+
     def safe_filename(src_path: str) -> str:
         p = src_path.strip().lstrip("./")
         p = p.replace("\\", "/")
@@ -872,51 +1003,59 @@ def render_and_write_site(
     extra_css = """
 <style>
   /* uniform vertical rhythm */
-
-  p {
-    margin: 0 0 0.45em 0;
-  }
+  p { margin: 0 0 0.45em 0; }
 
   h1, h2, h3 {
     margin: 0 0 0.45em 0;
     line-height: 1.2;
   }
 
-  ul, ol {
-    margin: 0 0 0.45em 0;
-    padding: 0;
-  }
+  ul, ol { margin: 0 0 0.45em 0; padding: 0; }
+  ul li, ol > li { margin: 0; }
 
-  ul li,
-  ol > li {
-    margin: 0;
-  }
+  hr { margin: 0.7em 0; }
+  .meta { padding: 0.35em 0; }
 
-  hr {
-    margin: 0.7em 0;
-  }
-
-  .meta {
-    padding: 0.35em 0;
-  }
-
-  /* prevent overflow */
+  /* baseline wrapping everywhere (does NOT chop normal words) */
   .content {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    hyphens: auto;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+    min-width: 0 !important;
   }
 
-  .meta, .meta * {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    hyphens: auto;
+  .content * {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+    max-width: 100%;
+    min-width: 0;
   }
 
-  a {
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    hyphens: auto;
+  /* iOS flex sizing guard */
+  @media (max-width: 768px) {
+    body { display: block !important; }
+    .content { margin: 0 auto !important; }
+  }
+
+  /* Only apply "break-all" to the usual offenders */
+  a, a * ,
+  code, pre ,
+  .meta, .meta * ,
+  .frontmatter, .frontmatter * {
+    word-break: break-all !important;
+  }
+
+  /* pre/code must never force width */
+  pre, code {
+    white-space: pre-wrap !important;
+    overflow-x: hidden !important;
+  }
+
+  /* restore summary justify explicitly */
+  .tag-summary {
+    text-align: justify !important;
+    text-justify: inter-word !important;
   }
 </style>
 """
@@ -939,9 +1078,6 @@ def render_and_write_site(
         # CHANGE: omit 'publish' from metadata tag list
         tag_list = ", ".join(sorted({t for t in rec.tags if t and t != "publish"})) or "-"
 
-        # Use <div> not <p> so we fully control spacing and avoid uneven hr gaps.
-        # CHANGE: add <hr> just above metadata as well
-
         other_fm = _yaml_to_meta_lines(yaml_text)
 
         metadata_html = (
@@ -957,6 +1093,7 @@ def render_and_write_site(
         )
 
         body_html = _run_awk_md_to_html(body_text)
+        body_html = _inject_wbr_in_text_nodes(body_html)
 
         page_html = (
             CSS_CONTENT
@@ -982,14 +1119,40 @@ def render_and_write_site(
 
             tag_map.setdefault(tag, []).append((fname, title))
 
+        # NEW: capture tag-home summary from manifesto notes
+        # Condition: note contains BOTH 'manifesto' AND the tag.
+        if "manifesto" in rec.tags and "nopublish" not in rec.tags:
+            summary = _extract_summary_from_body(body_text)
+            if summary:
+                ckey = _parse_creation_key(rec.creation)
+                for t in rec.tags:
+                    if not t:
+                        continue
+                    if t in ("publish", "manifesto", "nopublish"):
+                        continue
+                    prev = tag_summary.get(t)
+                    if prev is None or ckey > prev[0]:
+                        tag_summary[t] = (ckey, summary)
+
     _dbg(debug, f"wrote_pages={wrote_pages} skipped_missing_files={skipped_missing_files} tags={len(tag_map)}")
 
     for tag in sorted(tag_map.keys()):
         items = sorted(tag_map[tag], key=lambda x: (x[1].lower(), x[0].lower()))
-        lines = [INDEX_CSS, f"<h1>#{_html_escape(tag)}</h1>", "<ul>"]
+
+        lines = [INDEX_CSS, f"<h1>#{_html_escape(tag)}</h1>"]
+
+        # one space after title
+        lines = [INDEX_CSS, f"<h1>#{_html_escape(tag)}</h1>"]
+
+        s = tag_summary.get(tag)
+        if s:
+            lines.append(f'<p class="tag-summary"><em>{_html_escape(s[1])}</em></p>')
+
+        lines.append("<ul>")
         for fname, title in items:
             lines.append(f'<li><a href="{_html_escape(fname)}">{_html_escape(title)}</a></li>')
         lines += ["</ul>", "    </div>", "</body>", "</html>"]
+
         out = site_root / tag / "tag_home.html"
         out.write_text("\n".join(lines) + "\n", encoding="utf-8")
         _dbg(debug, f"wrote {out}")
