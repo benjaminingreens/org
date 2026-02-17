@@ -7,6 +7,9 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: allow comments in .project_hierarchy
+* t: report format slightly off with dots now not keeping to the minimum of 3 per line in some cases?
+* t: consider org philosophy: now that projects report separately, i can set high priority todos for the projects only. but this adds dimensions to todos. should priority refer to all todos, or the locale of the project? i'm leaning towards all todos. purer that way. better reflects real life
 * t: the publish mechanism - perhaps i should stop notes being published from being archived when i develop the archiving mechanism
 * t: find way of backdating so i can add historical notes in
 * t: for publish function, get all metadata
