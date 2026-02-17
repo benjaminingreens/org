@@ -104,3 +104,7 @@ very odd behaviour - just seems to have stopped working except in one instance. 
 * events cli
 
 filtering by assignee on events not seeming to work
+
+* publish wrapping
+
+some wrapping on lines which are long runs of a letter (in jesses documents, for example) are not wrapping properly and going off screen on mobile
