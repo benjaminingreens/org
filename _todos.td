@@ -7,6 +7,7 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: have terminal queries print 'upside down' - because often the user sees the bottom of the result. so what they want to see should be at the bottom, not the top
 * t: maybe include modificaiton within notes?
 * t: allow backdating of creation somehow so old files can be put into org
 * t: at the moment, organisation is by modification - allow user to toggle between this and creation
