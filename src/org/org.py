@@ -1473,6 +1473,22 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False, as_of: date | d
             continue
 
         status = (row["status"] or "").strip().lower()
+
+        # If user explicitly asked for statuses, honour that
+        if status_filter is not None:
+            if status not in status_filter:
+                continue
+        else:
+            # Default behaviour:
+            # - in report: only show todo
+            # - outside report: keep your existing DEFAULT_STATUSES behaviour if you want it
+            if from_report:
+                if status != "todo":
+                    continue
+            else:
+                if not lift_defaults:
+                    if status not in DEFAULT_STATUSES:
+                        continue
         try:
             prio_stored = int(row["priority"])
         except Exception:
