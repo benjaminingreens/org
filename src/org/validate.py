@@ -1412,6 +1412,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
             # parsing
             working_metadata = copy.deepcopy(metadata_dict)
             meta = _parse_metadata(line, lookup, file_type, working_metadata)
+            log("info", f"PARSED deadline raw: {meta['deadline'][0]!r}")
 
             # get db row
             db_row_match = next((row for row in rows if row['id'] == meta["id"][0]), None)
@@ -1438,6 +1439,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
 
             # this is where validation happens per line            
             meta, valids_dict, errors_dict = validate_metadata(meta, file_type, db_row_match, normalise_priority_deadline=True)
+            log("info", f"POST-VALIDATE deadline: {meta['deadline'][0]!r} priority: {meta['priority'][0]!r}")
             collected.append({
                 "path": str(p),
                 **{ k: v[0] for k, v in meta.items() }
