@@ -14,7 +14,7 @@ from shutil import get_terminal_size
 from collections import defaultdict
 from . import init
 from .publish import publish_site
-from .validate import _parse_deadline
+from .validate import _parse_deadline, _fmt_deadline
 
 # ---
 
