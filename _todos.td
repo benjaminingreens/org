@@ -7,6 +7,16 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: fix issue with 'source' being None on second validation run when running org tidy - look in logs. probs just not being called by db query somewehre
+* t: have terminal queries print 'upside down' - because often the user sees the bottom of the result. so what they want to see should be at the bottom, not the top
+* t: maybe include modificaiton within notes?
+* t: allow backdating of creation somehow so old files can be put into org
+* t: at the moment, organisation is by modification - allow user to toggle between this and creation
+* t: priority function not working as intended: priority is pushing back deadlines indefinitely
+* t: allow comments in .project_hierarchy
+* t: shorter reports needed urgently
+* t: report format slightly off with dots now not keeping to the minimum of 3 per line in some cases?
+* t: consider org philosophy: now that projects report separately, i can set high priority todos for the projects only. but this adds dimensions to todos. should priority refer to all todos, or the locale of the project? i'm leaning towards all todos. purer that way. better reflects real life
 * t: the publish mechanism - perhaps i should stop notes being published from being archived when i develop the archiving mechanism
 * t: find way of backdating so i can add historical notes in
 * t: for publish function, get all metadata

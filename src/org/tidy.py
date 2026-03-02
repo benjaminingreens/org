@@ -171,20 +171,34 @@ def rebuild_line(row: dict, filetype: str) -> str:
         ".td": "todo",
         ".ev": "event",
     }[filetype]
+
     line = prefix_map[filetype] + row[content_column]
 
-    meta_prefix = {
-        "start": ">",
-        "source": "$",
-        "status": "=",
-        "priority": "!",
-        "creation": "~",
-        "end": "<",
-        "pattern": "^",
-        "tags": "#",
-        "assignees": "@",
-        "id": "id/",
-    }
+    # IMPORTANT: filetype-specific meta keys
+    if filetype == ".td":
+        meta_prefix = {
+            "source": "$",
+            "status": "=",
+            "priority": "!",
+            "deadline": "%",
+            "creation": "~",
+            "tags": "#",
+            "assignees": "@",
+            "id": "id/",
+        }
+    else:  # ".ev"
+        meta_prefix = {
+            "start": ">",
+            "end": "<",
+            "pattern": "^",
+            "source": "$",
+            "status": "=",
+            "priority": "!",
+            "creation": "~",
+            "tags": "#",
+            "assignees": "@",
+            "id": "id/",
+        }
 
     parts = []
     for key, symbol in meta_prefix.items():

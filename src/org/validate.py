@@ -584,6 +584,8 @@ def _parse_metadata(line: str, lookup: dict[str, str], file_type: str, metadata_
     escaped = [re.escape(s) for s in syms]
     pattern = r'({})(\S+)'.format('|'.join(escaped))
     # pattern == r'(id/|[><#\$=@!^~\^])(\S+)'
+    matches = re.findall(pattern, after)
+    log("info", f"MATCHES: {matches}")
 
     for sym, val in re.findall(pattern, after):
 
@@ -1412,6 +1414,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
             # parsing
             working_metadata = copy.deepcopy(metadata_dict)
             meta = _parse_metadata(line, lookup, file_type, working_metadata)
+            log("info", f"PARSED deadline raw: {meta['deadline'][0]!r}")
 
             # get db row
             db_row_match = next((row for row in rows if row['id'] == meta["id"][0]), None)
@@ -1438,6 +1441,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
 
             # this is where validation happens per line            
             meta, valids_dict, errors_dict = validate_metadata(meta, file_type, db_row_match, normalise_priority_deadline=True)
+            log("info", f"POST-VALIDATE deadline: {meta['deadline'][0]!r} priority: {meta['priority'][0]!r}")
             collected.append({
                 "path": str(p),
                 **{ k: v[0] for k, v in meta.items() }
@@ -1496,6 +1500,10 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
             log("info", f"here are they keys of meta: {meta.keys()}")
             log("info", f"you are trying to access: {item}")
             content = meta[f"{item}"][0]
+
+            if content == "phil reference thing":
+                log("info", f"SEEN? {content in seen_idx} current_line={line!r}")
+
             if content in seen_idx:
                 old_idx = seen_idx[content]
                 updated_lines.pop(old_idx)
@@ -1511,6 +1519,9 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
             # generate new mtime timestamp
             now_ts = datetime.now().timestamp()
             disk_scan[p] = now_ts
+
+            log("info", f"POST-VALIDATE deadline: {meta['deadline'][0]!r} priority: {meta['priority'][0]!r}")
+            log("info", f"and here is the newline: {new_line}")
 
             if item == "event":
                 
@@ -1531,6 +1542,7 @@ def undefined(conn: sqlite3.Connection, c: sqlite3.Cursor, to_check: set[Path], 
                     meta["end"][0], meta["pattern"][0]
                 ))
                 conn.commit()
+
 
             elif item == "todo":
 

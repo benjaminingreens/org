@@ -14,8 +14,107 @@ from shutil import get_terminal_size
 from collections import defaultdict
 from . import init
 from .publish import publish_site
+from .validate import _parse_deadline, _fmt_deadline
+
+# ---
+
+from datetime import datetime, timedelta, date as _date
+
+def _as_dt(as_of: datetime | _date) -> datetime:
+    if isinstance(as_of, datetime):
+        return as_of
+    # midnight, like your date-only deadlines imply
+    return datetime(as_of.year, as_of.month, as_of.day, 0, 0, 0)
+
+def normalise_priority_and_deadline_asof(
+    metadata_dict: dict[str, list],
+    *,
+    as_of: datetime | _date,
+) -> dict[str, list]:
+    """
+    Identical to validate.py:normalise_priority_and_deadline,
+    except `now` is a supplied date/datetime.
+    """
+    now = _as_dt(as_of)
+
+    dval = metadata_dict["deadline"][0]
+    pval = metadata_dict["priority"][0]
+
+    # parse current deadline (if any)
+    deadline_dt = _parse_deadline(dval) if dval else None
+
+    # 1) If no deadline: create one ONLY for priorities 1 and 2
+    if deadline_dt is None:
+        if pval == 1:
+            deadline_dt = now + timedelta(weeks=2)
+            metadata_dict["deadline"][0] = _fmt_deadline(deadline_dt)
+        elif pval == 2:
+            deadline_dt = now + timedelta(weeks=4)
+            metadata_dict["deadline"][0] = _fmt_deadline(deadline_dt)
+        else:
+            # priorities 3/4: user-owned, no system deadline per your spec
+            return metadata_dict
+
+    # 2) Deadline exists: normalise urgency bands
+    delta_days = (deadline_dt - now).total_seconds() / 86400.0
+
+    # future: 4–2 weeks
+    if 14 <= delta_days <= 28:
+        if pval > 2:
+            metadata_dict["priority"][0] = 2
+
+    # future: 2–0 weeks
+    elif 0 <= delta_days < 14:
+        if pval > 1:
+            metadata_dict["priority"][0] = 1
+
+    # past: 2–4 weeks overdue
+    elif -28 <= delta_days <= -14:
+        if pval < 2:
+            metadata_dict["priority"][0] = 2
+
+    # past: more than 4 weeks overdue
+    elif delta_days < -28:
+        if pval < 3:
+            metadata_dict["priority"][0] = 3
+
+    return metadata_dict
+
+def effective_priority_asof(
+    *,
+    priority: int,
+    deadline: str | None,
+    as_of: datetime | _date,
+) -> int:
+    """
+    Convenience wrapper for DB rows (priority, deadline) -> effective priority.
+    Does NOT mutate DB; only returns what priority *would be* as of that date.
+    """
+    md = {
+        "deadline": [deadline, [".td"], "n", str, r"^\d{8}(?:T\d{4}(?:\d{2})?)?$", None],
+        "priority": [priority, [".td"], "d", int, None, [3]],
+    }
+    md = normalise_priority_and_deadline_asof(md, as_of=as_of)
+    return int(md["priority"][0])
+
+#---
+
 
 # --- see if this works ---
+
+def get_report_date(args: list[str]) -> tuple[date, list[str]]:
+    """
+    If first arg looks like YYYY-MM-DD, use it as the report date and
+    return (that_date, remaining_args). Otherwise use today.
+    """
+    if args:
+        s = str(args[0]).strip()
+        try:
+            d = date.fromisoformat(s)  # YYYY-MM-DD
+            return d, args[1:]
+        except Exception:
+            pass
+    return date.today(), args
 
 def derive_project_tags_from_special_notes(c) -> set[str]:
     """
@@ -117,13 +216,13 @@ def flatten_tree_tags(tree: dict[str, tp.Any]) -> set[str]:
             s |= flatten_tree_tags(sub)
     return s
 
-def cmd_calendar(c, days: int = 7):
+def cmd_calendar(c, days: int = 7, base_date: date | None = None):
     import json
     from datetime import date, datetime, timedelta
     from pathlib import Path
     from shutil import get_terminal_size
 
-    today = date.today()
+    today = base_date or date.today()
     end = today + timedelta(days=days - 1)
 
     BULLET = "*  "
@@ -176,13 +275,13 @@ def cmd_calendar(c, days: int = 7):
         tags_str = ", ".join(tags) if tags else "-"
         print(format_line(event_text, day_label, time_label, tags_str, path_str))
 
-def cmd_routines_today(c):
+def cmd_routines_today(c, base_date: date | None = None):
     import json
     from datetime import date, datetime
     from pathlib import Path
     from shutil import get_terminal_size
 
-    today = date.today()
+    today = base_date or date.today()
     term_w = get_terminal_size((80, 24)).columns
 
     heading = "=  ROUTINES (TODAY)"
@@ -228,7 +327,7 @@ def cmd_routines_today(c):
         print(format_event_line(event_text, time_label, tags_str, path_str))
 
 
-def cmd_projects(c, tree: dict[str, tp.Any]):
+def cmd_projects(c, tree: dict[str, tp.Any], as_of: date | datetime | None = None):
     """
     PROJECT TODOS (sorted by urgency).
 
@@ -429,7 +528,7 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
 
     # --- load todos ---
     rows = c.execute("""
-        SELECT todo, path, status, tags, priority, creation
+        SELECT todo, path, status, tags, priority, creation, deadline
           FROM all_todos
          WHERE valid = 1
          ORDER BY priority ASC, creation DESC
@@ -454,9 +553,18 @@ def cmd_projects(c, tree: dict[str, tp.Any]):
             continue
 
         try:
-            prio = int(row["priority"])
+            prio_stored = int(row["priority"])
         except Exception:
             continue
+
+        # Use effective priority when an as_of date/datetime is supplied (report mode)
+        prio = prio_stored
+        if as_of is not None:
+            prio = effective_priority_asof(
+                priority=prio_stored,
+                deadline=row["deadline"],
+                as_of=as_of,
+            )
 
         raw_tags = json.loads(row["tags"]) if row["tags"] else []
         raw_tags = [t for t in raw_tags if isinstance(t, str)]
@@ -850,7 +958,7 @@ def get_db(db_paths=None, union_views: bool = True):
         selects = []
         for db_name, _db_file in dbs:
             selects.append(
-                f"SELECT todo, path, status, tags, priority, creation, valid FROM {db_name}.todos"
+                f"SELECT todo, path, status, tags, priority, creation, deadline, valid FROM {db_name}.todos"
             )
         cur.execute("DROP VIEW IF EXISTS all_todos")
         cur.execute("CREATE TEMP VIEW all_todos AS " + " UNION ALL ".join(selects))
@@ -1042,7 +1150,7 @@ def generate_instances_for_date(pat_def, start_dt, target_date):
 
 # -------------------- Commands --------------------
 
-def cmd_report(c, tag=None):
+def cmd_report(c, *args):
     """
     Report layout:
 
@@ -1054,26 +1162,13 @@ def cmd_report(c, tag=None):
     """
     from pathlib import Path
 
-    # Keep legacy tagged-report behaviour for now
-    if tag:
-        print()
-        print("/  EVENTS")
-        cmd_events(c, tag)
-
-        print()
-        print("/  TODOS")
-        cmd_todos(c, tag)
-
-        print()
-        print("/  SPECIALS")
-        cmd_special_tags(c, from_report=True)
-        return
+    report_day, rest = get_report_date(list(args))
 
     # 1) Calendar events (no pattern): today + upcoming week
-    cmd_calendar(c, days=7)
+    cmd_calendar(c, days=7, base_date=report_day)
 
     # 2) Routines (patterned events): today only
-    cmd_routines_today(c)
+    cmd_routines_today(c, base_date=report_day)
 
     # 3) Plain prio 1–2 todos excluding project tags from hierarchy
     tree = load_project_hierarchy(Path(".project_hierarchy"))
@@ -1091,10 +1186,10 @@ def cmd_report(c, tag=None):
     if hier_project_tags:
         todo_args.append(f"-notag={','.join(sorted(hier_project_tags))}")
 
-    cmd_todos(c, *todo_args, heading=True, from_report=True)
+    cmd_todos(c, *todo_args, heading=True, from_report=True, as_of=report_day)
 
     # 4) Project-view prio 1–2 todos
-    cmd_projects(c, tree)
+    cmd_projects(c, tree, as_of=report_day)
 
 def cmd_notes(c, *args):
     """
@@ -1253,7 +1348,7 @@ if False:
         for row in c.execute(q, params):
             print(f"{Path(row['path']).name}: {row['title']}")
 
-def cmd_todos(c, *args, heading=True, from_report: bool = False):
+def cmd_todos(c, *args, heading=True, from_report: bool = False, as_of: date | datetime | None = None):
     import json
     import random
     from datetime import datetime
@@ -1341,7 +1436,7 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
     # Fetch
     # ----------------------------
     rows = c.execute("""
-        SELECT todo, path, status, tags, priority, creation
+        SELECT todo, path, status, tags, priority, creation, deadline
           FROM all_todos
          WHERE valid = 1
          ORDER BY priority ASC, creation DESC, tags ASC
@@ -1378,34 +1473,48 @@ def cmd_todos(c, *args, heading=True, from_report: bool = False):
             continue
 
         status = (row["status"] or "").strip().lower()
+
+        # If user explicitly asked for statuses, honour that
+        if status_filter is not None:
+            if status not in status_filter:
+                continue
+        else:
+            # Default behaviour:
+            # - in report: only show todo
+            # - outside report: keep your existing DEFAULT_STATUSES behaviour if you want it
+            if from_report:
+                if status != "todo":
+                    continue
+            else:
+                if not lift_defaults:
+                    if status not in DEFAULT_STATUSES:
+                        continue
         try:
-            prio = int(row["priority"])
+            prio_stored = int(row["priority"])
         except Exception:
             continue
 
-        # defaults
-        if not lift_defaults:
-            if status not in DEFAULT_STATUSES:
-                continue
-            if not (DEFAULT_PRIO_MIN <= prio <= DEFAULT_PRIO_MAX):
-                continue
-
-        # user filters
-        if tag_filter and tag_filter not in row_tags:
-            continue
-        if status_filter and status not in status_filter:
-            continue
-        if priority_filter and prio not in priority_filter:
-            continue
-
-        # ----------------------------
-        # Main "TODOS" print list behaviour
-        # ----------------------------
+        # compute effective priority only for report mode
+        prio_eff = prio_stored
         if from_report:
-            if exclude_tags and any(t in exclude_tags for t in row_tags):
-                continue
+            prio_eff = effective_priority_asof(
+                priority=prio_stored,
+                deadline=row["deadline"],
+                as_of=(as_of or date.today()),
+            )
 
-        items.append((row["todo"], row["path"], row_tags, prio))
+        # user filters should apply to effective priority in report mode
+        prio_for_filter = prio_eff if from_report else prio_stored
+        if priority_filter and prio_for_filter not in priority_filter:
+            continue
+
+        # IMPORTANT:
+        # - keep printing stored priority if you want “truth”
+        # - OR print effective priority if you want the report to reflect urgency
+        # I’d suggest printing effective during report so the output matches filtering.
+        prio_for_print = prio_eff if from_report else prio_stored
+
+        items.append((row["todo"], row["path"], row_tags, prio_for_print))
 
     # Random subset if requested (unchanged)
     if limit_random is not None and limit_random < len(items):
