@@ -7,6 +7,7 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: i think the publish function may be producing htmls with old filenames which existed before org tidy is run
 * t: mechanism for quickly updating a tag to a new name
 * t: meeting tag proctice (#mt_yyyymmdd_info) - where would this be stored as a recommended practice? along with project hierarchy and laws and publish and other such things? identify all such things
 * t: fix issue with 'source' being None on second validation run when running org tidy - look in logs. probs just not being called by db query somewehre
