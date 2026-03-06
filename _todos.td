@@ -8,7 +8,7 @@
 
 // priority 1: urgent and important
 * t: figure out compatability of todos with project style todos (complex dependencies etc) - though org is primarily for an individual i think? idk. or small teams.
-* t: i think the publish function may be producing htmls with old filenames which existed before org tidy is run
+* t: i think the publish function may be producing htmls with old filenames which existed before org tidy is run. i think this may be the same as the issue with the td.td file not being found when running org tidy
 * t: mechanism for quickly updating a tag to a new name
 * t: meeting tag proctice (#mt_yyyymmdd_info) - where would this be stored as a recommended practice? along with project hierarchy and laws and publish and other such things? identify all such things
 * t: fix issue with 'source' being None on second validation run when running org tidy - look in logs. probs just not being called by db query somewehre
