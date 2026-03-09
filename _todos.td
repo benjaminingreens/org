@@ -7,6 +7,8 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
+* t: fix whatever issue is with tag search queries. I did a search in notes with 3 tags, and i got a result where the item was only tagged with the last tag used in the search
+* t: possibility of looking at past reports
 * t: figure out compatability of todos with project style todos (complex dependencies etc) - though org is primarily for an individual i think? idk. or small teams.
 * t: i think the publish function may be producing htmls with old filenames which existed before org tidy is run. i think this may be the same as the issue with the td.td file not being found when running org tidy
 * t: mechanism for quickly updating a tag to a new name
