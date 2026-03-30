@@ -7,7 +7,6 @@
 * t: remember long term aim of schema being customisable - hence validate.py being written in a way that accepts any schema - so be careful about hardocded validation (as with priority and deadline right now)
 
 // priority 1: urgent and important
-* t: when a todo has multiple tags, each of which is a project - what controlls which project that todo comes under in org report?
 * t: fix whatever issue is with tag search queries. I did a search in notes with 3 tags, and i got a result where the item was only tagged with the last tag used in the search
 * t: possibility of looking at past reports
 * t: figure out compatability of todos with project style todos (complex dependencies etc) - though org is primarily for an individual i think? idk. or small teams.
