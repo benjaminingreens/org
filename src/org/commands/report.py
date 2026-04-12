@@ -41,7 +41,7 @@ class TodoItem:
     last_selected: str | None = None
 
     def key(self) -> str:
-        return self.path
+        return f"{self.path}|{self.creation}|{self.todo}"
 
 
 # ============================================================
