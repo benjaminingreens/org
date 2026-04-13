@@ -19,10 +19,7 @@ class ReportContext:
     report_day: date
     task_scope: str                  # narrow / medium / wide
     time_scope: str                  # small / normal / large
-    focus_projects: list[str] = field(default_factory=list)
-    must_do: list[str] = field(default_factory=list)
-    omit: list[str] = field(default_factory=list)
-
+    focus_project: str | None = None
 
 @dataclass
 class TodoItem:
@@ -40,8 +37,13 @@ class TodoItem:
     urgency_band: int = 999
     last_selected: str | None = None
 
+    """
     def key(self) -> str:
         return f"{self.path}|{self.creation}|{self.todo}"
+    """
+
+    def key(self) -> str:
+        return self.id
 
 
 # ============================================================
@@ -53,22 +55,27 @@ def cmd_report2(c, *args):
 
     ensure_report2_state_table(c)
 
-    # Existing automatic sections
-    cmd_calendar(c, days=7, base_date=report_day)
-    cmd_routines_today(c, base_date=report_day)
-
-    # Questionnaire
-    ctx = ask_report_context(report_day)
-
-    # Load todos
+    # Load todos first so questionnaire can show tags
     todos = load_todos(c)
+
+    # Questionnaire first
+    ctx = ask_report_context(report_day, todos)
+
+    # Existing automatic sections
     hierarchy_tags = load_project_hierarchy_tags(Path(".project_hierarchy"))
 
     # Split out explicitly focused project todos
     project_todos, focus_todos = split_project_todos(
         todos=todos,
-        focus_projects=ctx.focus_projects,
+        focus_project=ctx.focus_project,
         hierarchy_tags=hierarchy_tags,
+    )
+
+    override_candidates = build_candidate_pool(
+        c=c,
+        todos=focus_todos,
+        task_scope="medium",
+        report_day=report_day,
     )
 
     # Build candidate pools
@@ -97,12 +104,32 @@ def cmd_report2(c, *args):
         time_scope=ctx.time_scope,
     )
 
-    # Apply user overrides to focus list
-    focus_selected = apply_overrides(
+    # Build and show override UI
+    override_pool = build_override_pool(
+        candidates=override_candidates,
+        selected=focus_selected,
+    )
+
+    print_override_preview(focus_selected, title="PROPOSED FOCUS")
+    print_override_pool(override_pool, limit=12)
+
+    must_do_raw = ask_must_do_inputs()
+
+    focus_selected = apply_must_dos(
+        selected=focus_selected,
+        override_pool=override_pool,
+        must_do_raw=must_do_raw,
+        time_scope=ctx.time_scope,
+    )
+
+    print_revised_focus_for_omission(focus_selected)
+    omit_raw = ask_omit_inputs()
+
+    focus_selected = apply_omissions(
         selected=focus_selected,
         candidates=focus_candidates,
-        must_do=ctx.must_do,
-        omit=ctx.omit,
+        revised_display_pool=focus_selected,
+        omit_raw=omit_raw,
         time_scope=ctx.time_scope,
     )
 
@@ -110,16 +137,18 @@ def cmd_report2(c, *args):
     persist_last_selected(c, focus_selected, report_day)
     persist_last_selected(c, project_selected, report_day)
 
-    # Print final sections
+    # Print final report contiguously
+    cmd_calendar(c, days=7, base_date=report_day)
+    cmd_routines_today(c, base_date=report_day)
     print_focus_todos(focus_selected)
-    print_project_todos(project_selected)
+    print_project_todos(project_selected, ctx.focus_project)
 
 
 # ============================================================
 # questionnaire
 # ============================================================
 
-def ask_report_context(report_day: date) -> ReportContext:
+def ask_report_context(report_day: date, todos: list[TodoItem]) -> ReportContext:
     task_scope = prompt_choice(
         "Task scope [narrow/medium/wide] (default narrow): ",
         {"narrow", "medium", "wide"},
@@ -132,30 +161,45 @@ def ask_report_context(report_day: date) -> ReportContext:
         default="normal",
     )
 
-    focus_projects_raw = input(
-        "Focus projects/tags (comma-separated, blank for none): "
-    ).strip()
-    focus_projects = [x.strip().lower() for x in focus_projects_raw.split(",") if x.strip()]
+    project_choices = get_project_choices(Path(".project_hierarchy"))
+    all_tags = load_all_todo_tags(todos)
 
-    must_do_raw = input(
-        "Must-do items to force in (comma-separated search terms, blank for none): "
-    ).strip()
-    must_do = [x.strip() for x in must_do_raw.split(",") if x.strip()]
+    print_project_choices(project_choices, limit=20)
 
-    omit_raw = input(
-        "Items to omit (comma-separated search terms, blank for none): "
-    ).strip()
-    omit = [x.strip() for x in omit_raw.split(",") if x.strip()]
+    focus_project: str | None = None
+
+    while True:
+        focus_project_raw = input(
+            "Focus project/tag (one project number, exact name, or partial tag text; blank for none): "
+        ).strip()
+
+        if not focus_project_raw:
+            focus_project = None
+            break
+
+        resolved = resolve_focus_tag_input(
+            focus_project_raw,
+            project_choices=project_choices,
+            all_tags=all_tags,
+        )
+
+        if not resolved:
+            continue
+
+        confirm = input(f"Use '{resolved}'? [Y/n]: ").strip().lower()
+        if confirm in ("", "y", "yes"):
+            focus_project = resolved
+            break
+        if confirm in ("n", "no"):
+            print("(selection cleared — try again)")
+            continue
 
     return ReportContext(
         report_day=report_day,
         task_scope=task_scope,
         time_scope=time_scope,
-        focus_projects=focus_projects,
-        must_do=must_do,
-        omit=omit,
+        focus_project=focus_project,
     )
-
 
 def prompt_choice(prompt: str, allowed: set[str], default: str) -> str:
     raw = input(prompt).strip().lower()
@@ -212,6 +256,15 @@ def load_todos(c) -> list[TodoItem]:
 
     return out
 
+def load_all_todo_tags(todos: list[TodoItem]) -> list[str]:
+    out: set[str] = set()
+    for todo in todos:
+        for tag in todo.tags:
+            t = str(tag).strip().lstrip("#").lower()
+            if t:
+                out.add(t)
+    return sorted(out)
+
 
 def load_project_hierarchy_tags(path: Path) -> set[str]:
     if not path.is_file():
@@ -231,6 +284,86 @@ def load_project_hierarchy_tags(path: Path) -> set[str]:
 
     return out
 
+def get_project_choices(path: Path) -> list[str]:
+    return sorted(load_project_hierarchy_tags(path))
+
+def print_project_choices(projects: list[str], limit: int = 20) -> None:
+    print()
+    print("=  AVAILABLE PROJECTS/TAGS")
+    if not projects:
+        print("(none)")
+        return
+
+    for i, project in enumerate(projects[:limit], start=1):
+        print(f"{i}. {project}")
+
+
+def resolve_project_inputs(raw: str, projects: list[str]) -> list[str]:
+    out: list[str] = []
+
+    for part in [x.strip() for x in raw.split(",") if x.strip()]:
+        if part.isdigit():
+            idx = int(part) - 1
+            if 0 <= idx < len(projects):
+                out.append(projects[idx])
+        else:
+            lowered = part.lower()
+            for project in projects:
+                if lowered == project.lower():
+                    out.append(project)
+
+    seen = set()
+    deduped: list[str] = []
+    for x in out:
+        if x in seen:
+            continue
+        seen.add(x)
+        deduped.append(x)
+
+    return deduped
+
+
+def resolve_focus_tag_input(
+    raw: str,
+    project_choices: list[str],
+    all_tags: list[str],
+) -> str | None:
+    raw = raw.strip()
+    if not raw:
+        return None
+
+    # numeric project choice
+    if raw.isdigit():
+        idx = int(raw) - 1
+        if 0 <= idx < len(project_choices):
+            return project_choices[idx]
+        print(f"(unrecognised project number: {raw})")
+        return None
+
+    lowered = raw.lower()
+
+    # exact project match
+    for project in project_choices:
+        if lowered == project.lower():
+            return project
+
+    # exact tag match
+    exact_tag_matches = [tag for tag in all_tags if lowered == tag.lower()]
+    if len(exact_tag_matches) == 1:
+        return exact_tag_matches[0]
+
+    # partial tag match
+    partial_tag_matches = [tag for tag in all_tags if lowered in tag.lower()]
+
+    if len(partial_tag_matches) == 1:
+        return partial_tag_matches[0]
+
+    if len(partial_tag_matches) > 1:
+        print(f"(ambiguous tag text: {raw})")
+        return None
+
+    print(f"(unrecognised tag/project: {raw})")
+    return None
 
 # ============================================================
 # project splitting
@@ -238,30 +371,25 @@ def load_project_hierarchy_tags(path: Path) -> set[str]:
 
 def split_project_todos(
     todos: list[TodoItem],
-    focus_projects: list[str],
+    focus_project: str | None,
     hierarchy_tags: set[str],
 ) -> tuple[list[TodoItem], list[TodoItem]]:
-    """
-    Remove explicitly focused project/tag todos from the general focus pool.
-    """
-    if not focus_projects:
+    if not focus_project:
         return [], todos
 
-    selected = {x.strip().lower() for x in focus_projects if x.strip()}
-    selected &= (hierarchy_tags | selected)
+    selected = focus_project.strip().lower()
 
     project_todos: list[TodoItem] = []
     focus_todos: list[TodoItem] = []
 
     for todo in todos:
         tagset = {str(t).strip().lstrip("#").lower() for t in todo.tags}
-        if tagset & selected:
+        if selected in tagset:
             project_todos.append(todo)
         else:
             focus_todos.append(todo)
 
     return project_todos, focus_todos
-
 
 # ============================================================
 # classification
@@ -290,6 +418,63 @@ def build_candidate_pool(
 
     return out
 
+def build_override_pool(
+    candidates: list[TodoItem],
+    selected: list[TodoItem],
+) -> list[TodoItem]:
+    """
+    Override pool based on curated type set.
+
+    Types:
+    - p1_near_future
+    - p1_recently_overdue
+    - p2_medium_future
+    - p1_medium_future
+    - p1_far_future
+    - p2_moderately_overdue
+    - p3_no_deadline   (dominant)
+
+    Caps:
+    - p3_no_deadline: 3
+    - all others: 2
+    """
+    selected_keys = {t.key() for t in selected}
+
+    allowed_types = [
+        "p1_near_future",
+        "p1_recently_overdue",
+        "p2_medium_future",
+        "p1_medium_future",
+        "p1_far_future",
+        "p2_moderately_overdue",
+        "p3_no_deadline",
+    ]
+
+    caps = {
+        "p3_no_deadline": 3,
+    }
+
+    default_cap = 2
+
+    by_type: dict[str, list[TodoItem]] = {t: [] for t in allowed_types}
+
+    for todo in candidates:
+        if todo.key() in selected_keys:
+            continue
+        if todo.todo_type in by_type:
+            by_type[todo.todo_type].append(todo)
+
+    # sort each type pool
+    for todo_type in by_type:
+        by_type[todo_type] = sort_bucket_pool(by_type[todo_type])
+
+    out: list[TodoItem] = []
+
+    for todo_type in allowed_types:
+        cap = caps.get(todo_type, default_cap)
+        out.extend(by_type[todo_type][:cap])
+
+    return dedupe_todos(out)
 
 def classify_todo_type(todo: TodoItem, report_day: date) -> str | None:
     priority = todo.priority
@@ -591,45 +776,70 @@ def take_from_pool(
 # overrides
 # ============================================================
 
-def apply_overrides(
+def ask_must_do_inputs() -> list[str]:
+    raw = input(
+        "Must-do items to force in (numbers or search terms, blank for none): "
+    ).strip()
+    return [x.strip() for x in raw.split(",") if x.strip()]
+
+
+def ask_omit_inputs() -> list[str]:
+    raw = input(
+        "Items to omit from the revised list (numbers or search terms, blank for none): "
+    ).strip()
+    return [x.strip() for x in raw.split(",") if x.strip()]
+
+def apply_must_dos(
     selected: list[TodoItem],
-    candidates: list[TodoItem],
-    must_do: list[str],
-    omit: list[str],
+    override_pool: list[TodoItem],
+    must_do_raw: list[str],
     time_scope: str,
 ) -> list[TodoItem]:
-    out = list(selected)
-    selected_keys = {x.key() for x in out}
-
-    # Must-do promotion
-    for item in find_matching_todos(candidates, must_do):
-        if item.key() not in selected_keys:
-            out.insert(0, item)
-            selected_keys.add(item.key())
-
-    # Omit and refill
-    omit_keys = {x.key() for x in find_matching_todos(candidates, omit)}
-    if omit_keys:
-        out = [x for x in out if x.key() not in omit_keys]
-        selected_keys = {x.key() for x in out}
-
-        target = capacity_for_time_scope(time_scope)
-        if len(out) < target:
-            refill_pool = sort_bucket_pool(candidates)
-            for item in refill_pool:
-                if item.key() in selected_keys:
-                    continue
-                if item.key() in omit_keys:
-                    continue
-                out.append(item)
-                selected_keys.add(item.key())
-                if len(out) >= target:
-                    break
-
     target = capacity_for_time_scope(time_scope)
+    out = list(selected)
+
+    must_items = resolve_override_terms(must_do_raw, override_pool)
+
+    for item in reversed(must_items):
+        out = [x for x in out if x.key() != item.key()]
+        out.insert(0, item)
+
     out = dedupe_todos(out)[:target]
     return out
 
+def apply_omissions(
+    selected: list[TodoItem],
+    candidates: list[TodoItem],
+    revised_display_pool: list[TodoItem],
+    omit_raw: list[str],
+    time_scope: str,
+) -> list[TodoItem]:
+    target = capacity_for_time_scope(time_scope)
+    out = list(selected)
+
+    omit_items = resolve_override_terms(omit_raw, revised_display_pool)
+    omit_keys = {x.key() for x in omit_items}
+
+    out = [x for x in out if x.key() not in omit_keys]
+
+    if len(out) < target:
+        selected_keys = {x.key() for x in out}
+        refill_pool = build_override_pool(
+            candidates=candidates,
+            selected=out,
+        )
+
+        for item in refill_pool:
+            if item.key() in selected_keys:
+                continue
+            if item.key() in omit_keys:
+                continue
+            out.append(item)
+            selected_keys.add(item.key())
+            if len(out) >= target:
+                break
+
+    return dedupe_todos(out)[:target]
 
 def find_matching_todos(todos: list[TodoItem], terms: list[str]) -> list[TodoItem]:
     if not terms:
@@ -657,6 +867,82 @@ def dedupe_todos(todos: list[TodoItem]) -> list[TodoItem]:
         out.append(todo)
     return out
 
+
+def print_override_preview(todos: list[TodoItem], title: str = "PROPOSED FOCUS") -> None:
+    print()
+    print(f"=  {title}")
+    if not todos:
+        print("(none)")
+        return
+
+    for i, todo in enumerate(todos, start=1):
+        print(f"{i}. {todo.todo}")
+
+
+def print_override_pool(todos: list[TodoItem], limit: int = 12) -> None:
+    print()
+    print("=  OVERRIDE CANDIDATES")
+    if not todos:
+        print("(none)")
+        return
+
+    shown = todos[:limit]
+    for i, todo in enumerate(shown, start=1):
+        meta_parts: list[str] = []
+        if todo.todo_type:
+            meta_parts.append(todo.todo_type)
+        if todo.deadline:
+            meta_parts.append(todo.deadline)
+
+        tagset = [f"#{str(t).lstrip('#')}" for t in todo.tags if str(t).strip()]
+        if tagset:
+            meta_parts.append(" ".join(tagset))
+
+        meta = ", ".join(meta_parts)
+        if meta:
+            print(f"{i}. {todo.todo} [{meta}]")
+        else:
+            print(f"{i}. {todo.todo}")
+
+def print_revised_focus_for_omission(todos: list[TodoItem]) -> None:
+    print()
+    print("=  REVISED FOCUS")
+    if not todos:
+        print("(none)")
+        return
+
+    for i, todo in enumerate(todos, start=1):
+        meta_parts: list[str] = []
+        if todo.todo_type:
+            meta_parts.append(todo.todo_type)
+        if todo.deadline:
+            meta_parts.append(todo.deadline)
+        meta = ", ".join(meta_parts)
+        if meta:
+            print(f"{i}. {todo.todo} [{meta}]")
+        else:
+            print(f"{i}. {todo.todo}")
+
+def resolve_override_terms(
+    raw_terms: list[str],
+    displayed_pool: list[TodoItem],
+) -> list[TodoItem]:
+    out: list[TodoItem] = []
+
+    for term in raw_terms:
+        if term.isdigit():
+            idx = int(term) - 1
+            if 0 <= idx < len(displayed_pool):
+                out.append(displayed_pool[idx])
+            continue
+
+        lowered = term.lower()
+        for todo in displayed_pool:
+            hay = f"{todo.todo} {todo.path} {' '.join(todo.tags)}".lower()
+            if lowered in hay:
+                out.append(todo)
+
+    return dedupe_todos(out)
 
 # ============================================================
 # persistence (SQL)
@@ -704,6 +990,10 @@ def persist_last_selected(c, todos: list[TodoItem], report_day: date) -> None:
 # printing
 # ============================================================
 
+def format_todo_for_display(todo: TodoItem, term_w: int) -> str:
+    meta = build_meta(todo)
+    return flow_line(todo.todo, meta, term_w)
+
 def print_focus_todos(todos: list[TodoItem]) -> None:
     term_w = get_terminal_size((80, 24)).columns
     heading = "=  FOCUS TODOS"
@@ -717,13 +1007,17 @@ def print_focus_todos(todos: list[TodoItem]) -> None:
         return
 
     for todo in todos:
-        meta = build_meta(todo)
-        print(flow_line(todo.todo, meta, term_w))
+        print(format_todo_for_display(todo, term_w))
 
 
-def print_project_todos(todos: list[TodoItem]) -> None:
+def print_project_todos(todos: list[TodoItem], focus_project: str | None) -> None:
     term_w = get_terminal_size((80, 24)).columns
-    heading = "=  PROJECT TODOS"
+
+    if focus_project:
+        heading = f"=  {focus_project.upper()}"
+    else:
+        heading = "=  PROJECT TODOS"
+
     rem = term_w - len(heading)
 
     print()
@@ -734,8 +1028,7 @@ def print_project_todos(todos: list[TodoItem]) -> None:
         return
 
     for todo in todos:
-        meta = build_meta(todo)
-        print(flow_line(todo.todo, meta, term_w))
+        print(format_todo_for_display(todo, term_w))
 
 
 def build_meta(todo: TodoItem) -> str:
