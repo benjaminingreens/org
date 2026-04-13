@@ -16,24 +16,11 @@ from .commands.system.publish import publish_site
 from .commands.todos import cmd_todos
 from .commands.notes import cmd_notes
 from .commands.events import cmd_events
+from .commands.report import cmd_report2
 from .commands.system.projects import cmd_projects
-from .commands.system.cli_helpers import flow_line, generate_instances_for_date, parse_pattern, iter_tree_paths
+from .commands.system.cli_helpers import flow_line, generate_instances_for_date, parse_pattern, iter_tree_paths, get_report_date, cmd_calendar, cmd_routines_today
 
 # --- see if this works ---
-
-def get_report_date(args: list[str]) -> tuple[date, list[str]]:
-    """
-    If first arg looks like YYYY-MM-DD, use it as the report date and
-    return (that_date, remaining_args). Otherwise use today.
-    """
-    if args:
-        s = str(args[0]).strip()
-        try:
-            d = date.fromisoformat(s)  # YYYY-MM-DD
-            return d, args[1:]
-        except Exception:
-            pass
-    return date.today(), args
 
 def derive_project_tags_from_special_notes(c) -> set[str]:
     """
@@ -123,118 +110,6 @@ def flatten_tree_tags(tree: dict[str, tp.Any]) -> set[str]:
             s |= flatten_tree_tags(sub)
     return s
 
-def cmd_calendar(c, days: int = 7, base_date: date | None = None):
-    import json
-    from datetime import date, datetime, timedelta
-    from pathlib import Path
-    from shutil import get_terminal_size
-
-    today = base_date or date.today()
-    end = today + timedelta(days=days - 1)
-
-    BULLET = "*  "
-    term_w = get_terminal_size((80, 24)).columns
-
-    heading = "=  CALENDAR"
-    rem = term_w - len(heading)
-    print()
-    print(heading + " " + "=" * (rem - 1))
-
-    def format_line(event_text: str, day_label: str, time_label: str, tags_str: str, fname: str) -> str:
-        meta_parts: list[str] = []
-        meta_parts.append(day_label)
-        if time_label:
-            meta_parts.append(time_label)
-        if tags_str and tags_str != "-":
-            meta_parts.append(" ".join(f"#{t}" for t in tags_str.split(",")))
-        meta_parts.append(f"~/{fname}")
-        return flow_line(event_text, ", ".join(meta_parts), term_w)
-
-    rows = c.execute("""
-        SELECT event, start, pattern, tags, path, status, priority, creation
-          FROM all_events
-         WHERE valid = 1
-        ORDER BY creation DESC
-    """).fetchall()
-
-    instances: list[tuple[datetime, tp.Optional[datetime], str, str, list[str]]] = []
-
-    for row in rows:
-        # calendar events = NO pattern
-        if row["pattern"]:
-            continue
-
-        tags = json.loads(row["tags"]) if row["tags"] else []
-        start_raw = row["start"]
-        start_dt = datetime.fromisoformat(start_raw) if isinstance(start_raw, str) else start_raw
-
-        d = start_dt.date()
-        if not (today <= d <= end):
-            continue
-
-        instances.append((start_dt, None, row["event"], row["path"], tags))
-
-    instances.sort(key=lambda x: x[0])
-
-    for s, ee, event_text, path_str, tags in instances:
-        day_label = s.strftime("%a %d %b")
-        time_label = s.strftime("%H:%M") if s.time() != time(0, 0) else ""
-        tags_str = ", ".join(tags) if tags else "-"
-        print(format_line(event_text, day_label, time_label, tags_str, path_str))
-
-def cmd_routines_today(c, base_date: date | None = None):
-    import json
-    from datetime import date, datetime
-    from pathlib import Path
-    from shutil import get_terminal_size
-
-    today = base_date or date.today()
-    term_w = get_terminal_size((80, 24)).columns
-
-    heading = "=  ROUTINES (TODAY)"
-    rem = term_w - len(heading)
-    print()
-    print(heading + " " + "=" * (rem - 1))
-
-    def format_event_line(event_text: str, time_label: str, tags_str: str, fname: str) -> str:
-        meta_parts: list[str] = []
-        if time_label:
-            meta_parts.append(time_label)
-        if tags_str and tags_str != "-":
-            meta_parts.append(" ".join(f"#{t}" for t in tags_str.split(",")))
-        meta_parts.append(f"~/{fname}")
-        return flow_line(event_text, ", ".join(meta_parts), term_w)
-
-    rows = c.execute("""
-        SELECT event, start, pattern, tags, path, status, priority, creation
-          FROM all_events
-         WHERE valid = 1
-        ORDER BY creation DESC
-    """).fetchall()
-
-    instances: list[tuple[datetime, tp.Optional[datetime], str, str, list[str]]] = []
-
-    for row in rows:
-        # routines = HAS pattern
-        if not row["pattern"]:
-            continue
-
-        tags = json.loads(row["tags"]) if row["tags"] else []
-        start_dt = datetime.fromisoformat(row["start"]) if isinstance(row["start"], str) else row["start"]
-        pat = parse_pattern(row["pattern"])
-
-        for s, ee in generate_instances_for_date(pat, start_dt, today):
-            instances.append((s, ee, row["event"], row["path"], tags))
-
-    instances.sort(key=lambda x: x[0])
-
-    for s, ee, event_text, path_str, tags in instances:
-        time_label = f"{s:%H:%M}" + (f"-{ee:%H:%M}" if ee else "")
-        tags_str = ", ".join(tags) if tags else "-"
-        print(format_event_line(event_text, time_label, tags_str, path_str))
-
-# --- see if above works ---
-
 # -------------------- Helpers --------------------
 
 def get_db(db_paths=None, union_views: bool = True):
@@ -289,7 +164,7 @@ def get_db(db_paths=None, union_views: bool = True):
         selects = []
         for db_name, _db_file in dbs:
             selects.append(
-                f"SELECT todo, path, status, tags, priority, creation, deadline, valid FROM {db_name}.todos"
+                f"SELECT id, todo, path, status, tags, priority, creation, deadline, valid FROM {db_name}.todos"
             )
         cur.execute("DROP VIEW IF EXISTS all_todos")
         cur.execute("CREATE TEMP VIEW all_todos AS " + " UNION ALL ".join(selects))
@@ -877,6 +752,7 @@ def main():
         "todos":  cmd_todos,
         "events": cmd_events,
         "report": cmd_report,
+        "report2": cmd_report2,
         "tags":   cmd_tags,
         "specials": cmd_special_tags,
 

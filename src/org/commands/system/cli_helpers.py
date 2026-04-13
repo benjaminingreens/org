@@ -464,3 +464,135 @@ def generate_instances_for_date(pat_def, start_dt, target_date):
     instances = [(s, s + dur) for s in cands if s.date() == target_date]
     instances.sort(key=lambda pair: pair[0])
     return instances
+
+def get_report_date(args: list[str]) -> tuple[date, list[str]]:
+    """
+    If first arg looks like YYYY-MM-DD, use it as the report date and
+    return (that_date, remaining_args). Otherwise use today.
+    """
+    if args:
+        s = str(args[0]).strip()
+        try:
+            d = date.fromisoformat(s)  # YYYY-MM-DD
+            return d, args[1:]
+        except Exception:
+            pass
+    return date.today(), args
+
+def cmd_routines_today(c, base_date: date | None = None, stream=None):
+    import sys
+    import json
+    from datetime import date, datetime
+    from pathlib import Path
+    from shutil import get_terminal_size
+
+    if stream is None:
+        stream = sys.stdout
+
+    today = base_date or date.today()
+    term_w = get_terminal_size((80, 24)).columns
+
+    heading = "=  ROUTINES (TODAY)"
+    rem = term_w - len(heading)
+    print(file=stream)
+    print(heading + " " + "=" * (rem - 1), file=stream)
+
+    def format_event_line(event_text: str, time_label: str, tags_str: str, fname: str) -> str:
+        meta_parts: list[str] = []
+        if time_label:
+            meta_parts.append(time_label)
+        if tags_str and tags_str != "-":
+            meta_parts.append(" ".join(f"#{t}" for t in tags_str.split(",")))
+        meta_parts.append(f"~/{fname}")
+        return flow_line(event_text, ", ".join(meta_parts), term_w)
+
+    rows = c.execute("""
+        SELECT event, start, pattern, tags, path, status, priority, creation
+          FROM all_events
+         WHERE valid = 1
+        ORDER BY creation DESC
+    """).fetchall()
+
+    instances: list[tuple[datetime, tp.Optional[datetime], str, str, list[str]]] = []
+
+    for row in rows:
+        # routines = HAS pattern
+        if not row["pattern"]:
+            continue
+
+        tags = json.loads(row["tags"]) if row["tags"] else []
+        start_dt = datetime.fromisoformat(row["start"]) if isinstance(row["start"], str) else row["start"]
+        pat = parse_pattern(row["pattern"])
+
+        for s, ee in generate_instances_for_date(pat, start_dt, today):
+            instances.append((s, ee, row["event"], row["path"], tags))
+
+    instances.sort(key=lambda x: x[0])
+
+    for s, ee, event_text, path_str, tags in instances:
+        time_label = f"{s:%H:%M}" + (f"-{ee:%H:%M}" if ee else "")
+        tags_str = ", ".join(tags) if tags else "-"
+        print(format_event_line(event_text, time_label, tags_str, path_str), file=stream)
+
+def cmd_calendar(c, days: int = 7, base_date: date | None = None, stream=None):
+    import sys
+    import json
+    from datetime import date, datetime, timedelta
+    from pathlib import Path
+    from shutil import get_terminal_size
+
+    if stream is None:
+        stream = sys.stdout
+
+    today = base_date or date.today()
+    end = today + timedelta(days=days - 1)
+
+    BULLET = "*  "
+    term_w = get_terminal_size((80, 24)).columns
+
+    heading = "=  CALENDAR"
+    rem = term_w - len(heading)
+    print(file=stream)
+    print(heading + " " + "=" * (rem - 1), file=stream)
+
+    def format_line(event_text: str, day_label: str, time_label: str, tags_str: str, fname: str) -> str:
+        meta_parts: list[str] = []
+        meta_parts.append(day_label)
+        if time_label:
+            meta_parts.append(time_label)
+        if tags_str and tags_str != "-":
+            meta_parts.append(" ".join(f"#{t}" for t in tags_str.split(",")))
+        meta_parts.append(f"~/{fname}")
+        return flow_line(event_text, ", ".join(meta_parts), term_w)
+
+    rows = c.execute("""
+        SELECT event, start, pattern, tags, path, status, priority, creation
+          FROM all_events
+         WHERE valid = 1
+        ORDER BY creation DESC
+    """).fetchall()
+
+    instances: list[tuple[datetime, tp.Optional[datetime], str, str, list[str]]] = []
+
+    for row in rows:
+        # calendar events = NO pattern
+        if row["pattern"]:
+            continue
+
+        tags = json.loads(row["tags"]) if row["tags"] else []
+        start_raw = row["start"]
+        start_dt = datetime.fromisoformat(start_raw) if isinstance(start_raw, str) else start_raw
+
+        d = start_dt.date()
+        if not (today <= d <= end):
+            continue
+
+        instances.append((start_dt, None, row["event"], row["path"], tags))
+
+    instances.sort(key=lambda x: x[0])
+
+    for s, ee, event_text, path_str, tags in instances:
+        day_label = s.strftime("%a %d %b")
+        time_label = s.strftime("%H:%M") if s.time() != time(0, 0) else ""
+        tags_str = ", ".join(tags) if tags else "-"
+        print(format_line(event_text, day_label, time_label, tags_str, path_str), file=stream)
