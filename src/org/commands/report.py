@@ -20,6 +20,9 @@ class ReportContext:
     task_scope: str                  # narrow / medium / wide
     time_scope: str                  # small / normal / large
     focus_project: str | None = None
+    project_separate: bool = False
+    project_task_scope: str | None = None
+    project_time_scope: str | None = None
 
 @dataclass
 class TodoItem:
@@ -59,16 +62,12 @@ def cmd_report2(c, *args):
     todos = load_todos(c)
 
     # Questionnaire first
-    ctx = ask_report_context(report_day, todos)
-
-    # Existing automatic sections
-    hierarchy_tags = load_project_hierarchy_tags(Path(".project_hierarchy"))
+    ctx = ask_report_context(c, report_day, todos)
 
     # Split out explicitly focused project todos
     project_todos, focus_todos = split_project_todos(
         todos=todos,
         focus_project=ctx.focus_project,
-        hierarchy_tags=hierarchy_tags,
     )
 
     override_candidates = build_candidate_pool(
@@ -86,10 +85,12 @@ def cmd_report2(c, *args):
         report_day=report_day,
     )
 
+    project_scope = ctx.project_task_scope if ctx.project_separate and ctx.project_task_scope else ctx.task_scope
+
     project_candidates = build_candidate_pool(
         c=c,
         todos=project_todos,
-        task_scope=ctx.task_scope,
+        task_scope=project_scope,
         report_day=report_day,
     )
 
@@ -101,7 +102,7 @@ def cmd_report2(c, *args):
 
     project_selected = select_project_todos(
         todos=project_candidates,
-        time_scope=ctx.time_scope,
+        ctx=ctx,
     )
 
     # Build and show override UI
@@ -133,6 +134,36 @@ def cmd_report2(c, *args):
         time_scope=ctx.time_scope,
     )
 
+    # Optional separate project override flow
+    if ctx.project_separate and project_selected:
+        project_override_pool = build_override_pool(
+            candidates=project_candidates,
+            selected=project_selected,
+        )
+
+        print_project_override_preview(project_selected, title="PROPOSED PROJECT FOCUS")
+        print_override_pool(project_override_pool, limit=12)
+
+        project_must_do_raw = ask_must_do_inputs()
+
+        project_selected = apply_must_dos(
+            selected=project_selected,
+            override_pool=project_override_pool,
+            must_do_raw=project_must_do_raw,
+            time_scope=ctx.project_time_scope or "small",
+        )
+
+        print_revised_focus_for_omission(project_selected)
+        project_omit_raw = ask_omit_inputs()
+
+        project_selected = apply_omissions(
+            selected=project_selected,
+            candidates=project_candidates,
+            revised_display_pool=project_selected,
+            omit_raw=project_omit_raw,
+            time_scope=ctx.project_time_scope or "small",
+        )
+
     # Persist selection state
     persist_last_selected(c, focus_selected, report_day)
     persist_last_selected(c, project_selected, report_day)
@@ -148,7 +179,7 @@ def cmd_report2(c, *args):
 # questionnaire
 # ============================================================
 
-def ask_report_context(report_day: date, todos: list[TodoItem]) -> ReportContext:
+def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportContext:
     task_scope = prompt_choice(
         "Task scope [narrow/medium/wide] (default narrow): ",
         {"narrow", "medium", "wide"},
@@ -161,10 +192,14 @@ def ask_report_context(report_day: date, todos: list[TodoItem]) -> ReportContext
         default="normal",
     )
 
-    project_choices = get_project_choices(Path(".project_hierarchy"))
+    project_choices = get_project_choices(c)
     all_tags = load_all_todo_tags(todos)
 
-    print_project_choices(project_choices, limit=20)
+    print()
+    print(f"(project choices: {len(project_choices)})")
+    print(f"(all tags: {len(all_tags)})")
+
+    print_project_choices(project_choices, limit=999)
 
     focus_project: str | None = None
 
@@ -194,11 +229,36 @@ def ask_report_context(report_day: date, todos: list[TodoItem]) -> ReportContext
             print("(selection cleared — try again)")
             continue
 
+    project_separate = False
+    project_task_scope: str | None = None
+    project_time_scope: str | None = None
+
+    if focus_project:
+        project_separate = prompt_yes_no(
+            "Run separate project todo selection? [Y/n]: ",
+            default=True,
+        )
+
+        if project_separate:
+            project_task_scope = prompt_choice(
+                f"Project task scope [narrow/medium/wide] (default {task_scope}): ",
+                {"narrow", "medium", "wide"},
+                default=task_scope,
+            )
+            project_time_scope = prompt_choice(
+                "Project time scope [small/normal/large] (default small): ",
+                {"small", "normal", "large"},
+                default="small",
+            )
+
     return ReportContext(
         report_day=report_day,
         task_scope=task_scope,
         time_scope=time_scope,
         focus_project=focus_project,
+        project_separate=project_separate,
+        project_task_scope=project_task_scope,
+        project_time_scope=project_time_scope,
     )
 
 def prompt_choice(prompt: str, allowed: set[str], default: str) -> str:
@@ -209,6 +269,16 @@ def prompt_choice(prompt: str, allowed: set[str], default: str) -> str:
         print(f"Unrecognised value '{raw}', using '{default}'.")
         return default
     return raw
+
+def prompt_yes_no(prompt: str, default: bool = True) -> bool:
+    raw = input(prompt).strip().lower()
+    if not raw:
+        return default
+    if raw in {"y", "yes"}:
+        return True
+    if raw in {"n", "no"}:
+        return False
+    return default
 
 
 # ============================================================
@@ -284,10 +354,34 @@ def load_project_hierarchy_tags(path: Path) -> set[str]:
 
     return out
 
-def get_project_choices(path: Path) -> list[str]:
-    return sorted(load_project_hierarchy_tags(path))
+def load_all_project_hierarchy_tags(c) -> set[str]:
+    """
+    Read .project_hierarchy from the current repo and all attached collab repos.
+    Uses PRAGMA database_list to find attached database files, then looks for a
+    sibling .project_hierarchy in each database's parent directory.
+    """
+    out: set[str] = set()
 
-def print_project_choices(projects: list[str], limit: int = 20) -> None:
+    rows = c.execute("PRAGMA database_list").fetchall()
+    for row in rows:
+        db_name = row["name"] if isinstance(row, sqlite3.Row) else row[1]
+        db_file = row["file"] if isinstance(row, sqlite3.Row) else row[2]
+
+        if db_name == "temp":
+            continue
+        if not db_file:
+            continue
+
+        repo_root = Path(db_file).resolve().parent
+        hierarchy_path = repo_root / ".project_hierarchy"
+        out |= load_project_hierarchy_tags(hierarchy_path)
+
+    return out
+
+def get_project_choices(c) -> list[str]:
+    return sorted(load_all_project_hierarchy_tags(c))
+
+def print_project_choices(projects: list[str], limit: int = 999) -> None:
     print()
     print("=  AVAILABLE PROJECTS/TAGS")
     if not projects:
@@ -359,7 +453,10 @@ def resolve_focus_tag_input(
         return partial_tag_matches[0]
 
     if len(partial_tag_matches) > 1:
-        print(f"(ambiguous tag text: {raw})")
+        print("(ambiguous tag text)")
+        print("Possible matches:")
+        for tag in partial_tag_matches[:10]:
+            print(f" - {tag}")
         return None
 
     print(f"(unrecognised tag/project: {raw})")
@@ -372,7 +469,6 @@ def resolve_focus_tag_input(
 def split_project_todos(
     todos: list[TodoItem],
     focus_project: str | None,
-    hierarchy_tags: set[str],
 ) -> tuple[list[TodoItem], list[TodoItem]]:
     if not focus_project:
         return [], todos
@@ -672,11 +768,15 @@ def select_todos(todos: list[TodoItem], time_scope: str) -> list[TodoItem]:
 
     return selected
 
+def select_project_todos(
+    todos: list[TodoItem],
+    ctx: ReportContext,
+) -> list[TodoItem]:
+    if ctx.project_separate and ctx.project_time_scope:
+        return select_todos(todos, ctx.project_time_scope)
 
-def select_project_todos(todos: list[TodoItem], time_scope: str) -> list[TodoItem]:
-    project_scope = project_time_scope_for(time_scope)
+    project_scope = project_time_scope_for(ctx.time_scope)
     return select_todos(todos, project_scope)
-
 
 def group_by_bucket(todos: list[TodoItem]) -> dict[str, list[TodoItem]]:
     out: dict[str, list[TodoItem]] = {}
@@ -877,6 +977,39 @@ def print_override_preview(todos: list[TodoItem], title: str = "PROPOSED FOCUS")
 
     for i, todo in enumerate(todos, start=1):
         print(f"{i}. {todo.todo}")
+
+def print_project_override_preview(todos: list[TodoItem], title: str = "PROPOSED PROJECT FOCUS") -> None:
+    print()
+    print(f"=  {title}")
+    if not todos:
+        print("(none)")
+        return
+
+    for i, todo in enumerate(todos, start=1):
+        meta_parts: list[str] = []
+        if todo.todo_type:
+            meta_parts.append(todo.todo_type)
+        if todo.deadline:
+            meta_parts.append(todo.deadline)
+        meta = ", ".join(meta_parts)
+
+        if meta:
+            print(f"{i}. {todo.todo} [{meta}]")
+        else:
+            print(f"{i}. {todo.todo}")
+
+
+def ask_project_override_inputs() -> tuple[list[str], list[str]]:
+    must_do_raw = input(
+        "Project must-do items to force in (numbers or search terms, blank for none): "
+    ).strip()
+    omit_raw = input(
+        "Project items to omit from the revised list (numbers or search terms, blank for none): "
+    ).strip()
+
+    must_do = [x.strip() for x in must_do_raw.split(",") if x.strip()]
+    omit = [x.strip() for x in omit_raw.split(",") if x.strip()]
+    return must_do, omit
 
 
 def print_override_pool(todos: list[TodoItem], limit: int = 12) -> None:
