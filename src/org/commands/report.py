@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import json
 import sqlite3
 import typing as tp
@@ -8,6 +9,9 @@ from datetime import date
 from pathlib import Path
 from shutil import get_terminal_size
 from .system.cli_helpers import flow_line, get_report_date, cmd_calendar, cmd_routines_today
+
+def ui_print(*args, **kwargs) -> None:
+    print(*args, file=sys.stderr, **kwargs)
 
 
 # ============================================================
@@ -53,8 +57,21 @@ class TodoItem:
 # main
 # ============================================================
 
+def parse_report2_args(args: list[str]) -> tuple[list[str], str | None]:
+    rest: list[str] = []
+    out_path: str | None = None
+
+    for arg in args:
+        if isinstance(arg, str) and arg.startswith("-out="):
+            out_path = arg.split("=", 1)[1].strip() or None
+        else:
+            rest.append(arg)
+
+    return rest, out_path
+
 def cmd_report2(c, *args):
-    report_day, _rest = get_report_date(list(args))
+    parsed_args, out_path = parse_report2_args(list(args))
+    report_day, _rest = get_report_date(parsed_args)
 
     ensure_report2_state_table(c)
 
@@ -168,11 +185,21 @@ def cmd_report2(c, *args):
     persist_last_selected(c, focus_selected, report_day)
     persist_last_selected(c, project_selected, report_day)
 
-    # Print final report contiguously
-    cmd_calendar(c, days=7, base_date=report_day)
-    cmd_routines_today(c, base_date=report_day)
-    print_focus_todos(focus_selected)
-    print_project_todos(project_selected, ctx.focus_project)
+    output_stream = sys.stdout
+    out_handle = None
+
+    if out_path:
+        out_handle = open(out_path, "w", encoding="utf-8")
+        output_stream = out_handle
+
+    try:
+        cmd_calendar(c, days=7, base_date=report_day, stream=output_stream)
+        cmd_routines_today(c, base_date=report_day, stream=output_stream)
+        print_focus_todos(focus_selected, stream=output_stream)
+        print_project_todos(project_selected, ctx.focus_project, stream=output_stream)
+    finally:
+        if out_handle is not None:
+            out_handle.close()
 
 
 # ============================================================
@@ -204,9 +231,12 @@ def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportCont
     focus_project: str | None = None
 
     while True:
-        focus_project_raw = input(
-            "Focus project/tag (one project number, exact name, or partial tag text; blank for none): "
-        ).strip()
+        ui_print(
+            "Focus project/tag (one project number, exact name, or partial tag text; blank for none): ",
+            end="",
+            flush=True,
+        )
+        focus_project_raw = input().strip()
 
         if not focus_project_raw:
             focus_project = None
@@ -221,12 +251,13 @@ def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportCont
         if not resolved:
             continue
 
-        confirm = input(f"Use '{resolved}'? [Y/n]: ").strip().lower()
+        ui_print(f"Use '{resolved}'? [Y/n]: ", end="", flush=True)
+        confirm = input().strip().lower()
         if confirm in ("", "y", "yes"):
             focus_project = resolved
             break
         if confirm in ("n", "no"):
-            print("(selection cleared — try again)")
+            ui_print("(selection cleared — try again)")
             continue
 
     project_separate = False
@@ -262,16 +293,18 @@ def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportCont
     )
 
 def prompt_choice(prompt: str, allowed: set[str], default: str) -> str:
-    raw = input(prompt).strip().lower()
+    ui_print(prompt, end="", flush=True)
+    raw = input().strip().lower()
     if not raw:
         return default
     if raw not in allowed:
-        print(f"Unrecognised value '{raw}', using '{default}'.")
+        ui_print(f"Unrecognised value '{raw}', using '{default}'.")
         return default
     return raw
 
 def prompt_yes_no(prompt: str, default: bool = True) -> bool:
-    raw = input(prompt).strip().lower()
+    ui_print(prompt, end="", flush=True)
+    raw = input().strip().lower()
     if not raw:
         return default
     if raw in {"y", "yes"}:
@@ -279,7 +312,6 @@ def prompt_yes_no(prompt: str, default: bool = True) -> bool:
     if raw in {"n", "no"}:
         return False
     return default
-
 
 # ============================================================
 # loading
@@ -381,16 +413,15 @@ def load_all_project_hierarchy_tags(c) -> set[str]:
 def get_project_choices(c) -> list[str]:
     return sorted(load_all_project_hierarchy_tags(c))
 
-def print_project_choices(projects: list[str], limit: int = 999) -> None:
-    print()
-    print("=  AVAILABLE PROJECTS/TAGS")
+def print_project_choices(projects: list[str], limit: int = 20) -> None:
+    ui_print()
+    ui_print("=  AVAILABLE PROJECTS/TAGS")
     if not projects:
-        print("(none)")
+        ui_print("(none)")
         return
 
     for i, project in enumerate(projects[:limit], start=1):
-        print(f"{i}. {project}")
-
+        ui_print(f"{i}. {project}")
 
 def resolve_project_inputs(raw: str, projects: list[str]) -> list[str]:
     out: list[str] = []
@@ -431,7 +462,7 @@ def resolve_focus_tag_input(
         idx = int(raw) - 1
         if 0 <= idx < len(project_choices):
             return project_choices[idx]
-        print(f"(unrecognised project number: {raw})")
+        ui_print(f"(unrecognised project number: {raw})")
         return None
 
     lowered = raw.lower()
@@ -453,13 +484,13 @@ def resolve_focus_tag_input(
         return partial_tag_matches[0]
 
     if len(partial_tag_matches) > 1:
-        print("(ambiguous tag text)")
+        ui_print(f"(ambiguous tag text: {raw})")
         print("Possible matches:")
         for tag in partial_tag_matches[:10]:
             print(f" - {tag}")
         return None
 
-    print(f"(unrecognised tag/project: {raw})")
+    ui_print(f"(unrecognised tag/project: {raw})")
     return None
 
 # ============================================================
@@ -877,16 +908,21 @@ def take_from_pool(
 # ============================================================
 
 def ask_must_do_inputs() -> list[str]:
-    raw = input(
-        "Must-do items to force in (numbers or search terms, blank for none): "
-    ).strip()
+    ui_print(
+        "Must-do items to force in (numbers or search terms, blank for none): ",
+        end="",
+        flush=True,
+    )
+    raw = input().strip()
     return [x.strip() for x in raw.split(",") if x.strip()]
 
-
 def ask_omit_inputs() -> list[str]:
-    raw = input(
-        "Items to omit from the revised list (numbers or search terms, blank for none): "
-    ).strip()
+    ui_print(
+        "Items to omit from the revised list (numbers or search terms, blank for none): ",
+        end="",
+        flush=True,
+    )
+    raw = input().strip()
     return [x.strip() for x in raw.split(",") if x.strip()]
 
 def apply_must_dos(
@@ -969,20 +1005,20 @@ def dedupe_todos(todos: list[TodoItem]) -> list[TodoItem]:
 
 
 def print_override_preview(todos: list[TodoItem], title: str = "PROPOSED FOCUS") -> None:
-    print()
-    print(f"=  {title}")
+    ui_print()
+    ui_print(f"=  {title}")
     if not todos:
-        print("(none)")
+        ui_print("(none)")
         return
 
     for i, todo in enumerate(todos, start=1):
-        print(f"{i}. {todo.todo}")
+        ui_print(f"{i}. {todo.todo}")
 
 def print_project_override_preview(todos: list[TodoItem], title: str = "PROPOSED PROJECT FOCUS") -> None:
-    print()
-    print(f"=  {title}")
+    ui_print()
+    ui_print(f"=  {title}")
     if not todos:
-        print("(none)")
+        ui_print("(none)")
         return
 
     for i, todo in enumerate(todos, start=1):
@@ -994,29 +1030,15 @@ def print_project_override_preview(todos: list[TodoItem], title: str = "PROPOSED
         meta = ", ".join(meta_parts)
 
         if meta:
-            print(f"{i}. {todo.todo} [{meta}]")
+            ui_print(f"{i}. {todo.todo} [{meta}]")
         else:
-            print(f"{i}. {todo.todo}")
-
-
-def ask_project_override_inputs() -> tuple[list[str], list[str]]:
-    must_do_raw = input(
-        "Project must-do items to force in (numbers or search terms, blank for none): "
-    ).strip()
-    omit_raw = input(
-        "Project items to omit from the revised list (numbers or search terms, blank for none): "
-    ).strip()
-
-    must_do = [x.strip() for x in must_do_raw.split(",") if x.strip()]
-    omit = [x.strip() for x in omit_raw.split(",") if x.strip()]
-    return must_do, omit
-
+            ui_print(f"{i}. {todo.todo}")
 
 def print_override_pool(todos: list[TodoItem], limit: int = 12) -> None:
-    print()
-    print("=  OVERRIDE CANDIDATES")
+    ui_print()
+    ui_print("=  OVERRIDE CANDIDATES")
     if not todos:
-        print("(none)")
+        ui_print("(none)")
         return
 
     shown = todos[:limit]
@@ -1033,15 +1055,15 @@ def print_override_pool(todos: list[TodoItem], limit: int = 12) -> None:
 
         meta = ", ".join(meta_parts)
         if meta:
-            print(f"{i}. {todo.todo} [{meta}]")
+            ui_print(f"{i}. {todo.todo} [{meta}]")
         else:
-            print(f"{i}. {todo.todo}")
+            ui_print(f"{i}. {todo.todo}")
 
 def print_revised_focus_for_omission(todos: list[TodoItem]) -> None:
-    print()
-    print("=  REVISED FOCUS")
+    ui_print()
+    ui_print("=  REVISED FOCUS")
     if not todos:
-        print("(none)")
+        ui_print("(none)")
         return
 
     for i, todo in enumerate(todos, start=1):
@@ -1052,9 +1074,9 @@ def print_revised_focus_for_omission(todos: list[TodoItem]) -> None:
             meta_parts.append(todo.deadline)
         meta = ", ".join(meta_parts)
         if meta:
-            print(f"{i}. {todo.todo} [{meta}]")
+            ui_print(f"{i}. {todo.todo} [{meta}]")
         else:
-            print(f"{i}. {todo.todo}")
+            ui_print(f"{i}. {todo.todo}")
 
 def resolve_override_terms(
     raw_terms: list[str],
@@ -1127,23 +1149,28 @@ def format_todo_for_display(todo: TodoItem, term_w: int) -> str:
     meta = build_meta(todo)
     return flow_line(todo.todo, meta, term_w)
 
-def print_focus_todos(todos: list[TodoItem]) -> None:
+def print_focus_todos(todos: list[TodoItem], stream=None) -> None:
+    if stream is None:
+        stream = sys.stdout
+
     term_w = get_terminal_size((80, 24)).columns
     heading = "=  FOCUS TODOS"
     rem = term_w - len(heading)
 
-    print()
-    print(heading + " " + "=" * max(1, rem - 1))
+    print(file=stream)
+    print(heading + " " + "=" * max(1, rem - 1), file=stream)
 
     if not todos:
-        print("(none)")
+        print("(none)", file=stream)
         return
 
     for todo in todos:
-        print(format_todo_for_display(todo, term_w))
+        print(format_todo_for_display(todo, term_w), file=stream)
 
+def print_project_todos(todos: list[TodoItem], focus_project: str | None, stream=None) -> None:
+    if stream is None:
+        stream = sys.stdout
 
-def print_project_todos(todos: list[TodoItem], focus_project: str | None) -> None:
     term_w = get_terminal_size((80, 24)).columns
 
     if focus_project:
@@ -1153,16 +1180,15 @@ def print_project_todos(todos: list[TodoItem], focus_project: str | None) -> Non
 
     rem = term_w - len(heading)
 
-    print()
-    print(heading + " " + "=" * max(1, rem - 1))
+    print(file=stream)
+    print(heading + " " + "=" * max(1, rem - 1), file=stream)
 
     if not todos:
-        print("(none)")
+        print("(none)", file=stream)
         return
 
     for todo in todos:
-        print(format_todo_for_display(todo, term_w))
-
+        print(format_todo_for_display(todo, term_w), file=stream)
 
 def build_meta(todo: TodoItem) -> str:
     parts: list[str] = []

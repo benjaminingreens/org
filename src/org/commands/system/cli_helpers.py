@@ -479,19 +479,23 @@ def get_report_date(args: list[str]) -> tuple[date, list[str]]:
             pass
     return date.today(), args
 
-def cmd_routines_today(c, base_date: date | None = None):
+def cmd_routines_today(c, base_date: date | None = None, stream=None):
+    import sys
     import json
     from datetime import date, datetime
     from pathlib import Path
     from shutil import get_terminal_size
+
+    if stream is None:
+        stream = sys.stdout
 
     today = base_date or date.today()
     term_w = get_terminal_size((80, 24)).columns
 
     heading = "=  ROUTINES (TODAY)"
     rem = term_w - len(heading)
-    print()
-    print(heading + " " + "=" * (rem - 1))
+    print(file=stream)
+    print(heading + " " + "=" * (rem - 1), file=stream)
 
     def format_event_line(event_text: str, time_label: str, tags_str: str, fname: str) -> str:
         meta_parts: list[str] = []
@@ -528,13 +532,17 @@ def cmd_routines_today(c, base_date: date | None = None):
     for s, ee, event_text, path_str, tags in instances:
         time_label = f"{s:%H:%M}" + (f"-{ee:%H:%M}" if ee else "")
         tags_str = ", ".join(tags) if tags else "-"
-        print(format_event_line(event_text, time_label, tags_str, path_str))
+        print(format_event_line(event_text, time_label, tags_str, path_str), file=stream)
 
-def cmd_calendar(c, days: int = 7, base_date: date | None = None):
+def cmd_calendar(c, days: int = 7, base_date: date | None = None, stream=None):
+    import sys
     import json
     from datetime import date, datetime, timedelta
     from pathlib import Path
     from shutil import get_terminal_size
+
+    if stream is None:
+        stream = sys.stdout
 
     today = base_date or date.today()
     end = today + timedelta(days=days - 1)
@@ -544,8 +552,8 @@ def cmd_calendar(c, days: int = 7, base_date: date | None = None):
 
     heading = "=  CALENDAR"
     rem = term_w - len(heading)
-    print()
-    print(heading + " " + "=" * (rem - 1))
+    print(file=stream)
+    print(heading + " " + "=" * (rem - 1), file=stream)
 
     def format_line(event_text: str, day_label: str, time_label: str, tags_str: str, fname: str) -> str:
         meta_parts: list[str] = []
@@ -587,4 +595,4 @@ def cmd_calendar(c, days: int = 7, base_date: date | None = None):
         day_label = s.strftime("%a %d %b")
         time_label = s.strftime("%H:%M") if s.time() != time(0, 0) else ""
         tags_str = ", ".join(tags) if tags else "-"
-        print(format_line(event_text, day_label, time_label, tags_str, path_str))
+        print(format_line(event_text, day_label, time_label, tags_str, path_str), file=stream)
