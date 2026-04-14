@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import sys
 import json
 import sqlite3
@@ -13,8 +14,10 @@ import re
 from ..validate import SCHEMA, main as validate_main
 
 def ui_print(*args, **kwargs) -> None:
-    print(*args, file=sys.stderr, **kwargs)
+    print(*args, **kwargs)
 
+def ui_clear() -> None:
+    print("\033[2J\033[H", end="", flush=True)
 
 # ============================================================
 # data models
@@ -23,12 +26,10 @@ def ui_print(*args, **kwargs) -> None:
 @dataclass
 class ReportContext:
     report_day: date
-    task_scope: str                  # narrow / medium / wide
-    time_scope: str                  # small / normal / large
+    focus_scope: str                 # mini / small / medium / large
     focus_project: str | None = None
     project_separate: bool = False
-    project_task_scope: str | None = None
-    project_time_scope: str | None = None
+    project_scope: str | None = None
 
 @dataclass
 class TodoItem:
@@ -55,19 +56,11 @@ class TodoItem:
         return self.id
 
 @dataclass
-class OverrideSession:
-    selected: list[TodoItem]
-    omitted_keys: set[str] = field(default_factory=set)
-    pinned_keys: set[str] = field(default_factory=set)
+class PickSession:
+    selected_keys: set[str] = field(default_factory=set)
     edited_items: dict[str, TodoItem] = field(default_factory=dict)
     pending_status_updates: dict[str, str] = field(default_factory=dict)
-
-@dataclass
-class ResolveResult:
-    status: str                    # "ok" | "none" | "ambiguous"
-    item: TodoItem | None = None
-    term: str | None = None
-    matches: list[TodoItem] = field(default_factory=list)
+    page: int = 0
 
 
 # ============================================================
@@ -104,52 +97,21 @@ def cmd_report2(c, *args):
         focus_project=ctx.focus_project,
     )
 
-    # Build candidate pools
-    focus_candidates = build_candidate_pool(
-        c=c,
-        todos=focus_todos,
-        task_scope=ctx.task_scope,
-        report_day=report_day,
-    )
-
-    project_scope = ctx.project_task_scope if ctx.project_separate and ctx.project_task_scope else ctx.task_scope
-
-    project_candidates = build_candidate_pool(
-        c=c,
-        todos=project_todos,
-        task_scope=project_scope,
-        report_day=report_day,
-    )
-
-    # Select
-    focus_selected = select_todos(
-        todos=focus_candidates,
-        time_scope=ctx.time_scope,
-    )
-
-    project_selected = select_project_todos(
-        todos=project_candidates,
-        ctx=ctx,
-    )
-
-    focus_selected = run_override_cycle(
+    focus_selected = run_pick_cycle(
         c=c,
         base_todos=focus_todos,
-        initial_selected=focus_selected,
         report_day=report_day,
-        task_scope=ctx.task_scope,
-        time_scope=ctx.time_scope,
+        scope=ctx.focus_scope,
         title="FOCUS",
     )
 
-    if ctx.project_separate and project_selected:
-        project_selected = run_override_cycle(
+    project_selected: list[TodoItem] = []
+    if ctx.project_separate and project_todos:
+        project_selected = run_pick_cycle(
             c=c,
             base_todos=project_todos,
-            initial_selected=project_selected,
             report_day=report_day,
-            task_scope=project_scope,
-            time_scope=ctx.project_time_scope or "small",
+            scope=ctx.project_scope or ctx.focus_scope,
             title="PROJECT FOCUS",
         )
 
@@ -179,16 +141,10 @@ def cmd_report2(c, *args):
 # ============================================================
 
 def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportContext:
-    task_scope = prompt_choice(
-        "Task scope [narrow/medium/wide] (default narrow): ",
-        {"narrow", "medium", "wide"},
-        default="narrow",
-    )
-
-    time_scope = prompt_choice(
-        "Time scope [small/normal/large] (default normal): ",
-        {"small", "normal", "large"},
-        default="normal",
+    focus_scope = prompt_choice(
+        "Focus scope [mini/small/medium/large] (default small): ",
+        {"mini", "small", "medium", "large"},
+        default="small",
     )
 
     project_choices = get_project_choices(c)
@@ -232,36 +188,22 @@ def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportCont
             ui_print("(selection cleared — try again)")
             continue
 
-    project_separate = False
-    project_task_scope: str | None = None
-    project_time_scope: str | None = None
+    project_separate = bool(focus_project)
+    project_scope: str | None = None
 
     if focus_project:
-        project_separate = prompt_yes_no(
-            "Run separate project todo selection? [Y/n]: ",
-            default=True,
+        project_scope = prompt_choice(
+            f"Project scope [mini/small/medium/large] (default {focus_scope}): ",
+            {"mini", "small", "medium", "large"},
+            default=focus_scope,
         )
-
-        if project_separate:
-            project_task_scope = prompt_choice(
-                f"Project task scope [narrow/medium/wide] (default {task_scope}): ",
-                {"narrow", "medium", "wide"},
-                default=task_scope,
-            )
-            project_time_scope = prompt_choice(
-                "Project time scope [small/normal/large] (default small): ",
-                {"small", "normal", "large"},
-                default="small",
-            )
 
     return ReportContext(
         report_day=report_day,
-        task_scope=task_scope,
-        time_scope=time_scope,
+        focus_scope=focus_scope,
         focus_project=focus_project,
         project_separate=project_separate,
-        project_task_scope=project_task_scope,
-        project_time_scope=project_time_scope,
+        project_scope=project_scope,
     )
 
 def prompt_choice(prompt: str, allowed: set[str], default: str) -> str:
@@ -517,63 +459,6 @@ def build_candidate_pool(
 
     return out
 
-def build_override_pool(
-    candidates: list[TodoItem],
-    selected: list[TodoItem],
-) -> list[TodoItem]:
-    """
-    Override pool based on curated type set.
-
-    Types:
-    - p1_near_future
-    - p1_recently_overdue
-    - p2_medium_future
-    - p1_medium_future
-    - p1_far_future
-    - p2_moderately_overdue
-    - p3_no_deadline   (dominant)
-
-    Caps:
-    - p3_no_deadline: 3
-    - all others: 2
-    """
-    selected_keys = {t.key() for t in selected}
-
-    allowed_types = [
-        "p1_near_future",
-        "p1_recently_overdue",
-        "p2_medium_future",
-        "p1_medium_future",
-        "p1_far_future",
-        "p2_moderately_overdue",
-        "p3_no_deadline",
-    ]
-
-    caps = {
-        "p3_no_deadline": 3,
-    }
-
-    default_cap = 2
-
-    by_type: dict[str, list[TodoItem]] = {t: [] for t in allowed_types}
-
-    for todo in candidates:
-        if todo.key() in selected_keys:
-            continue
-        if todo.todo_type in by_type:
-            by_type[todo.todo_type].append(todo)
-
-    # sort each type pool
-    for todo_type in by_type:
-        by_type[todo_type] = sort_bucket_pool(by_type[todo_type])
-
-    out: list[TodoItem] = []
-
-    for todo_type in allowed_types:
-        cap = caps.get(todo_type, default_cap)
-        out.extend(by_type[todo_type][:cap])
-
-    return dedupe_todos(out)
 
 def classify_todo_type(todo: TodoItem, report_day: date) -> str | None:
     priority = todo.priority
@@ -740,156 +625,336 @@ def classify_urgency_band(todo: TodoItem, report_day: date) -> int:
 # selection
 # ============================================================
 
-def select_todos(todos: list[TodoItem], time_scope: str) -> list[TodoItem]:
-    buckets = group_by_bucket(todos)
-    quotas = quotas_for_time_scope(time_scope, buckets)
-
-    selected: list[TodoItem] = []
-    used_keys: set[str] = set()
-
-    for bucket_name in bucket_priority_order():
-        quota = quotas.get(bucket_name, 0)
-        if quota <= 0:
-            continue
-
-        pool = sort_bucket_pool(buckets.get(bucket_name, []))
-        taken = take_from_pool(pool, quota, used_keys)
-        selected.extend(taken)
-        used_keys.update(x.key() for x in taken)
-
-    total_target = capacity_for_time_scope(time_scope)
-    if len(selected) < total_target:
-        remaining: list[TodoItem] = []
-        for bucket_name in bucket_priority_order():
-            pool = sort_bucket_pool(buckets.get(bucket_name, []))
-            for item in pool:
-                if item.key() not in used_keys:
-                    remaining.append(item)
-
-        extra = take_from_pool(remaining, total_target - len(selected), used_keys)
-        selected.extend(extra)
-
-    return selected
-
-def select_project_todos(
-    todos: list[TodoItem],
-    ctx: ReportContext,
-) -> list[TodoItem]:
-    if ctx.project_separate and ctx.project_time_scope:
-        return select_todos(todos, ctx.project_time_scope)
-
-    project_scope = project_time_scope_for(ctx.time_scope)
-    return select_todos(todos, project_scope)
-
-def group_by_bucket(todos: list[TodoItem]) -> dict[str, list[TodoItem]]:
-    out: dict[str, list[TodoItem]] = {}
-    for todo in todos:
-        if not todo.bucket:
-            continue
-        out.setdefault(todo.bucket, []).append(todo)
-    return out
+def terminal_size() -> tuple[int, int]:
+    size = get_terminal_size((80, 24))
+    return size.columns, size.lines
 
 
-def bucket_priority_order() -> list[str]:
-    return ["urgent", "preparatory", "important", "decay", "background"]
+def page_capacity(term_h: int) -> int:
+    """
+    Number of todo rows we can show while reserving lines for:
+    - title
+    - budget/stats
+    - blank lines
+    - command footer
+    """
+    reserved = 8
+    cap = term_h - reserved
+    return max(3, cap)
 
 
-def capacity_for_time_scope(time_scope: str) -> int:
-    if time_scope == "small":
-        return 3
-    if time_scope == "large":
-        return 7
-    return 5
+def paginate_field(
+    field: list[TodoItem],
+    page: int,
+    per_page: int,
+) -> tuple[list[TodoItem], int, int]:
+    if not field:
+        return [], 0, 0
+
+    total_pages = (len(field) + per_page - 1) // per_page
+    page = max(0, min(page, total_pages - 1))
+
+    start = page * per_page
+    end = start + per_page
+    return field[start:end], page, total_pages
+
+def scope_budget(scope: str) -> int:
+    lookup = {
+        "mini": 1,
+        "small": 3,
+        "medium": 6,
+        "large": 9,
+    }
+    return lookup.get(scope, 3)
 
 
-def project_time_scope_for(time_scope: str) -> str:
-    if time_scope == "large":
-        return "normal"
-    return "small"
+def p3_cap_for_scope(scope: str) -> int:
+    lookup = {
+        "mini": 3,
+        "small": 5,
+        "medium": 7,
+        "large": 9,
+    }
+    return lookup.get(scope, 5)
 
 
-def quotas_for_time_scope(
-    time_scope: str,
-    buckets: dict[str, list[TodoItem]],
-) -> dict[str, int]:
-    active = {k for k, v in buckets.items() if v}
-    if not active:
-        return {}
-
-    if time_scope == "small":
-        base = {
-            "urgent": 2,
-            "preparatory": 1,
-            "important": 0,
-            "decay": 0,
-            "background": 0,
-        }
-    elif time_scope == "large":
-        base = {
-            "urgent": 2,
-            "preparatory": 2,
-            "important": 1,
-            "decay": 1,
-            "background": 1,
-        }
-    else:
-        base = {
-            "urgent": 2,
-            "preparatory": 2,
-            "important": 1,
-            "decay": 0,
-            "background": 0,
-        }
-
-    quotas = {k: v for k, v in base.items() if k in active}
-    if "important" in quotas:
-        quotas["important"] = min(quotas["important"], 1)
-    return quotas
-
-
-def sort_bucket_pool(todos: list[TodoItem]) -> list[TodoItem]:
+def sort_review_pool(todos: list[TodoItem]) -> list[TodoItem]:
     return sorted(
         todos,
         key=lambda t: (
+            t.priority,
             t.urgency_band,
-            sortable_last_selected(t.last_selected),
             sortable_creation(t.creation),
+            sortable_last_selected(t.last_selected),
             t.todo.lower(),
             t.path.lower(),
         ),
     )
 
 
-def take_from_pool(
-    pool: list[TodoItem],
-    n: int,
-    used_keys: set[str],
+def annotate_todos(
+    c,
+    todos: list[TodoItem],
+    report_day: date,
 ) -> list[TodoItem]:
     out: list[TodoItem] = []
-    for item in pool:
-        if item.key() in used_keys:
+    terminal_statuses = {"done", "complete", "completed", "x", "redundant", "cancelled"}
+
+    for todo in todos:
+        if (todo.status or "").strip().lower() in terminal_statuses:
             continue
-        out.append(item)
-        if len(out) >= n:
-            break
+
+        todo.todo_type = classify_todo_type(todo, report_day)
+        todo.bucket = map_type_to_bucket(todo.todo_type, "wide") if todo.todo_type else None
+        todo.urgency_band = classify_urgency_band(todo, report_day)
+        todo.last_selected = get_last_selected(c, todo)
+        out.append(todo)
+
+    return out
+
+def parse_creation_dt(raw: str | None):
+    if not raw:
+        return None
+    raw = str(raw).strip()
+    try:
+        if len(raw) >= 15:
+            from datetime import datetime
+            return datetime.strptime(raw[:15], "%Y%m%dT%H%M%S")
+        if len(raw) >= 13:
+            from datetime import datetime
+            return datetime.strptime(raw[:13], "%Y%m%dT%H%M")
+        if len(raw) >= 8:
+            from datetime import datetime
+            return datetime.strptime(raw[:8], "%Y%m%d")
+    except Exception:
+        return None
+    return None
+
+
+def p3_last_selected_key(todo: TodoItem) -> tuple[int, str]:
+    # never selected = oldest possible
+    if not todo.last_selected:
+        return (0, "")
+    return (1, todo.last_selected)
+
+
+def p3_creation_key(todo: TodoItem) -> tuple[int, str]:
+    if not todo.creation:
+        return (1, "99999999T999999")
+    return (0, todo.creation)
+
+
+def choose_p3_from_bucket(bucket: list[TodoItem]) -> list[TodoItem]:
+    """
+    Pick up to 3 from a bucket:
+    1. oldest last_selected / unseen
+    2. oldest creation from remaining
+    3. random from remaining
+    """
+    if not bucket:
+        return []
+
+    remaining = list(bucket)
+    chosen: list[TodoItem] = []
+
+    # 1. neglected / unseen first
+    neglected = sorted(
+        remaining,
+        key=lambda t: (
+            p3_last_selected_key(t),
+            p3_creation_key(t),
+            t.todo.lower(),
+            t.path.lower(),
+        ),
+    )[0]
+    chosen.append(neglected)
+    remaining = [t for t in remaining if t.key() != neglected.key()]
+    if not remaining:
+        return chosen
+
+    # 2. oldest creation
+    oldest = sorted(
+        remaining,
+        key=lambda t: (
+            p3_creation_key(t),
+            t.todo.lower(),
+            t.path.lower(),
+        ),
+    )[0]
+    chosen.append(oldest)
+    remaining = [t for t in remaining if t.key() != oldest.key()]
+    if not remaining:
+        return chosen
+
+    # 3. random
+    chosen.append(random.choice(remaining))
+    return chosen
+
+
+def split_p3_buckets(p3_sorted: list[TodoItem]) -> tuple[list[TodoItem], list[TodoItem], list[TodoItem]]:
+    """
+    Returns (old_bucket, middle_bucket, new_bucket).
+
+    If spread >= 60 days:
+      - old: within 30 days of oldest
+      - new: within 30 days of newest
+      - middle: everything else
+      - assignment is exclusive in that order
+
+    If spread < 60 days:
+      - split by position into thirds
+    """
+    if not p3_sorted:
+        return [], [], []
+
+    dated: list[tuple[TodoItem, object]] = []
+    undated: list[TodoItem] = []
+
+    for t in p3_sorted:
+        dt = parse_creation_dt(t.creation)
+        if dt is None:
+            undated.append(t)
+        else:
+            dated.append((t, dt))
+
+    if not dated:
+        n = len(p3_sorted)
+        a = (n + 2) // 3
+        b = (2 * n + 2) // 3
+        return p3_sorted[:a], p3_sorted[a:b], p3_sorted[b:]
+
+    dated.sort(key=lambda x: x[1])
+    sorted_items = [t for t, _dt in dated] + undated
+
+    oldest_dt = dated[0][1]
+    newest_dt = dated[-1][1]
+    spread_days = (newest_dt - oldest_dt).days
+
+    if spread_days < 60:
+        n = len(sorted_items)
+        a = (n + 2) // 3
+        b = (2 * n + 2) // 3
+        return sorted_items[:a], sorted_items[a:b], sorted_items[b:]
+
+    old_cutoff = oldest_dt
+    new_cutoff = newest_dt
+
+    old_bucket: list[TodoItem] = []
+    middle_bucket: list[TodoItem] = []
+    new_bucket: list[TodoItem] = []
+
+    for t, dt in dated:
+        if (dt - oldest_dt).days <= 30:
+            old_bucket.append(t)
+        elif (newest_dt - dt).days <= 30:
+            new_bucket.append(t)
+        else:
+            middle_bucket.append(t)
+
+    # undated items go in middle
+    middle_bucket.extend(undated)
+
+    return old_bucket, middle_bucket, new_bucket
+
+def build_review_field(
+    todos: list[TodoItem],
+    scope: str,
+) -> tuple[list[TodoItem], dict[str, int]]:
+    p1 = [t for t in todos if t.priority == 1]
+    p2 = [t for t in todos if t.priority == 2]
+    p3 = [t for t in todos if t.priority == 3]
+
+    p1 = sort_review_pool(p1)
+    p2 = sort_review_pool(p2)
+    p3_sorted = sort_review_pool(p3)
+
+    old_bucket, middle_bucket, new_bucket = split_p3_buckets(p3_sorted)
+
+    chosen_p3: list[TodoItem] = []
+    chosen_p3.extend(choose_p3_from_bucket(old_bucket))
+    chosen_p3.extend(choose_p3_from_bucket(middle_bucket))
+    chosen_p3.extend(choose_p3_from_bucket(new_bucket))
+    chosen_p3 = dedupe_todos(chosen_p3)
+
+    # always show at least up to 9 P3s when possible
+    p3_target = min(9, len(p3_sorted))
+
+    if len(chosen_p3) < p3_target:
+        chosen_keys = {t.key() for t in chosen_p3}
+        remaining = [t for t in p3_sorted if t.key() not in chosen_keys]
+        remaining = sorted(
+            remaining,
+            key=lambda t: (
+                p3_last_selected_key(t),
+                p3_creation_key(t),
+                t.todo.lower(),
+                t.path.lower(),
+            ),
+        )
+        chosen_p3.extend(remaining[: p3_target - len(chosen_p3)])
+
+    field = p1 + p2 + chosen_p3
+
+    stats = {
+        "p1": len(p1),
+        "p2": len(p2),
+        "p3_total": len(p3_sorted),
+        "p3_shown": len(chosen_p3),
+    }
+
+    return field, stats
+
+def render_pick_field(
+    title: str,
+    page_items: list[TodoItem],
+    selected_keys: set[str],
+    budget: int,
+    stats: dict[str, int],
+    page: int,
+    total_pages: int,
+    total_items: int,
+) -> None:
+    ui_print(f"=  {title}")
+    ui_print()
+    ui_print(f"=  {title}")
+    ui_print(f"(budget: {len(selected_keys)}/{budget})")
+    ui_print(f"(showing all P1={stats['p1']}, all P2={stats['p2']}, P3={stats['p3_shown']}/{stats['p3_total']})")
+    ui_print(f"(page {page + 1}/{max(1, total_pages)}; total items: {total_items})")
+
+    if not page_items:
+        ui_print("(none)")
+        return
+
+    for i, todo in enumerate(page_items, start=1):
+        mark = "*" if todo.key() in selected_keys else " "
+        meta_parts: list[str] = [f"P{todo.priority}"]
+        if todo.deadline:
+            meta_parts.append(todo.deadline)
+        if todo.todo_type:
+            meta_parts.append(todo.todo_type)
+        meta = ", ".join(meta_parts)
+        ui_print(f"[{mark}] {i}. {todo.todo} [{meta}]")
+
+def parse_pick_numbers(raw: str, limit: int) -> list[int]:
+    out: list[int] = []
+    for part in raw.split():
+        if not part.isdigit():
+            continue
+        idx = int(part)
+        if 1 <= idx <= limit:
+            out.append(idx - 1)
     return out
 
 
-# ============================================================
-# overrides
-# ============================================================
-
-def run_override_cycle(
+def run_pick_cycle(
     c,
     base_todos: list[TodoItem],
-    initial_selected: list[TodoItem],
     report_day: date,
-    task_scope: str,
-    time_scope: str,
+    scope: str,
     title: str = "FOCUS",
 ) -> list[TodoItem]:
-    session = OverrideSession(selected=list(initial_selected))
-    target = capacity_for_time_scope(time_scope)
+    session = PickSession()
+    budget = scope_budget(scope)
 
     while True:
         effective_todos = apply_session_edits(
@@ -897,107 +962,86 @@ def run_override_cycle(
             session.edited_items,
             session.pending_status_updates,
         )
-        candidate_pool = build_candidate_pool_no_db(
-            todos=effective_todos,
-            task_scope=task_scope,
-            report_day=report_day,
-        )
 
-        selected = refresh_selected_from_session(
-            selected=session.selected,
-            candidates=candidate_pool,
-            edited_items=session.edited_items,
-            omitted_keys=session.omitted_keys,
-        )
-        session.selected = selected[:target]
+        annotated = annotate_todos(c, effective_todos, report_day)
+        field, stats = build_review_field(annotated, scope)
 
-        override_pool = build_override_pool_with_omits(
-            candidates=candidate_pool,
-            selected=session.selected,
-            omitted_keys=session.omitted_keys,
+        field_map = {t.key(): t for t in field}
+        session.selected_keys = {k for k in session.selected_keys if k in field_map}
+
+        _, term_h = terminal_size()
+        per_page = page_capacity(term_h)
+        page_items, session.page, total_pages = paginate_field(field, session.page, per_page)
+
+        ui_clear()
+        render_pick_field(
+            title=title,
+            page_items=page_items,
+            selected_keys=session.selected_keys,
+            budget=budget,
+            stats=stats,
+            page=session.page,
+            total_pages=total_pages,
+            total_items=len(field),
         )
 
         ui_print()
-        ui_print(f"=  {title}")
-        print_revised_focus_for_omission(session.selected)
-        print_override_pool(override_pool, limit=12)
-        ui_print()
-        ui_print(f"(omitted: {len(session.omitted_keys)})")
-        ui_print("Choose action: [m]ust-do  [o]mit  [e]dit  [c]andidates  [d]one")
+        ui_print("Numbers = toggle  |  e N = edit  |  n/b = page  |  d = done")
         ui_print("> ", end="", flush=True)
-        action = input().strip().lower()
+        raw = input().strip()
 
-        if action in {"d", "done"}:
+        if not raw:
+            continue
+
+        if raw.lower() in {"d", "done"}:
+            final_selected = [t for t in field if t.key() in session.selected_keys]
             flush_override_session_changes(c, session)
-            return session.selected
+            return final_selected
 
-        if action in {"c", "cand", "candidates", ""}:
+        if raw.lower() in {"n", "next"}:
+            if total_pages > 0:
+                session.page = min(session.page + 1, total_pages - 1)
             continue
 
-        if action in {"m", "must", "must-do"}:
-            item = prompt_for_resolved_item(
-                prompt_text="Must-do item (number or search term, blank to cancel): ",
-                pool=override_pool,
-            )
-            if item is None:
-                continue
-
-            ui_print(f"Force in '{item.todo}'? [Y/n]: ", end="", flush=True)
-            confirm = input().strip().lower()
-            if confirm not in {"", "y", "yes"}:
-                ui_print("(cancelled)")
-                continue
-
-            session.omitted_keys.discard(item.key())
-            session.pinned_keys.add(item.key())
-            session.selected = recalculate_selected_from_session(
-                base_todos=base_todos,
-                session=session,
-                report_day=report_day,
-                task_scope=task_scope,
-                time_scope=time_scope,
-            )
+        if raw.lower() in {"b", "back", "prev", "previous"}:
+            if total_pages > 0:
+                session.page = max(session.page - 1, 0)
             continue
 
-        if action in {"o", "omit"}:
-            item = prompt_for_resolved_item(
-                prompt_text="Omit item from current focus (number or search term, blank to cancel): ",
-                pool=session.selected,
-            )
-            if item is None:
+        if raw.lower().startswith("e "):
+            parts = raw.split(maxsplit=1)
+            if len(parts) != 2 or not parts[1].isdigit():
+                ui_print("(use: e N)")
                 continue
 
-            ui_print(f"Omit '{item.todo}'? [Y/n]: ", end="", flush=True)
-            confirm = input().strip().lower()
-            if confirm not in {"", "y", "yes"}:
-                ui_print("(cancelled)")
+            idx = int(parts[1]) - 1
+            if not (0 <= idx < len(page_items)):
+                ui_print("(invalid number)")
                 continue
 
-            session.omitted_keys.add(item.key())
-            session.pinned_keys.discard(item.key())
-            session.selected = recalculate_selected_from_session(
-                base_todos=base_todos,
-                session=session,
-                report_day=report_day,
-                task_scope=task_scope,
-                time_scope=time_scope,
-            )
+            run_pick_edit(c, session, page_items[idx])
             continue
 
-        if action in {"e", "edit"}:
-            run_override_edit(
-                c,
-                session,
-                session.selected,
-                override_pool,
-                base_todos,
-                report_day,
-                task_scope,
-                time_scope,
-            )
+        indexes = parse_pick_numbers(raw, len(page_items))
+        if not indexes:
+            ui_print("(no valid selection)")
             continue
 
-        ui_print("(unrecognised action)")
+        for idx in indexes:
+            key = page_items[idx].key()
+            if key in session.selected_keys:
+                session.selected_keys.discard(key)
+                continue
+
+            if len(session.selected_keys) >= budget:
+                ui_print("(budget reached)")
+                break
+
+            session.selected_keys.add(key)
+
+# ============================================================
+# overrides
+# ============================================================
 
 def apply_session_edits(
     todos: list[TodoItem],
@@ -1030,131 +1074,6 @@ def apply_session_edits(
 
     return out
 
-def build_candidate_pool_no_db(
-    todos: list[TodoItem],
-    task_scope: str,
-    report_day: date,
-) -> list[TodoItem]:
-    out: list[TodoItem] = []
-
-    terminal_statuses = {"done", "complete", "completed", "x", "redundant", "cancelled"}
-
-    for todo in todos:
-        if (todo.status or "").strip().lower() in terminal_statuses:
-            continue
-
-        todo.todo_type = classify_todo_type(todo, report_day)
-        if todo.todo_type is None:
-            continue
-
-        todo.bucket = map_type_to_bucket(todo.todo_type, task_scope)
-        if todo.bucket is None:
-            continue
-
-        todo.urgency_band = classify_urgency_band(todo, report_day)
-        out.append(todo)
-
-    return out
-
-def recalculate_selected_from_session(
-    base_todos: list[TodoItem],
-    session: OverrideSession,
-    report_day: date,
-    task_scope: str,
-    time_scope: str,
-) -> list[TodoItem]:
-    target = capacity_for_time_scope(time_scope)
-
-    effective_todos = apply_session_edits(
-        base_todos,
-        session.edited_items,
-        session.pending_status_updates,
-    )
-
-    candidate_pool = build_candidate_pool_no_db(
-        todos=effective_todos,
-        task_scope=task_scope,
-        report_day=report_day,
-    )
-
-    # remove explicitly omitted items
-    candidate_pool = [
-        t for t in candidate_pool
-        if t.key() not in session.omitted_keys
-    ]
-
-    candidate_map = {t.key(): t for t in candidate_pool}
-
-    # keep pinned items first, if still valid
-    pinned_items: list[TodoItem] = []
-    for key in session.pinned_keys:
-        item = candidate_map.get(key)
-        if item is not None:
-            pinned_items.append(item)
-
-    pinned_items = dedupe_todos(pinned_items)[:target]
-    pinned_key_set = {t.key() for t in pinned_items}
-
-    remaining_candidates = [
-        t for t in candidate_pool
-        if t.key() not in pinned_key_set
-    ]
-
-    auto_selected = select_todos(
-        todos=remaining_candidates,
-        time_scope=time_scope,
-    )
-
-    available_slots = max(0, target - len(pinned_items))
-    auto_selected = auto_selected[:available_slots]
-
-    out = pinned_items + auto_selected
-    return dedupe_todos(out)[:target]
-
-def refresh_selected_from_session(
-    selected: list[TodoItem],
-    candidates: list[TodoItem],
-    edited_items: dict[str, TodoItem],
-    omitted_keys: set[str],
-) -> list[TodoItem]:
-    candidate_map = {t.key(): t for t in candidates}
-    out: list[TodoItem] = []
-
-    for item in selected:
-        key = item.key()
-        if key in omitted_keys:
-            continue
-        refreshed = edited_items.get(key) or candidate_map.get(key)
-        if refreshed is None:
-            continue
-        out.append(refreshed)
-
-    return dedupe_todos(out)
-
-def build_override_pool_with_omits(
-    candidates: list[TodoItem],
-    selected: list[TodoItem],
-    omitted_keys: set[str],
-) -> list[TodoItem]:
-    pool = build_override_pool(candidates=candidates, selected=selected)
-    return [t for t in pool if t.key() not in omitted_keys]
-
-
-def find_matching_todos(todos: list[TodoItem], terms: list[str]) -> list[TodoItem]:
-    if not terms:
-        return []
-
-    lowered_terms = [t.lower() for t in terms]
-    out: list[TodoItem] = []
-
-    for todo in todos:
-        hay = f"{todo.todo} {todo.path} {' '.join(todo.tags)}".lower()
-        if any(term in hay for term in lowered_terms):
-            out.append(todo)
-
-    return out
-
-
 def dedupe_todos(todos: list[TodoItem]) -> list[TodoItem]:
     seen: set[str] = set()
     out: list[TodoItem] = []
@@ -1166,185 +1085,8 @@ def dedupe_todos(todos: list[TodoItem]) -> list[TodoItem]:
         out.append(todo)
     return out
 
-
-def print_override_preview(todos: list[TodoItem], title: str = "PROPOSED FOCUS") -> None:
-    ui_print()
-    ui_print(f"=  {title}")
-    if not todos:
-        ui_print("(none)")
-        return
-
-    for i, todo in enumerate(todos, start=1):
-        ui_print(f"{i}. {todo.todo}")
-
-def print_project_override_preview(todos: list[TodoItem], title: str = "PROPOSED PROJECT FOCUS") -> None:
-    ui_print()
-    ui_print(f"=  {title}")
-    if not todos:
-        ui_print("(none)")
-        return
-
-    for i, todo in enumerate(todos, start=1):
-        meta_parts: list[str] = []
-        if todo.todo_type:
-            meta_parts.append(todo.todo_type)
-        if todo.deadline:
-            meta_parts.append(todo.deadline)
-        meta = ", ".join(meta_parts)
-
-        if meta:
-            ui_print(f"{i}. {todo.todo} [{meta}]")
-        else:
-            ui_print(f"{i}. {todo.todo}")
-
-def print_override_pool(todos: list[TodoItem], limit: int = 12) -> None:
-    ui_print()
-    ui_print("=  OVERRIDE CANDIDATES")
-    if not todos:
-        ui_print("(none)")
-        return
-
-    shown = todos[:limit]
-    for i, todo in enumerate(shown, start=1):
-        meta_parts: list[str] = []
-        if todo.todo_type:
-            meta_parts.append(todo.todo_type)
-        if todo.deadline:
-            meta_parts.append(todo.deadline)
-
-        tagset = [f"#{str(t).lstrip('#')}" for t in todo.tags if str(t).strip()]
-        if tagset:
-            meta_parts.append(" ".join(tagset))
-
-        meta = ", ".join(meta_parts)
-        if meta:
-            ui_print(f"{i}. {todo.todo} [{meta}]")
-        else:
-            ui_print(f"{i}. {todo.todo}")
-
-def print_revised_focus_for_omission(todos: list[TodoItem]) -> None:
-    ui_print()
-    ui_print("=  REVISED FOCUS")
-    if not todos:
-        ui_print("(none)")
-        return
-
-    for i, todo in enumerate(todos, start=1):
-        meta_parts: list[str] = []
-        if todo.todo_type:
-            meta_parts.append(todo.todo_type)
-        if todo.deadline:
-            meta_parts.append(todo.deadline)
-        meta = ", ".join(meta_parts)
-        if meta:
-            ui_print(f"{i}. {todo.todo} [{meta}]")
-        else:
-            ui_print(f"{i}. {todo.todo}")
-
-def prompt_for_resolved_item(
-    prompt_text: str,
-    pool: list[TodoItem],
-) -> TodoItem | None:
-    ui_print(prompt_text, end="", flush=True)
-    raw = input().strip()
-    if not raw:
-        return None
-
-    result = resolve_single_override_term(raw, pool)
-
-    if result.status == "none":
-        ui_print(f"(no match for '{raw}')")
-        return None
-
-    if result.status == "ambiguous":
-        ui_print(f"(ambiguous match for '{raw}')")
-        ui_print("Possible matches:")
-        for i, todo in enumerate(result.matches[:10], start=1):
-            meta = build_meta(todo)
-            ui_print(f" {i}. {todo.todo} [{meta}]")
-        return None
-
-    return result.item
-
-def resolve_single_override_term(
-    raw: str,
-    pool: list[TodoItem],
-) -> ResolveResult:
-    raw = raw.strip()
-    if not raw:
-        return ResolveResult(status="none", term=raw)
-
-    if raw.isdigit():
-        idx = int(raw) - 1
-        if 0 <= idx < len(pool):
-            return ResolveResult(status="ok", term=raw, item=pool[idx])
-        return ResolveResult(status="none", term=raw)
-
-    lowered = raw.lower()
-
-    exact_matches: list[TodoItem] = []
-    partial_matches: list[TodoItem] = []
-
-    for todo in pool:
-        todo_text = todo.todo.lower()
-        path_text = todo.path.lower()
-        tags = [str(t).strip().lstrip("#").lower() for t in todo.tags]
-
-        if (
-            lowered == todo_text
-            or lowered == path_text
-            or lowered in tags
-        ):
-            exact_matches.append(todo)
-            continue
-
-        hay = f"{todo.todo} {todo.path} {' '.join(todo.tags)}".lower()
-        if lowered in hay:
-            partial_matches.append(todo)
-
-    if len(exact_matches) == 1:
-        return ResolveResult(status="ok", term=raw, item=exact_matches[0])
-
-    if len(exact_matches) > 1:
-        return ResolveResult(status="ambiguous", term=raw, matches=exact_matches)
-
-    if len(partial_matches) == 1:
-        return ResolveResult(status="ok", term=raw, item=partial_matches[0])
-
-    if len(partial_matches) > 1:
-        return ResolveResult(status="ambiguous", term=raw, matches=partial_matches)
-
-    return ResolveResult(status="none", term=raw)
-
-def run_override_edit(
-    c,
-    session: OverrideSession,
-    selected_pool: list[TodoItem],
-    candidate_pool: list[TodoItem],
-    base_todos: list[TodoItem],
-    report_day: date,
-    task_scope: str,
-    time_scope: str,
-) -> bool:
-    ui_print("Edit from [s]elected or [c]andidates? ", end="", flush=True)
-    which = input().strip().lower()
-
-    if which in {"s", "selected"}:
-        pool = selected_pool
-    elif which in {"c", "candidate", "candidates"}:
-        pool = candidate_pool
-    else:
-        ui_print("(cancelled)")
-        return
-
-    item = prompt_for_resolved_item(
-        prompt_text="Item to edit (number or search term, blank to cancel): ",
-        pool=pool,
-    )
-    if item is None:
-        return
-
-    edited = TodoItem(
+def copy_todo_item(item: TodoItem) -> TodoItem:
+    return TodoItem(
         id=item.id,
         todo=item.todo,
         path=item.path,
@@ -1359,77 +1101,91 @@ def run_override_edit(
         last_selected=item.last_selected,
     )
 
-    ui_print(f"Editing: {edited.todo}")
-    ui_print(f"Text [{edited.todo}]: ", end="", flush=True)
-    raw = input().strip()
-    if raw:
-        edited.todo = raw
 
-    ui_print(f"Priority [{edited.priority}]: ", end="", flush=True)
-    raw = input().strip()
-    if raw:
-        try:
-            edited.priority = int(raw)
-        except Exception:
-            ui_print("(invalid priority ignored)")
+def run_pick_edit(
+    c,
+    session: PickSession,
+    item: TodoItem,
+) -> None:
+    edited = copy_todo_item(session.edited_items.get(item.key(), item))
 
-    ui_print(f"Deadline [{edited.deadline or ''}] (blank = keep, '-' = clear): ", end="", flush=True)
-    raw = input().strip()
-    if raw == "-":
-        edited.deadline = None
-    elif raw:
-        edited.deadline = raw
+    while True:
+        ui_print()
+        ui_print(f"Edit: {edited.todo}")
+        ui_print(f"  status   : {edited.status or ''}")
+        ui_print(f"  priority : {edited.priority}")
+        ui_print(f"  deadline : {edited.deadline or ''}")
+        ui_print(f"  tags     : {', '.join(edited.tags)}")
+        ui_print("[d]one  [r]edundant  [p]riority  [t]ext  [l]deadline  [g]tags  [s]tatus  [w]rite/save  [x]cancel")
+        ui_print("> ", end="", flush=True)
+        action = input().strip().lower()
 
-    ui_print(f"Tags [{', '.join(edited.tags)}] (comma list, blank = keep, '-' = clear): ", end="", flush=True)
-    raw = input().strip()
-    if raw == "-":
-        edited.tags = []
-    elif raw:
-        edited.tags = [x.strip().lstrip("#") for x in raw.split(",") if x.strip()]
+        if action in {"", "x", "cancel"}:
+            return
 
-    ui_print(f"Status [{edited.status or ''}] (blank = keep): ", end="", flush=True)
-    raw = input().strip()
-    if raw:
-        edited.status = raw
+        if action in {"d", "done"}:
+            session.pending_status_updates[edited.id] = "done"
+            session.edited_items.pop(edited.key(), None)
+            session.selected_keys.discard(edited.key())
+            ui_print("(queued done)")
+            return
 
-    ui_print(f"Save edit for '{edited.todo}'? [Y/n]: ", end="", flush=True)
-    confirm = input().strip().lower()
-    if confirm not in {"", "y", "yes"}:
-        ui_print("(cancelled)")
-        return False
+        if action in {"r", "redundant"}:
+            session.pending_status_updates[edited.id] = "redundant"
+            session.edited_items.pop(edited.key(), None)
+            session.selected_keys.discard(edited.key())
+            ui_print("(queued redundant)")
+            return
 
-    status_norm = (edited.status or "").strip().lower()
+        if action in {"p", "priority"}:
+            ui_print(f"Priority [{edited.priority}]: ", end="", flush=True)
+            raw = input().strip()
+            if raw:
+                try:
+                    edited.priority = int(raw)
+                except Exception:
+                    ui_print("(invalid priority)")
+            continue
 
-    if status_norm in {"done", "complete", "completed", "x", "redundant"}:
-        write_status = "done" if status_norm in {"complete", "completed", "x"} else status_norm
+        if action in {"t", "text"}:
+            ui_print(f"Text [{edited.todo}]: ", end="", flush=True)
+            raw = input().strip()
+            if raw:
+                edited.todo = raw
+            continue
 
-        session.pending_status_updates[edited.id] = write_status
-        session.omitted_keys.add(edited.key())
-        session.pinned_keys.discard(edited.key())
-        session.selected = [t for t in session.selected if t.key() != edited.key()]
-        session.edited_items.pop(edited.key(), None)
+        if action in {"l", "deadline"}:
+            ui_print(f"Deadline [{edited.deadline or ''}] (blank keep, '-' clear): ", end="", flush=True)
+            raw = input().strip()
+            if raw == "-":
+                edited.deadline = None
+            elif raw:
+                edited.deadline = raw
+            continue
 
-        session.selected = recalculate_selected_from_session(
-            base_todos=base_todos,
-            session=session,
-            report_day=report_day,
-            task_scope=task_scope,
-            time_scope=time_scope,
-        )
+        if action in {"g", "tags"}:
+            ui_print(f"Tags [{', '.join(edited.tags)}] (blank keep, '-' clear): ", end="", flush=True)
+            raw = input().strip()
+            if raw == "-":
+                edited.tags = []
+            elif raw:
+                edited.tags = [x.strip().lstrip("#") for x in raw.split(",") if x.strip()]
+            continue
 
-        ui_print("(status queued for write at session end)")
-        return False
+        if action in {"s", "status"}:
+            ui_print(f"Status [{edited.status or ''}]: ", end="", flush=True)
+            raw = input().strip()
+            if raw:
+                edited.status = raw
+            continue
 
-    session.edited_items[edited.key()] = edited
-    session.selected = recalculate_selected_from_session(
-        base_todos=base_todos,
-        session=session,
-        report_day=report_day,
-        task_scope=task_scope,
-        time_scope=time_scope,
-    )
-    ui_print("(temporary edit saved for this session)")
-    return False
+        if action in {"w", "write", "save"}:
+            session.pending_status_updates.pop(edited.id, None)
+            session.edited_items[edited.key()] = edited
+            ui_print("(queued edit)")
+            return
+
+        ui_print("(unknown edit action)")
 
 # ============================================================
 # persistence (SQL)
@@ -1638,7 +1394,7 @@ def write_edited_todo_item_by_id(c, item: TodoItem) -> bool:
 def refresh_after_todo_file_change() -> None:
     validate_main(SCHEMA)
 
-def flush_override_session_changes(c, session: OverrideSession) -> None:
+def flush_override_session_changes(c, session: PickSession) -> None:
     wrote_any = False
 
     # 1. write non-terminal full edits
