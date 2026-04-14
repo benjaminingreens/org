@@ -9,6 +9,8 @@ from datetime import date
 from pathlib import Path
 from shutil import get_terminal_size
 from .system.cli_helpers import flow_line, get_report_date, cmd_calendar, cmd_routines_today
+import re
+from ..validate import SCHEMA, main as validate_main
 
 def ui_print(*args, **kwargs) -> None:
     print(*args, file=sys.stderr, **kwargs)
@@ -52,6 +54,20 @@ class TodoItem:
     def key(self) -> str:
         return self.id
 
+@dataclass
+class OverrideSession:
+    selected: list[TodoItem]
+    omitted_keys: set[str] = field(default_factory=set)
+    edited_items: dict[str, TodoItem] = field(default_factory=dict)
+    pending_status_updates: dict[str, str] = field(default_factory=dict)
+
+@dataclass
+class ResolveResult:
+    status: str                    # "ok" | "none" | "ambiguous"
+    item: TodoItem | None = None
+    term: str | None = None
+    matches: list[TodoItem] = field(default_factory=list)
+
 
 # ============================================================
 # main
@@ -87,13 +103,6 @@ def cmd_report2(c, *args):
         focus_project=ctx.focus_project,
     )
 
-    override_candidates = build_candidate_pool(
-        c=c,
-        todos=focus_todos,
-        task_scope="medium",
-        report_day=report_day,
-    )
-
     # Build candidate pools
     focus_candidates = build_candidate_pool(
         c=c,
@@ -122,63 +131,25 @@ def cmd_report2(c, *args):
         ctx=ctx,
     )
 
-    # Build and show override UI
-    override_pool = build_override_pool(
-        candidates=override_candidates,
-        selected=focus_selected,
-    )
-
-    print_override_preview(focus_selected, title="PROPOSED FOCUS")
-    print_override_pool(override_pool, limit=12)
-
-    must_do_raw = ask_must_do_inputs()
-
-    focus_selected = apply_must_dos(
-        selected=focus_selected,
-        override_pool=override_pool,
-        must_do_raw=must_do_raw,
+    focus_selected = run_override_cycle(
+        c=c,
+        base_todos=focus_todos,
+        initial_selected=focus_selected,
+        report_day=report_day,
+        task_scope=ctx.task_scope,
         time_scope=ctx.time_scope,
+        title="FOCUS",
     )
 
-    print_revised_focus_for_omission(focus_selected)
-    omit_raw = ask_omit_inputs()
-
-    focus_selected = apply_omissions(
-        selected=focus_selected,
-        candidates=focus_candidates,
-        revised_display_pool=focus_selected,
-        omit_raw=omit_raw,
-        time_scope=ctx.time_scope,
-    )
-
-    # Optional separate project override flow
     if ctx.project_separate and project_selected:
-        project_override_pool = build_override_pool(
-            candidates=project_candidates,
-            selected=project_selected,
-        )
-
-        print_project_override_preview(project_selected, title="PROPOSED PROJECT FOCUS")
-        print_override_pool(project_override_pool, limit=12)
-
-        project_must_do_raw = ask_must_do_inputs()
-
-        project_selected = apply_must_dos(
-            selected=project_selected,
-            override_pool=project_override_pool,
-            must_do_raw=project_must_do_raw,
+        project_selected = run_override_cycle(
+            c=c,
+            base_todos=project_todos,
+            initial_selected=project_selected,
+            report_day=report_day,
+            task_scope=project_scope,
             time_scope=ctx.project_time_scope or "small",
-        )
-
-        print_revised_focus_for_omission(project_selected)
-        project_omit_raw = ask_omit_inputs()
-
-        project_selected = apply_omissions(
-            selected=project_selected,
-            candidates=project_candidates,
-            revised_display_pool=project_selected,
-            omit_raw=project_omit_raw,
-            time_scope=ctx.project_time_scope or "small",
+            title="PROJECT FOCUS",
         )
 
     # Persist selection state
@@ -322,7 +293,7 @@ def load_todos(c) -> list[TodoItem]:
         SELECT id, todo, path, status, tags, priority, creation, deadline
           FROM all_todos
          WHERE valid = 1
-           AND COALESCE(status, '') NOT IN ('done', 'complete', 'completed', 'x')
+           AND COALESCE(status, '') NOT IN ('done', 'complete', 'completed', 'x', 'redundant', 'cancelled')
          ORDER BY creation DESC
     """).fetchall()
 
@@ -907,75 +878,207 @@ def take_from_pool(
 # overrides
 # ============================================================
 
-def ask_must_do_inputs() -> list[str]:
-    ui_print(
-        "Must-do items to force in (numbers or search terms, blank for none): ",
-        end="",
-        flush=True,
-    )
-    raw = input().strip()
-    return [x.strip() for x in raw.split(",") if x.strip()]
-
-def ask_omit_inputs() -> list[str]:
-    ui_print(
-        "Items to omit from the revised list (numbers or search terms, blank for none): ",
-        end="",
-        flush=True,
-    )
-    raw = input().strip()
-    return [x.strip() for x in raw.split(",") if x.strip()]
-
-def apply_must_dos(
-    selected: list[TodoItem],
-    override_pool: list[TodoItem],
-    must_do_raw: list[str],
+def run_override_cycle(
+    c,
+    base_todos: list[TodoItem],
+    initial_selected: list[TodoItem],
+    report_day: date,
+    task_scope: str,
     time_scope: str,
+    title: str = "FOCUS",
 ) -> list[TodoItem]:
+    session = OverrideSession(selected=list(initial_selected))
     target = capacity_for_time_scope(time_scope)
-    out = list(selected)
 
-    must_items = resolve_override_terms(must_do_raw, override_pool)
-
-    for item in reversed(must_items):
-        out = [x for x in out if x.key() != item.key()]
-        out.insert(0, item)
-
-    out = dedupe_todos(out)[:target]
-    return out
-
-def apply_omissions(
-    selected: list[TodoItem],
-    candidates: list[TodoItem],
-    revised_display_pool: list[TodoItem],
-    omit_raw: list[str],
-    time_scope: str,
-) -> list[TodoItem]:
-    target = capacity_for_time_scope(time_scope)
-    out = list(selected)
-
-    omit_items = resolve_override_terms(omit_raw, revised_display_pool)
-    omit_keys = {x.key() for x in omit_items}
-
-    out = [x for x in out if x.key() not in omit_keys]
-
-    if len(out) < target:
-        selected_keys = {x.key() for x in out}
-        refill_pool = build_override_pool(
-            candidates=candidates,
-            selected=out,
+    while True:
+        effective_todos = apply_session_edits(
+            base_todos,
+            session.edited_items,
+            session.pending_status_updates,
+        )
+        candidate_pool = build_candidate_pool_no_db(
+            todos=effective_todos,
+            task_scope=task_scope,
+            report_day=report_day,
         )
 
-        for item in refill_pool:
-            if item.key() in selected_keys:
-                continue
-            if item.key() in omit_keys:
-                continue
-            out.append(item)
-            selected_keys.add(item.key())
-            if len(out) >= target:
-                break
+        selected = refresh_selected_from_session(
+            selected=session.selected,
+            candidates=candidate_pool,
+            edited_items=session.edited_items,
+            omitted_keys=session.omitted_keys,
+        )
+        session.selected = selected[:target]
 
-    return dedupe_todos(out)[:target]
+        override_pool = build_override_pool_with_omits(
+            candidates=candidate_pool,
+            selected=session.selected,
+            omitted_keys=session.omitted_keys,
+        )
+
+        ui_print()
+        ui_print(f"=  {title}")
+        print_revised_focus_for_omission(session.selected)
+        print_override_pool(override_pool, limit=12)
+        ui_print()
+        ui_print(f"(omitted: {len(session.omitted_keys)})")
+        ui_print("Choose action: [m]ust-do  [o]mit  [e]dit  [c]andidates  [d]one")
+        ui_print("> ", end="", flush=True)
+        action = input().strip().lower()
+
+        if action in {"d", "done"}:
+            flush_override_session_changes(c, session)
+            return session.selected
+
+        if action in {"c", "cand", "candidates", ""}:
+            continue
+
+        if action in {"m", "must", "must-do"}:
+            item = prompt_for_resolved_item(
+                prompt_text="Must-do item (number or search term, blank to cancel): ",
+                pool=override_pool,
+            )
+            if item is None:
+                continue
+
+            ui_print(f"Force in '{item.todo}'? [Y/n]: ", end="", flush=True)
+            confirm = input().strip().lower()
+            if confirm not in {"", "y", "yes"}:
+                ui_print("(cancelled)")
+                continue
+
+            session.omitted_keys.discard(item.key())
+            session.selected = apply_single_must_do(
+                selected=session.selected,
+                item=item,
+                time_scope=time_scope,
+            )
+            continue
+
+        if action in {"o", "omit"}:
+            item = prompt_for_resolved_item(
+                prompt_text="Omit item from current focus (number or search term, blank to cancel): ",
+                pool=session.selected,
+            )
+            if item is None:
+                continue
+
+            ui_print(f"Omit '{item.todo}'? [Y/n]: ", end="", flush=True)
+            confirm = input().strip().lower()
+            if confirm not in {"", "y", "yes"}:
+                ui_print("(cancelled)")
+                continue
+
+            session.omitted_keys.add(item.key())
+            session.selected = apply_single_omission(
+                selected=session.selected,
+                all_candidates=candidate_pool,
+                omitted_keys=session.omitted_keys,
+                omitted_item=item,
+                time_scope=time_scope,
+            )
+            continue
+
+        if action in {"e", "edit"}:
+            run_override_edit(
+                c,
+                session,
+                session.selected,
+                override_pool,
+                base_todos,
+                report_day,
+                task_scope,
+                time_scope,
+            )
+            continue
+
+        ui_print("(unrecognised action)")
+
+def apply_session_edits(
+    todos: list[TodoItem],
+    edited_items: dict[str, TodoItem],
+    pending_status_updates: dict[str, str],
+) -> list[TodoItem]:
+    out: list[TodoItem] = []
+
+    for todo in todos:
+        item = edited_items.get(todo.key(), todo)
+        pending_status = pending_status_updates.get(item.id)
+
+        if pending_status:
+            item = TodoItem(
+                id=item.id,
+                todo=item.todo,
+                path=item.path,
+                status=pending_status,
+                tags=list(item.tags),
+                priority=item.priority,
+                creation=item.creation,
+                deadline=item.deadline,
+                todo_type=item.todo_type,
+                bucket=item.bucket,
+                urgency_band=item.urgency_band,
+                last_selected=item.last_selected,
+            )
+
+        out.append(item)
+
+    return out
+
+def build_candidate_pool_no_db(
+    todos: list[TodoItem],
+    task_scope: str,
+    report_day: date,
+) -> list[TodoItem]:
+    out: list[TodoItem] = []
+
+    terminal_statuses = {"done", "complete", "completed", "x", "redundant", "cancelled"}
+
+    for todo in todos:
+        if (todo.status or "").strip().lower() in terminal_statuses:
+            continue
+
+        todo.todo_type = classify_todo_type(todo, report_day)
+        if todo.todo_type is None:
+            continue
+
+        todo.bucket = map_type_to_bucket(todo.todo_type, task_scope)
+        if todo.bucket is None:
+            continue
+
+        todo.urgency_band = classify_urgency_band(todo, report_day)
+        out.append(todo)
+
+    return out
+
+def refresh_selected_from_session(
+    selected: list[TodoItem],
+    candidates: list[TodoItem],
+    edited_items: dict[str, TodoItem],
+    omitted_keys: set[str],
+) -> list[TodoItem]:
+    candidate_map = {t.key(): t for t in candidates}
+    out: list[TodoItem] = []
+
+    for item in selected:
+        key = item.key()
+        if key in omitted_keys:
+            continue
+        refreshed = edited_items.get(key) or candidate_map.get(key)
+        if refreshed is None:
+            continue
+        out.append(refreshed)
+
+    return dedupe_todos(out)
+
+def build_override_pool_with_omits(
+    candidates: list[TodoItem],
+    selected: list[TodoItem],
+    omitted_keys: set[str],
+) -> list[TodoItem]:
+    pool = build_override_pool(candidates=candidates, selected=selected)
+    return [t for t in pool if t.key() not in omitted_keys]
+
 
 def find_matching_todos(todos: list[TodoItem], terms: list[str]) -> list[TodoItem]:
     if not terms:
@@ -1078,30 +1181,362 @@ def print_revised_focus_for_omission(todos: list[TodoItem]) -> None:
         else:
             ui_print(f"{i}. {todo.todo}")
 
-def resolve_override_terms(
-    raw_terms: list[str],
-    displayed_pool: list[TodoItem],
-) -> list[TodoItem]:
-    out: list[TodoItem] = []
+def prompt_for_resolved_item(
+    prompt_text: str,
+    pool: list[TodoItem],
+) -> TodoItem | None:
+    ui_print(prompt_text, end="", flush=True)
+    raw = input().strip()
+    if not raw:
+        return None
 
-    for term in raw_terms:
-        if term.isdigit():
-            idx = int(term) - 1
-            if 0 <= idx < len(displayed_pool):
-                out.append(displayed_pool[idx])
+    result = resolve_single_override_term(raw, pool)
+
+    if result.status == "none":
+        ui_print(f"(no match for '{raw}')")
+        return None
+
+    if result.status == "ambiguous":
+        ui_print(f"(ambiguous match for '{raw}')")
+        ui_print("Possible matches:")
+        for i, todo in enumerate(result.matches[:10], start=1):
+            meta = build_meta(todo)
+            ui_print(f" {i}. {todo.todo} [{meta}]")
+        return None
+
+    return result.item
+
+def resolve_single_override_term(
+    raw: str,
+    pool: list[TodoItem],
+) -> ResolveResult:
+    raw = raw.strip()
+    if not raw:
+        return ResolveResult(status="none", term=raw)
+
+    if raw.isdigit():
+        idx = int(raw) - 1
+        if 0 <= idx < len(pool):
+            return ResolveResult(status="ok", term=raw, item=pool[idx])
+        return ResolveResult(status="none", term=raw)
+
+    lowered = raw.lower()
+
+    exact_matches: list[TodoItem] = []
+    partial_matches: list[TodoItem] = []
+
+    for todo in pool:
+        todo_text = todo.todo.lower()
+        path_text = todo.path.lower()
+        tags = [str(t).strip().lstrip("#").lower() for t in todo.tags]
+
+        if (
+            lowered == todo_text
+            or lowered == path_text
+            or lowered in tags
+        ):
+            exact_matches.append(todo)
             continue
 
-        lowered = term.lower()
-        for todo in displayed_pool:
-            hay = f"{todo.todo} {todo.path} {' '.join(todo.tags)}".lower()
-            if lowered in hay:
-                out.append(todo)
+        hay = f"{todo.todo} {todo.path} {' '.join(todo.tags)}".lower()
+        if lowered in hay:
+            partial_matches.append(todo)
 
-    return dedupe_todos(out)
+    if len(exact_matches) == 1:
+        return ResolveResult(status="ok", term=raw, item=exact_matches[0])
+
+    if len(exact_matches) > 1:
+        return ResolveResult(status="ambiguous", term=raw, matches=exact_matches)
+
+    if len(partial_matches) == 1:
+        return ResolveResult(status="ok", term=raw, item=partial_matches[0])
+
+    if len(partial_matches) > 1:
+        return ResolveResult(status="ambiguous", term=raw, matches=partial_matches)
+
+    return ResolveResult(status="none", term=raw)
+
+def apply_single_must_do(
+    selected: list[TodoItem],
+    item: TodoItem,
+    time_scope: str,
+) -> list[TodoItem]:
+    target = capacity_for_time_scope(time_scope)
+    out = [x for x in selected if x.key() != item.key()]
+    out.insert(0, item)
+    return dedupe_todos(out)[:target]
+
+def refill_selected_to_capacity(
+    selected: list[TodoItem],
+    all_candidates: list[TodoItem],
+    omitted_keys: set[str],
+    time_scope: str,
+) -> list[TodoItem]:
+    target = capacity_for_time_scope(time_scope)
+    out = list(selected)
+    selected_keys = {x.key() for x in out}
+
+    remaining = [
+        t for t in sort_bucket_pool(all_candidates)
+        if t.key() not in selected_keys
+        and t.key() not in omitted_keys
+    ]
+
+    for item in remaining:
+        out.append(item)
+        selected_keys.add(item.key())
+        if len(out) >= target:
+            break
+
+    return dedupe_todos(out)[:target]
+
+def apply_single_omission(
+    selected: list[TodoItem],
+    all_candidates: list[TodoItem],
+    omitted_keys: set[str],
+    omitted_item: TodoItem,
+    time_scope: str,
+) -> list[TodoItem]:
+    target = capacity_for_time_scope(time_scope)
+
+    out = [x for x in selected if x.key() != omitted_item.key()]
+    selected_keys = {x.key() for x in out}
+
+    remaining = [
+        t for t in sort_bucket_pool(all_candidates)
+        if t.key() not in selected_keys
+        and t.key() not in omitted_keys
+    ]
+
+    for item in remaining:
+        out.append(item)
+        selected_keys.add(item.key())
+        if len(out) >= target:
+            break
+
+    return dedupe_todos(out)[:target]
+
+def run_override_edit(
+    c,
+    session: OverrideSession,
+    selected_pool: list[TodoItem],
+    candidate_pool: list[TodoItem],
+    base_todos: list[TodoItem],
+    report_day: date,
+    task_scope: str,
+    time_scope: str,
+) -> bool:
+    ui_print("Edit from [s]elected or [c]andidates? ", end="", flush=True)
+    which = input().strip().lower()
+
+    if which in {"s", "selected"}:
+        pool = selected_pool
+    elif which in {"c", "candidate", "candidates"}:
+        pool = candidate_pool
+    else:
+        ui_print("(cancelled)")
+        return
+
+    item = prompt_for_resolved_item(
+        prompt_text="Item to edit (number or search term, blank to cancel): ",
+        pool=pool,
+    )
+    if item is None:
+        return
+
+    edited = TodoItem(
+        id=item.id,
+        todo=item.todo,
+        path=item.path,
+        status=item.status,
+        tags=list(item.tags),
+        priority=item.priority,
+        creation=item.creation,
+        deadline=item.deadline,
+        todo_type=item.todo_type,
+        bucket=item.bucket,
+        urgency_band=item.urgency_band,
+        last_selected=item.last_selected,
+    )
+
+    ui_print(f"Editing: {edited.todo}")
+    ui_print(f"Text [{edited.todo}]: ", end="", flush=True)
+    raw = input().strip()
+    if raw:
+        edited.todo = raw
+
+    ui_print(f"Priority [{edited.priority}]: ", end="", flush=True)
+    raw = input().strip()
+    if raw:
+        try:
+            edited.priority = int(raw)
+        except Exception:
+            ui_print("(invalid priority ignored)")
+
+    ui_print(f"Deadline [{edited.deadline or ''}] (blank = keep, '-' = clear): ", end="", flush=True)
+    raw = input().strip()
+    if raw == "-":
+        edited.deadline = None
+    elif raw:
+        edited.deadline = raw
+
+    ui_print(f"Tags [{', '.join(edited.tags)}] (comma list, blank = keep, '-' = clear): ", end="", flush=True)
+    raw = input().strip()
+    if raw == "-":
+        edited.tags = []
+    elif raw:
+        edited.tags = [x.strip().lstrip("#") for x in raw.split(",") if x.strip()]
+
+    ui_print(f"Status [{edited.status or ''}] (blank = keep): ", end="", flush=True)
+    raw = input().strip()
+    if raw:
+        edited.status = raw
+
+    ui_print(f"Save edit for '{edited.todo}'? [Y/n]: ", end="", flush=True)
+    confirm = input().strip().lower()
+    if confirm not in {"", "y", "yes"}:
+        ui_print("(cancelled)")
+        return False
+
+    status_norm = (edited.status or "").strip().lower()
+
+    if status_norm in {"done", "complete", "completed", "x", "redundant"}:
+        write_status = "done" if status_norm in {"complete", "completed", "x"} else status_norm
+
+        was_selected = any(t.key() == edited.key() for t in session.selected)
+
+        session.pending_status_updates[edited.id] = write_status
+        session.omitted_keys.add(edited.key())
+        session.selected = [t for t in session.selected if t.key() != edited.key()]
+        session.edited_items.pop(edited.key(), None)
+
+        if was_selected:
+            effective_todos = apply_session_edits(
+                base_todos,
+                session.edited_items,
+                session.pending_status_updates,
+            )
+            candidate_pool = build_candidate_pool_no_db(
+                todos=effective_todos,
+                task_scope=task_scope,
+                report_day=report_day,
+            )
+            session.selected = refill_selected_to_capacity(
+                selected=session.selected,
+                all_candidates=candidate_pool,
+                omitted_keys=session.omitted_keys,
+                time_scope=time_scope,
+            )
+
+        ui_print("(status queued for write at session end)")
+        return False
+
+    session.edited_items[edited.key()] = edited
+    ui_print("(temporary edit saved for this session)")
+    return False
 
 # ============================================================
 # persistence (SQL)
 # ============================================================
+
+def get_todo_row_by_id(c, todo_id: str):
+    return c.execute("""
+        SELECT id, todo, path, status, tags, priority, creation, deadline
+          FROM all_todos
+         WHERE id = ?
+         LIMIT 1
+    """, (todo_id,)).fetchone()
+
+
+def rewrite_td_status_in_lines(
+    lines: list[str],
+    todo_id: str,
+    new_status: str,
+) -> list[str] | None:
+    """
+    Rewrite only the =status token on the .td line matching id/<todo_id>.
+    """
+    out: list[str] = []
+    found = False
+
+    id_pat = re.compile(rf'(^|\s)id/{re.escape(todo_id)}($|\s)')
+    status_pat = re.compile(r'(?<!\S)=([A-Za-z]+)\b')
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped.startswith("*") and id_pat.search(line):
+            found = True
+
+            if status_pat.search(line):
+                line = status_pat.sub(f"={new_status}", line, count=1)
+            else:
+                if "//" in line:
+                    before, after = line.split("//", 1)
+                    meta = after.strip()
+                    line = f"{before.rstrip()} // ={new_status} {meta}".rstrip()
+                else:
+                    line = f"{line.rstrip()} // ={new_status}"
+
+        out.append(line)
+
+    if not found:
+        return None
+
+    return out
+
+
+def mark_todo_status_by_id(c, todo_id: str, new_status: str) -> bool:
+    row = get_todo_row_by_id(c, todo_id)
+    if not row:
+        return False
+
+    rel_path = str(row["path"]).strip()
+    if not rel_path:
+        return False
+
+    path = Path(rel_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+
+    if not path.is_file():
+        return False
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    updated = rewrite_td_status_in_lines(lines, todo_id, new_status)
+    if updated is None:
+        return False
+
+    original_text = "\n".join(lines)
+    updated_text = "\n".join(updated)
+
+    if updated_text != original_text:
+        path.write_text(updated_text + "\n", encoding="utf-8")
+
+    return True
+
+
+def refresh_after_todo_file_change() -> None:
+    validate_main(SCHEMA)
+
+
+def flush_override_session_changes(c, session: OverrideSession) -> None:
+    if not session.pending_status_updates:
+        return
+
+    wrote_any = False
+
+    for todo_id, new_status in session.pending_status_updates.items():
+        ok = mark_todo_status_by_id(c, todo_id, new_status)
+        if not ok:
+            ui_print(f"(failed to write status update for {todo_id})")
+        else:
+            wrote_any = True
+
+    if wrote_any:
+        refresh_after_todo_file_change()
+
+    session.pending_status_updates.clear()
 
 def ensure_report2_state_table(c) -> None:
     c.execute("""
