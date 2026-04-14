@@ -58,6 +58,7 @@ class TodoItem:
 class OverrideSession:
     selected: list[TodoItem]
     omitted_keys: set[str] = field(default_factory=set)
+    pinned_keys: set[str] = field(default_factory=set)
     edited_items: dict[str, TodoItem] = field(default_factory=dict)
     pending_status_updates: dict[str, str] = field(default_factory=dict)
 
@@ -948,9 +949,12 @@ def run_override_cycle(
                 continue
 
             session.omitted_keys.discard(item.key())
-            session.selected = apply_single_must_do(
-                selected=session.selected,
-                item=item,
+            session.pinned_keys.add(item.key())
+            session.selected = recalculate_selected_from_session(
+                base_todos=base_todos,
+                session=session,
+                report_day=report_day,
+                task_scope=task_scope,
                 time_scope=time_scope,
             )
             continue
@@ -970,11 +974,12 @@ def run_override_cycle(
                 continue
 
             session.omitted_keys.add(item.key())
-            session.selected = apply_single_omission(
-                selected=session.selected,
-                all_candidates=candidate_pool,
-                omitted_keys=session.omitted_keys,
-                omitted_item=item,
+            session.pinned_keys.discard(item.key())
+            session.selected = recalculate_selected_from_session(
+                base_todos=base_todos,
+                session=session,
+                report_day=report_day,
+                task_scope=task_scope,
                 time_scope=time_scope,
             )
             continue
@@ -1050,6 +1055,61 @@ def build_candidate_pool_no_db(
         out.append(todo)
 
     return out
+
+def recalculate_selected_from_session(
+    base_todos: list[TodoItem],
+    session: OverrideSession,
+    report_day: date,
+    task_scope: str,
+    time_scope: str,
+) -> list[TodoItem]:
+    target = capacity_for_time_scope(time_scope)
+
+    effective_todos = apply_session_edits(
+        base_todos,
+        session.edited_items,
+        session.pending_status_updates,
+    )
+
+    candidate_pool = build_candidate_pool_no_db(
+        todos=effective_todos,
+        task_scope=task_scope,
+        report_day=report_day,
+    )
+
+    # remove explicitly omitted items
+    candidate_pool = [
+        t for t in candidate_pool
+        if t.key() not in session.omitted_keys
+    ]
+
+    candidate_map = {t.key(): t for t in candidate_pool}
+
+    # keep pinned items first, if still valid
+    pinned_items: list[TodoItem] = []
+    for key in session.pinned_keys:
+        item = candidate_map.get(key)
+        if item is not None:
+            pinned_items.append(item)
+
+    pinned_items = dedupe_todos(pinned_items)[:target]
+    pinned_key_set = {t.key() for t in pinned_items}
+
+    remaining_candidates = [
+        t for t in candidate_pool
+        if t.key() not in pinned_key_set
+    ]
+
+    auto_selected = select_todos(
+        todos=remaining_candidates,
+        time_scope=time_scope,
+    )
+
+    available_slots = max(0, target - len(pinned_items))
+    auto_selected = auto_selected[:available_slots]
+
+    out = pinned_items + auto_selected
+    return dedupe_todos(out)[:target]
 
 def refresh_selected_from_session(
     selected: list[TodoItem],
@@ -1256,66 +1316,6 @@ def resolve_single_override_term(
 
     return ResolveResult(status="none", term=raw)
 
-def apply_single_must_do(
-    selected: list[TodoItem],
-    item: TodoItem,
-    time_scope: str,
-) -> list[TodoItem]:
-    target = capacity_for_time_scope(time_scope)
-    out = [x for x in selected if x.key() != item.key()]
-    out.insert(0, item)
-    return dedupe_todos(out)[:target]
-
-def refill_selected_to_capacity(
-    selected: list[TodoItem],
-    all_candidates: list[TodoItem],
-    omitted_keys: set[str],
-    time_scope: str,
-) -> list[TodoItem]:
-    target = capacity_for_time_scope(time_scope)
-    out = list(selected)
-    selected_keys = {x.key() for x in out}
-
-    remaining = [
-        t for t in sort_bucket_pool(all_candidates)
-        if t.key() not in selected_keys
-        and t.key() not in omitted_keys
-    ]
-
-    for item in remaining:
-        out.append(item)
-        selected_keys.add(item.key())
-        if len(out) >= target:
-            break
-
-    return dedupe_todos(out)[:target]
-
-def apply_single_omission(
-    selected: list[TodoItem],
-    all_candidates: list[TodoItem],
-    omitted_keys: set[str],
-    omitted_item: TodoItem,
-    time_scope: str,
-) -> list[TodoItem]:
-    target = capacity_for_time_scope(time_scope)
-
-    out = [x for x in selected if x.key() != omitted_item.key()]
-    selected_keys = {x.key() for x in out}
-
-    remaining = [
-        t for t in sort_bucket_pool(all_candidates)
-        if t.key() not in selected_keys
-        and t.key() not in omitted_keys
-    ]
-
-    for item in remaining:
-        out.append(item)
-        selected_keys.add(item.key())
-        if len(out) >= target:
-            break
-
-    return dedupe_todos(out)[:target]
-
 def run_override_edit(
     c,
     session: OverrideSession,
@@ -1403,35 +1403,31 @@ def run_override_edit(
     if status_norm in {"done", "complete", "completed", "x", "redundant"}:
         write_status = "done" if status_norm in {"complete", "completed", "x"} else status_norm
 
-        was_selected = any(t.key() == edited.key() for t in session.selected)
-
         session.pending_status_updates[edited.id] = write_status
         session.omitted_keys.add(edited.key())
+        session.pinned_keys.discard(edited.key())
         session.selected = [t for t in session.selected if t.key() != edited.key()]
         session.edited_items.pop(edited.key(), None)
 
-        if was_selected:
-            effective_todos = apply_session_edits(
-                base_todos,
-                session.edited_items,
-                session.pending_status_updates,
-            )
-            candidate_pool = build_candidate_pool_no_db(
-                todos=effective_todos,
-                task_scope=task_scope,
-                report_day=report_day,
-            )
-            session.selected = refill_selected_to_capacity(
-                selected=session.selected,
-                all_candidates=candidate_pool,
-                omitted_keys=session.omitted_keys,
-                time_scope=time_scope,
-            )
+        session.selected = recalculate_selected_from_session(
+            base_todos=base_todos,
+            session=session,
+            report_day=report_day,
+            task_scope=task_scope,
+            time_scope=time_scope,
+        )
 
         ui_print("(status queued for write at session end)")
         return False
 
     session.edited_items[edited.key()] = edited
+    session.selected = recalculate_selected_from_session(
+        base_todos=base_todos,
+        session=session,
+        report_day=report_day,
+        task_scope=task_scope,
+        time_scope=time_scope,
+    )
     ui_print("(temporary edit saved for this session)")
     return False
 
@@ -1485,6 +1481,101 @@ def rewrite_td_status_in_lines(
 
     return out
 
+def rewrite_td_item_in_lines(
+    lines: list[str],
+    item: TodoItem,
+) -> list[str] | None:
+    """
+    Rewrite the full .td line matching id/<item.id>, preserving the basic inline format.
+
+    Format written:
+    * t: <todo> // $<assignee> =<status> !<priority> ~<creation> [%<deadline>] [#tags...] id/<id>
+
+    Notes:
+    - assignees/authour are preserved from the existing line where possible
+    - unknown extra metadata tokens are preserved
+    """
+    out: list[str] = []
+    found = False
+
+    id_pat = re.compile(rf'(^|\s)id/{re.escape(item.id)}($|\s)')
+
+    for line in lines:
+        stripped = line.strip()
+
+        if not (stripped.startswith("*") and id_pat.search(line)):
+            out.append(line)
+            continue
+
+        found = True
+
+        # Split content from metadata
+        if "//" in line:
+            before, after = line.split("//", 1)
+            meta_text = after.strip()
+        else:
+            before, meta_text = line, ""
+
+        # Preserve assignees/authour tokens already on the line
+        assignees = re.findall(r'@(\S+)', meta_text)
+        authours = re.findall(r'\$(\S+)', meta_text)
+
+        # Preserve any unknown tokens that are not one of the standard fields we rewrite
+        tokens = meta_text.split()
+        preserved: list[str] = []
+        for tok in tokens:
+            if (
+                tok.startswith("=")
+                or tok.startswith("!")
+                or tok.startswith("~")
+                or tok.startswith("%")
+                or tok.startswith("#")
+                or tok.startswith("@")
+                or tok.startswith("$")
+                or tok.startswith("id/")
+            ):
+                continue
+            preserved.append(tok)
+
+        rebuilt_before = f"* t: {item.todo}"
+
+        rebuilt_parts: list[str] = []
+
+        for a in authours:
+            rebuilt_parts.append(f"${a}")
+
+        status = (item.status or "todo").strip()
+        rebuilt_parts.append(f"={status}")
+
+        rebuilt_parts.append(f"!{item.priority}")
+
+        if item.creation:
+            rebuilt_parts.append(f"~{item.creation}")
+
+        if item.deadline:
+            rebuilt_parts.append(f"%{item.deadline}")
+
+        for tag in item.tags:
+            t = str(tag).strip().lstrip("#")
+            if t:
+                rebuilt_parts.append(f"#{t}")
+
+        for a in assignees:
+            rebuilt_parts.append(f"@{a}")
+
+        rebuilt_parts.extend(preserved)
+        rebuilt_parts.append(f"id/{item.id}")
+
+        rebuilt_line = rebuilt_before
+        if rebuilt_parts:
+            rebuilt_line += " // " + " ".join(rebuilt_parts)
+
+        out.append(rebuilt_line)
+
+    if not found:
+        return None
+
+    return out
 
 def mark_todo_status_by_id(c, todo_id: str, new_status: str) -> bool:
     row = get_todo_row_by_id(c, todo_id)
@@ -1515,19 +1606,77 @@ def mark_todo_status_by_id(c, todo_id: str, new_status: str) -> bool:
 
     return True
 
+def write_edited_todo_item_by_id(c, item: TodoItem) -> bool:
+    row = get_todo_row_by_id(c, item.id)
+    if not row:
+        return False
+
+    rel_path = str(row["path"]).strip()
+    if not rel_path:
+        return False
+
+    path = Path(rel_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+
+    if not path.is_file():
+        return False
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    updated = rewrite_td_item_in_lines(lines, item)
+    if updated is None:
+        return False
+
+    original_text = "\n".join(lines)
+    updated_text = "\n".join(updated)
+
+    if updated_text != original_text:
+        path.write_text(updated_text + "\n", encoding="utf-8")
+
+    return True
 
 def refresh_after_todo_file_change() -> None:
     validate_main(SCHEMA)
 
-
 def flush_override_session_changes(c, session: OverrideSession) -> None:
-    if not session.pending_status_updates:
-        return
-
     wrote_any = False
 
+    # 1. write non-terminal full edits
+    for todo_id, item in session.edited_items.items():
+        # if a terminal status update is also queued for this id, skip the full edit
+        # because the terminal status write should win
+        if todo_id in session.pending_status_updates:
+            continue
+
+        ok = write_edited_todo_item_by_id(c, item)
+        if not ok:
+            ui_print(f"(failed to write edited todo for {todo_id})")
+        else:
+            wrote_any = True
+
+    # 2. write queued terminal status updates
     for todo_id, new_status in session.pending_status_updates.items():
-        ok = mark_todo_status_by_id(c, todo_id, new_status)
+        # if we already have a fully edited item for this todo, prefer writing the full item
+        edited_item = session.edited_items.get(todo_id)
+        if edited_item is not None:
+            edited_copy = TodoItem(
+                id=edited_item.id,
+                todo=edited_item.todo,
+                path=edited_item.path,
+                status=new_status,
+                tags=list(edited_item.tags),
+                priority=edited_item.priority,
+                creation=edited_item.creation,
+                deadline=edited_item.deadline,
+                todo_type=edited_item.todo_type,
+                bucket=edited_item.bucket,
+                urgency_band=edited_item.urgency_band,
+                last_selected=edited_item.last_selected,
+            )
+            ok = write_edited_todo_item_by_id(c, edited_copy)
+        else:
+            ok = mark_todo_status_by_id(c, todo_id, new_status)
+
         if not ok:
             ui_print(f"(failed to write status update for {todo_id})")
         else:
@@ -1536,6 +1685,7 @@ def flush_override_session_changes(c, session: OverrideSession) -> None:
     if wrote_any:
         refresh_after_todo_file_change()
 
+    session.edited_items.clear()
     session.pending_status_updates.clear()
 
 def ensure_report2_state_table(c) -> None:
