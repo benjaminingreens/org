@@ -19,14 +19,68 @@ def ui_print(*args, **kwargs) -> None:
 def ui_clear() -> None:
     print("\033[2J\033[H", end="", flush=True)
 
-def ui_prompt(help_text: str) -> str:
-    ui_print()
-    ui_print(help_text)
-    ui_print("> ", end="", flush=True)
+def render_uniform_page(
+    heading: str,
+    info_line: str,
+    items: list[str],
+    instruction_line: str,
+    message_line: str | None = None,
+) -> None:
+    ui_clear()
+    ui_print(heading)
+    ui_print(info_line)
+
+    for line in items[:9]:
+        ui_print(line)
+
+    for _ in range(max(0, 9 - len(items))):
+        ui_print("")
+
+    ui_print("")
+    ui_print(message_line if message_line is not None else instruction_line)
+
+def ui_prompt(help_text: str = "", message_line: str | None = None) -> str:
+    if not message_line and help_text:
+        ui_print(help_text)
+
+    prompt_text = "press ENTER to clear" if message_line else "> "
+
+    ui_print(prompt_text, end="", flush=True)
     raw = input().strip()
+
     if raw.lower() in {"q", "quit", "c", "cancel"}:
         raise ReportCancelled()
+
     return raw
+
+def prompt_confirm_choice(heading: str, info_line: str) -> bool:
+    message_line: str | None = None
+
+    while True:
+        render_uniform_page(
+            heading=heading,
+            info_line=info_line,
+            items=[],
+            instruction_line="y yes   n no   q cancel",
+            message_line=message_line,
+        )
+
+        raw = ui_prompt("", message_line).lower()
+
+        if not raw:
+            message_line = None
+            continue
+
+        if raw in {"y", "yes"}:
+            return True
+        if raw in {"n", "no"}:
+            return False
+
+        message_line = "invalid choice"
+
+def ui_pause() -> None:
+    ui_print("press ENTER to continue", end="", flush=True)
+    input()
 
 # ============================================================
 # data models
@@ -157,7 +211,7 @@ def cmd_report2(c, *args):
 
 def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportContext:
     focus_scope = prompt_choice(
-        "Focus scope",
+        "Scope",
         ["mini", "small", "medium", "large"],
         default="small",
     )
@@ -190,27 +244,44 @@ def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportCont
 
 def prompt_choice(title: str, options: list[str], default: str) -> str:
     allowed = set(options)
+    message_line: str | None = None
 
     while True:
-        ui_clear()
-        ui_print(title)
-        ui_print()
+        item_lines = []
         for i, opt in enumerate(options, start=1):
             mark = " (default)" if opt == default else ""
-            ui_print(f"{i}. {opt}{mark}")
+            item_lines.append(f"{i}. {opt}{mark}")
 
-        raw = ui_prompt("1-4 select   d default   q cancel").lower()
+        render_uniform_page(
+            heading=title.upper(),
+            info_line="page 1/1",
+            items=item_lines,
+            instruction_line=f"1-{len(options)} select   ENTER default   q cancel",
+            message_line=message_line,
+        )
 
-        if raw in {"d", "default", ""}:
+        raw = ui_prompt("", message_line).lower()
+
+        if not raw:
+            if message_line is not None:
+                message_line = None
+                continue
+            return default
+
+        if raw in {"d", "default"}:
             return default
 
         if raw.isdigit():
             idx = int(raw) - 1
             if 0 <= idx < len(options):
                 return options[idx]
+            message_line = "invalid number"
+            continue
 
         if raw in allowed:
             return raw
+
+        message_line = "invalid choice"
 
 def prompt_yes_no(prompt: str, default: bool = True) -> bool:
     ui_print(prompt, end="", flush=True)
@@ -345,43 +416,40 @@ def paginate_list(items: list[str], page: int, per_page: int) -> tuple[list[str]
     end = start + per_page
     return items[start:end], page, total_pages
 
+def render_project_page(
+    projects: list[str],
+    page: int,
+    total_pages: int,
+    message_line: str | None = None,
+) -> None:
+    item_lines = [f"{i}. {project}" for i, project in enumerate(projects, start=1)]
 
-def render_project_page(projects: list[str], page: int, total_pages: int) -> None:
-    ui_print("Projects")
-    ui_print(f"Page {page + 1}/{max(1, total_pages)}")
-
-    if not projects:
-        ui_print("(none)")
-        return
-
-    for i, project in enumerate(projects, start=1):
-        ui_print(f"{i}. {project}")
-
+    render_uniform_page(
+        heading="PROJECT",
+        info_line=f"page {page + 1}/{max(1, total_pages)}",
+        items=item_lines,
+        instruction_line="1-9 select   text search   n/b page   d none   q cancel",
+        message_line=message_line,
+    )
 
 def choose_focus_project(
     project_choices: list[str],
     all_tags: list[str],
 ) -> str | None:
     page = 0
-    per_page = 10
+    per_page = 9
+    message_line: str | None = None
 
     while True:
         page_items, page, total_pages = paginate_list(project_choices, page, per_page)
 
-        ui_clear()
-        ui_print("Project")
-        ui_print()
-        ui_print(f"Page {page + 1}/{max(1, total_pages)}")
-
-        if page_items:
-            for i, project in enumerate(page_items, start=1):
-                ui_print(f"{i}. {project}")
-        else:
-            ui_print("(none)")
-
-        raw = ui_prompt("1-10 select   text search   n/b page   d none   q cancel")
-
+        render_project_page(page_items, page, total_pages, message_line=message_line)
+        raw = ui_prompt("", message_line)
         lowered = raw.lower()
+
+        if not raw:
+            message_line = None
+            continue
 
         if lowered in {"d", "done", "none"}:
             return None
@@ -399,7 +467,15 @@ def choose_focus_project(
         if raw.isdigit():
             idx = int(raw) - 1
             if 0 <= idx < len(page_items):
+                render_project_page(
+                    page_items,
+                    page,
+                    total_pages,
+                    message_line=f"selected {page_items[idx]}",
+                )
+                ui_pause()
                 return page_items[idx]
+            message_line = "invalid number"
             continue
 
         resolved = resolve_focus_tag_input(
@@ -408,7 +484,16 @@ def choose_focus_project(
             all_tags=all_tags,
         )
         if resolved:
-            return resolved
+            confirm = prompt_confirm_choice(
+                heading="PROJECT",
+                info_line=f"use {resolved}?",
+            )
+            if confirm:
+                return resolved
+            message_line = "selection cleared"
+            continue
+
+        message_line = f"no match: {raw}"
 
 def resolve_project_inputs(raw: str, projects: list[str]) -> list[str]:
     out: list[str] = []
@@ -444,40 +529,27 @@ def resolve_focus_tag_input(
     if not raw:
         return None
 
-    # numeric project choice
     if raw.isdigit():
         idx = int(raw) - 1
         if 0 <= idx < len(project_choices):
             return project_choices[idx]
-        ui_print(f"(unrecognised project number: {raw})")
         return None
 
     lowered = raw.lower()
 
-    # exact project match
     for project in project_choices:
         if lowered == project.lower():
             return project
 
-    # exact tag match
     exact_tag_matches = [tag for tag in all_tags if lowered == tag.lower()]
     if len(exact_tag_matches) == 1:
         return exact_tag_matches[0]
 
-    # partial tag match
     partial_tag_matches = [tag for tag in all_tags if lowered in tag.lower()]
 
     if len(partial_tag_matches) == 1:
         return partial_tag_matches[0]
 
-    if len(partial_tag_matches) > 1:
-        ui_print(f"(ambiguous tag text: {raw})")
-        print("Possible matches:")
-        for tag in partial_tag_matches[:10]:
-            print(f" - {tag}")
-        return None
-
-    ui_print(f"(unrecognised tag/project: {raw})")
     return None
 
 # ============================================================
@@ -704,10 +776,7 @@ def terminal_size() -> tuple[int, int]:
 
 
 def page_capacity(term_h: int) -> int:
-    reserved = 8
-    cap = term_h - reserved
-    cap = max(3, cap)
-    return min(cap, 10)
+    return 9
 
 def paginate_field(
     field: list[TodoItem],
@@ -1009,21 +1078,29 @@ def render_pick_field(
     page: int,
     total_pages: int,
     total_items: int,
+    message_line: str | None = None,
 ) -> None:
-    ui_print(f"{title}  {len(selected_keys)}/{budget}")
-    ui_print(f"P1 {stats['p1']}  P2 {stats['p2']}  P3 {stats['p3_shown']}/{stats['p3_total']}  Page {page + 1}/{max(1, total_pages)}")
-
-    if not page_items:
-        ui_print("(none)")
-        return
+    item_lines: list[str] = []
 
     for i, todo in enumerate(page_items, start=1):
         mark = "*" if todo.key() in selected_keys else " "
-        meta_parts: list[str] = [f"P{todo.priority}"]
+        meta_parts = [f"P{todo.priority}"]
+        if todo.bucket:
+            meta_parts.append(todo.bucket)
+        if todo.todo_type:
+            meta_parts.append(todo.todo_type)
         if todo.deadline:
             meta_parts.append(todo.deadline)
         meta = ", ".join(meta_parts)
-        ui_print(f"{mark} {i}. {todo.todo} // {meta}")
+        item_lines.append(f"{mark} {i}. {todo.todo} // {meta}")
+
+    render_uniform_page(
+        heading=title,
+        info_line=f"page {page + 1}/{max(1, total_pages)}",
+        items=item_lines,
+        instruction_line="1-9 toggle   e N edit   n/b page   d done   q cancel",
+        message_line=message_line,
+    )
 
 def parse_pick_numbers(raw: str, limit: int) -> list[int]:
     out: list[int] = []
@@ -1045,6 +1122,7 @@ def run_pick_cycle(
 ) -> list[TodoItem]:
     session = PickSession()
     budget = scope_budget(scope)
+    message_line: str | None = None
 
     while True:
         effective_todos = apply_session_edits(
@@ -1067,7 +1145,6 @@ def run_pick_cycle(
         per_page = page_capacity(term_h)
         page_items, session.page, total_pages = paginate_field(field, session.page, per_page)
 
-        ui_clear()
         render_pick_field(
             title=title,
             page_items=page_items,
@@ -1077,9 +1154,18 @@ def run_pick_cycle(
             page=session.page,
             total_pages=total_pages,
             total_items=len(field),
+            message_line=message_line,
         )
 
-        raw = ui_prompt("1-10 toggle   e N edit   n/b page   d done   q cancel")
+        had_message = message_line is not None
+        raw = ui_prompt("", message_line)
+        message_line = None
+
+        if not raw:
+            if had_message:
+                continue
+            message_line = "no valid selection"
+            continue
 
         if raw.lower() in {"d", "done"}:
             final_selected = [t for t in field if t.key() in session.selected_keys]
@@ -1099,12 +1185,12 @@ def run_pick_cycle(
         if raw.lower().startswith("e "):
             parts = raw.split(maxsplit=1)
             if len(parts) != 2 or not parts[1].isdigit():
-                ui_print("(use: e N)")
+                message_line = "use: e N"
                 continue
 
             idx = int(parts[1]) - 1
             if not (0 <= idx < len(page_items)):
-                ui_print("(invalid number)")
+                message_line = "invalid number"
                 continue
 
             run_pick_edit(c, session, page_items[idx])
@@ -1112,20 +1198,22 @@ def run_pick_cycle(
 
         indexes = parse_pick_numbers(raw, len(page_items))
         if not indexes:
-            ui_print("(no valid selection)")
+            message_line = "no valid selection"
             continue
 
         for idx in indexes:
             key = page_items[idx].key()
             if key in session.selected_keys:
                 session.selected_keys.discard(key)
+                message_line = "updated"
                 continue
 
             if len(session.selected_keys) >= budget:
-                ui_print("(budget reached)")
+                message_line = "budget reached"
                 break
 
             session.selected_keys.add(key)
+            message_line = "updated"
 
 # ============================================================
 # overrides
@@ -1196,20 +1284,28 @@ def run_pick_edit(
     item: TodoItem,
 ) -> None:
     edited = copy_todo_item(session.edited_items.get(item.key(), item))
+    message_line: str | None = None
 
     while True:
-        ui_clear()
-        ui_print("Edit")
-        ui_print()
-        ui_print(f"text     {edited.todo}")
-        ui_print(f"status   {edited.status or ''}")
-        ui_print(f"priority {edited.priority}")
-        ui_print(f"deadline {edited.deadline or ''}")
-        ui_print(f"tags     {', '.join(edited.tags)}")
+        item_lines = [
+            f"text     {edited.todo}",
+            f"status   {edited.status or ''}",
+            f"priority {edited.priority}",
+            f"deadline {edited.deadline or ''}",
+            f"tags     {', '.join(edited.tags)}",
+        ]
 
-        raw = ui_prompt("t text   s status   p priority   l deadline   g tags   d done   r redundant   w save   x back")
+        render_uniform_page(
+            heading="EDIT",
+            info_line=edited.id,
+            items=item_lines,
+            instruction_line="t text   s status   p priority   l deadline   g tags   d done   r redundant   w save   x back",
+            message_line=message_line,
+        )
 
+        raw = ui_prompt("", message_line)
         action = raw.lower()
+        message_line = None
 
         if action in {"x", "back"}:
             return
@@ -1227,44 +1323,52 @@ def run_pick_edit(
             return
 
         if action in {"t", "text"}:
-            ui_clear()
-            ui_print("Text")
-            ui_print()
-            ui_print(f"Current: {edited.todo}")
-            raw2 = ui_prompt("enter text   q cancel")
+            render_uniform_page(
+                heading="EDIT",
+                info_line="text",
+                items=[f"current {edited.todo}"],
+                instruction_line="enter text   q cancel",
+            )
+            raw2 = ui_prompt()
             if raw2:
                 edited.todo = raw2
             continue
 
         if action in {"s", "status"}:
-            ui_clear()
-            ui_print("Status")
-            ui_print()
-            ui_print(f"Current: {edited.status or ''}")
-            raw2 = ui_prompt("enter status   q cancel")
+            render_uniform_page(
+                heading="EDIT",
+                info_line="status",
+                items=[f"current {edited.status or ''}"],
+                instruction_line="enter status   q cancel",
+            )
+            raw2 = ui_prompt()
             if raw2:
                 edited.status = raw2
             continue
 
         if action in {"p", "priority"}:
-            ui_clear()
-            ui_print("Priority")
-            ui_print()
-            ui_print(f"Current: {edited.priority}")
-            raw2 = ui_prompt("enter number   q cancel")
+            render_uniform_page(
+                heading="EDIT",
+                info_line="priority",
+                items=[f"current {edited.priority}"],
+                instruction_line="enter number   q cancel",
+            )
+            raw2 = ui_prompt()
             if raw2:
                 try:
                     edited.priority = int(raw2)
                 except Exception:
-                    pass
+                    message_line = "invalid priority"
             continue
 
         if action in {"l", "deadline"}:
-            ui_clear()
-            ui_print("Deadline")
-            ui_print()
-            ui_print(f"Current: {edited.deadline or ''}")
-            raw2 = ui_prompt("enter date, - clear   q cancel")
+            render_uniform_page(
+                heading="EDIT",
+                info_line="deadline",
+                items=[f"current {edited.deadline or ''}"],
+                instruction_line="enter date, - clear   q cancel",
+            )
+            raw2 = ui_prompt()
             if raw2 == "-":
                 edited.deadline = None
             elif raw2:
@@ -1272,11 +1376,13 @@ def run_pick_edit(
             continue
 
         if action in {"g", "tags"}:
-            ui_clear()
-            ui_print("Tags")
-            ui_print()
-            ui_print(f"Current: {', '.join(edited.tags)}")
-            raw2 = ui_prompt("comma list, - clear   q cancel")
+            render_uniform_page(
+                heading="EDIT",
+                info_line="tags",
+                items=[f"current {', '.join(edited.tags)}"],
+                instruction_line="comma list, - clear   q cancel",
+            )
+            raw2 = ui_prompt()
             if raw2 == "-":
                 edited.tags = []
             elif raw2:
@@ -1287,6 +1393,8 @@ def run_pick_edit(
             session.pending_status_updates.pop(edited.id, None)
             session.edited_items[edited.key()] = edited
             return
+
+        message_line = "unknown command"
 
 # ============================================================
 # persistence (SQL)
@@ -1682,7 +1790,3 @@ def sortable_creation(raw: str | None) -> tuple[int, str]:
     if not raw:
         return (0, "")
     return (1, raw)
-
-"""
-did this work?
-"""
