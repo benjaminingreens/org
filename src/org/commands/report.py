@@ -19,9 +19,75 @@ def ui_print(*args, **kwargs) -> None:
 def ui_clear() -> None:
     print("\033[2J\033[H", end="", flush=True)
 
+def render_uniform_page(
+    heading: str,
+    info_line: str,
+    items: list[str],
+    instruction_line: str,
+    message_line: str | None = None,
+) -> None:
+    ui_clear()
+    ui_print(heading)
+    ui_print(info_line)
+
+    for line in items[:9]:
+        ui_print(line)
+
+    for _ in range(max(0, 9 - len(items))):
+        ui_print("")
+
+    ui_print("")
+    ui_print(message_line if message_line is not None else instruction_line)
+
+def ui_prompt(help_text: str = "", message_line: str | None = None) -> str:
+    if not message_line and help_text:
+        ui_print(help_text)
+
+    prompt_text = "press ENTER to clear" if message_line else "> "
+
+    ui_print(prompt_text, end="", flush=True)
+    raw = input().strip()
+
+    if raw.lower() in {"q", "quit", "c", "cancel"}:
+        raise ReportCancelled()
+
+    return raw
+
+def prompt_confirm_choice(heading: str, info_line: str) -> bool:
+    message_line: str | None = None
+
+    while True:
+        render_uniform_page(
+            heading=heading,
+            info_line=info_line,
+            items=[],
+            instruction_line="y yes   n no   q cancel",
+            message_line=message_line,
+        )
+
+        raw = ui_prompt("", message_line).lower()
+
+        if not raw:
+            message_line = None
+            continue
+
+        if raw in {"y", "yes"}:
+            return True
+        if raw in {"n", "no"}:
+            return False
+
+        message_line = "invalid choice"
+
+def ui_pause() -> None:
+    ui_print("press ENTER to continue", end="", flush=True)
+    input()
+
 # ============================================================
 # data models
 # ============================================================
+
+class ReportCancelled(Exception):
+    pass
 
 @dataclass
 class ReportContext:
@@ -61,7 +127,7 @@ class PickSession:
     edited_items: dict[str, TodoItem] = field(default_factory=dict)
     pending_status_updates: dict[str, str] = field(default_factory=dict)
     page: int = 0
-
+    p3_random_keys: dict[str, str] = field(default_factory=dict)
 
 # ============================================================
 # main
@@ -79,43 +145,46 @@ def parse_report2_args(args: list[str]) -> tuple[list[str], str | None]:
 
     return rest, out_path
 
+
 def cmd_report2(c, *args):
     parsed_args, out_path = parse_report2_args(list(args))
     report_day, _rest = get_report_date(parsed_args)
 
     ensure_report2_state_table(c)
 
-    # Load todos first so questionnaire can show tags
     todos = load_todos(c)
 
-    # Questionnaire first
-    ctx = ask_report_context(c, report_day, todos)
+    try:
+        ctx = ask_report_context(c, report_day, todos)
 
-    # Split out explicitly focused project todos
-    project_todos, focus_todos = split_project_todos(
-        todos=todos,
-        focus_project=ctx.focus_project,
-    )
-
-    focus_selected = run_pick_cycle(
-        c=c,
-        base_todos=focus_todos,
-        report_day=report_day,
-        scope=ctx.focus_scope,
-        title="FOCUS",
-    )
-
-    project_selected: list[TodoItem] = []
-    if ctx.project_separate and project_todos:
-        project_selected = run_pick_cycle(
-            c=c,
-            base_todos=project_todos,
-            report_day=report_day,
-            scope=ctx.project_scope or ctx.focus_scope,
-            title="PROJECT FOCUS",
+        project_todos, focus_todos = split_project_todos(
+            todos=todos,
+            focus_project=ctx.focus_project,
         )
 
-    # Persist selection state
+        focus_selected = run_pick_cycle(
+            c=c,
+            base_todos=focus_todos,
+            report_day=report_day,
+            scope=ctx.focus_scope,
+            title="FOCUS",
+        )
+
+        project_selected: list[TodoItem] = []
+        if ctx.project_separate and project_todos:
+            project_selected = run_pick_cycle(
+                c=c,
+                base_todos=project_todos,
+                report_day=report_day,
+                scope=ctx.project_scope or ctx.focus_scope,
+                title="PROJECT FOCUS",
+            )
+
+    except ReportCancelled:
+        ui_clear()
+        ui_print("Cancelled")
+        return
+
     persist_last_selected(c, focus_selected, report_day)
     persist_last_selected(c, project_selected, report_day)
 
@@ -142,59 +211,26 @@ def cmd_report2(c, *args):
 
 def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportContext:
     focus_scope = prompt_choice(
-        "Focus scope [mini/small/medium/large] (default small): ",
-        {"mini", "small", "medium", "large"},
+        "Scope",
+        ["mini", "small", "medium", "large"],
         default="small",
     )
 
     project_choices = get_project_choices(c)
     all_tags = load_all_todo_tags(todos)
 
-    print()
-    print(f"(project choices: {len(project_choices)})")
-    print(f"(all tags: {len(all_tags)})")
-
-    print_project_choices(project_choices, limit=999)
-
-    focus_project: str | None = None
-
-    while True:
-        ui_print(
-            "Focus project/tag (one project number, exact name, or partial tag text; blank for none): ",
-            end="",
-            flush=True,
-        )
-        focus_project_raw = input().strip()
-
-        if not focus_project_raw:
-            focus_project = None
-            break
-
-        resolved = resolve_focus_tag_input(
-            focus_project_raw,
-            project_choices=project_choices,
-            all_tags=all_tags,
-        )
-
-        if not resolved:
-            continue
-
-        ui_print(f"Use '{resolved}'? [Y/n]: ", end="", flush=True)
-        confirm = input().strip().lower()
-        if confirm in ("", "y", "yes"):
-            focus_project = resolved
-            break
-        if confirm in ("n", "no"):
-            ui_print("(selection cleared — try again)")
-            continue
+    focus_project = choose_focus_project(
+        project_choices=project_choices,
+        all_tags=all_tags,
+    )
 
     project_separate = bool(focus_project)
     project_scope: str | None = None
 
     if focus_project:
         project_scope = prompt_choice(
-            f"Project scope [mini/small/medium/large] (default {focus_scope}): ",
-            {"mini", "small", "medium", "large"},
+            "Project scope",
+            ["mini", "small", "medium", "large"],
             default=focus_scope,
         )
 
@@ -206,15 +242,46 @@ def ask_report_context(c, report_day: date, todos: list[TodoItem]) -> ReportCont
         project_scope=project_scope,
     )
 
-def prompt_choice(prompt: str, allowed: set[str], default: str) -> str:
-    ui_print(prompt, end="", flush=True)
-    raw = input().strip().lower()
-    if not raw:
-        return default
-    if raw not in allowed:
-        ui_print(f"Unrecognised value '{raw}', using '{default}'.")
-        return default
-    return raw
+def prompt_choice(title: str, options: list[str], default: str) -> str:
+    allowed = set(options)
+    message_line: str | None = None
+
+    while True:
+        item_lines = []
+        for i, opt in enumerate(options, start=1):
+            mark = " (default)" if opt == default else ""
+            item_lines.append(f"{i}. {opt}{mark}")
+
+        render_uniform_page(
+            heading=title.upper(),
+            info_line="page 1/1",
+            items=item_lines,
+            instruction_line=f"1-{len(options)} select   ENTER default   q cancel",
+            message_line=message_line,
+        )
+
+        raw = ui_prompt("", message_line).lower()
+
+        if not raw:
+            if message_line is not None:
+                message_line = None
+                continue
+            return default
+
+        if raw in {"d", "default"}:
+            return default
+
+        if raw.isdigit():
+            idx = int(raw) - 1
+            if 0 <= idx < len(options):
+                return options[idx]
+            message_line = "invalid number"
+            continue
+
+        if raw in allowed:
+            return raw
+
+        message_line = "invalid choice"
 
 def prompt_yes_no(prompt: str, default: bool = True) -> bool:
     ui_print(prompt, end="", flush=True)
@@ -327,15 +394,106 @@ def load_all_project_hierarchy_tags(c) -> set[str]:
 def get_project_choices(c) -> list[str]:
     return sorted(load_all_project_hierarchy_tags(c))
 
-def print_project_choices(projects: list[str], limit: int = 20) -> None:
-    ui_print()
-    ui_print("=  AVAILABLE PROJECTS/TAGS")
+def print_project_choices(projects: list[str], limit: int = 10) -> None:
     if not projects:
-        ui_print("(none)")
         return
 
+    ui_print("Projects:")
     for i, project in enumerate(projects[:limit], start=1):
         ui_print(f"{i}. {project}")
+
+    if len(projects) > limit:
+        ui_print("...")
+
+def paginate_list(items: list[str], page: int, per_page: int) -> tuple[list[str], int, int]:
+    if not items:
+        return [], 0, 0
+
+    total_pages = (len(items) + per_page - 1) // per_page
+    page = max(0, min(page, total_pages - 1))
+
+    start = page * per_page
+    end = start + per_page
+    return items[start:end], page, total_pages
+
+def render_project_page(
+    projects: list[str],
+    page: int,
+    total_pages: int,
+    message_line: str | None = None,
+) -> None:
+    item_lines = [f"{i}. {project}" for i, project in enumerate(projects, start=1)]
+
+    render_uniform_page(
+        heading="PROJECT",
+        info_line=f"page {page + 1}/{max(1, total_pages)}",
+        items=item_lines,
+        instruction_line="1-9 select   text search   n/b page   d none   q cancel",
+        message_line=message_line,
+    )
+
+def choose_focus_project(
+    project_choices: list[str],
+    all_tags: list[str],
+) -> str | None:
+    page = 0
+    per_page = 9
+    message_line: str | None = None
+
+    while True:
+        page_items, page, total_pages = paginate_list(project_choices, page, per_page)
+
+        render_project_page(page_items, page, total_pages, message_line=message_line)
+        raw = ui_prompt("", message_line)
+        lowered = raw.lower()
+
+        if not raw:
+            message_line = None
+            continue
+
+        if lowered in {"d", "done", "none"}:
+            return None
+
+        if lowered in {"n", "next"}:
+            if total_pages > 0:
+                page = min(page + 1, total_pages - 1)
+            continue
+
+        if lowered in {"b", "back", "prev", "previous"}:
+            if total_pages > 0:
+                page = max(page - 1, 0)
+            continue
+
+        if raw.isdigit():
+            idx = int(raw) - 1
+            if 0 <= idx < len(page_items):
+                render_project_page(
+                    page_items,
+                    page,
+                    total_pages,
+                    message_line=f"selected {page_items[idx]}",
+                )
+                ui_pause()
+                return page_items[idx]
+            message_line = "invalid number"
+            continue
+
+        resolved = resolve_focus_tag_input(
+            raw,
+            project_choices=project_choices,
+            all_tags=all_tags,
+        )
+        if resolved:
+            confirm = prompt_confirm_choice(
+                heading="PROJECT",
+                info_line=f"use {resolved}?",
+            )
+            if confirm:
+                return resolved
+            message_line = "selection cleared"
+            continue
+
+        message_line = f"no match: {raw}"
 
 def resolve_project_inputs(raw: str, projects: list[str]) -> list[str]:
     out: list[str] = []
@@ -371,40 +529,27 @@ def resolve_focus_tag_input(
     if not raw:
         return None
 
-    # numeric project choice
     if raw.isdigit():
         idx = int(raw) - 1
         if 0 <= idx < len(project_choices):
             return project_choices[idx]
-        ui_print(f"(unrecognised project number: {raw})")
         return None
 
     lowered = raw.lower()
 
-    # exact project match
     for project in project_choices:
         if lowered == project.lower():
             return project
 
-    # exact tag match
     exact_tag_matches = [tag for tag in all_tags if lowered == tag.lower()]
     if len(exact_tag_matches) == 1:
         return exact_tag_matches[0]
 
-    # partial tag match
     partial_tag_matches = [tag for tag in all_tags if lowered in tag.lower()]
 
     if len(partial_tag_matches) == 1:
         return partial_tag_matches[0]
 
-    if len(partial_tag_matches) > 1:
-        ui_print(f"(ambiguous tag text: {raw})")
-        print("Possible matches:")
-        for tag in partial_tag_matches[:10]:
-            print(f" - {tag}")
-        return None
-
-    ui_print(f"(unrecognised tag/project: {raw})")
     return None
 
 # ============================================================
@@ -631,17 +776,7 @@ def terminal_size() -> tuple[int, int]:
 
 
 def page_capacity(term_h: int) -> int:
-    """
-    Number of todo rows we can show while reserving lines for:
-    - title
-    - budget/stats
-    - blank lines
-    - command footer
-    """
-    reserved = 8
-    cap = term_h - reserved
-    return max(3, cap)
-
+    return 9
 
 def paginate_field(
     field: list[TodoItem],
@@ -744,15 +879,18 @@ def p3_creation_key(todo: TodoItem) -> tuple[int, str]:
     return (0, todo.creation)
 
 
-def choose_p3_from_bucket(bucket: list[TodoItem]) -> list[TodoItem]:
+def choose_p3_from_bucket(
+    bucket: list[TodoItem],
+    stored_random_key: str | None = None,
+) -> tuple[list[TodoItem], str | None]:
     """
     Pick up to 3 from a bucket:
     1. oldest last_selected / unseen
     2. oldest creation from remaining
-    3. random from remaining
+    3. random from remaining, but stable within session if possible
     """
     if not bucket:
-        return []
+        return [], None
 
     remaining = list(bucket)
     chosen: list[TodoItem] = []
@@ -770,7 +908,7 @@ def choose_p3_from_bucket(bucket: list[TodoItem]) -> list[TodoItem]:
     chosen.append(neglected)
     remaining = [t for t in remaining if t.key() != neglected.key()]
     if not remaining:
-        return chosen
+        return chosen, None
 
     # 2. oldest creation
     oldest = sorted(
@@ -784,12 +922,21 @@ def choose_p3_from_bucket(bucket: list[TodoItem]) -> list[TodoItem]:
     chosen.append(oldest)
     remaining = [t for t in remaining if t.key() != oldest.key()]
     if not remaining:
-        return chosen
+        return chosen, None
 
-    # 3. random
-    chosen.append(random.choice(remaining))
-    return chosen
+    # 3. stable random
+    random_item = None
+    if stored_random_key is not None:
+        for t in remaining:
+            if t.key() == stored_random_key:
+                random_item = t
+                break
 
+    if random_item is None:
+        random_item = random.choice(remaining)
+
+    chosen.append(random_item)
+    return chosen, random_item.key()
 
 def split_p3_buckets(p3_sorted: list[TodoItem]) -> tuple[list[TodoItem], list[TodoItem], list[TodoItem]]:
     """
@@ -859,7 +1006,8 @@ def split_p3_buckets(p3_sorted: list[TodoItem]) -> tuple[list[TodoItem], list[To
 def build_review_field(
     todos: list[TodoItem],
     scope: str,
-) -> tuple[list[TodoItem], dict[str, int]]:
+    p3_random_keys: dict[str, str] | None = None,
+) -> tuple[list[TodoItem], dict[str, int], dict[str, str]]:
     p1 = [t for t in todos if t.priority == 1]
     p2 = [t for t in todos if t.priority == 2]
     p3 = [t for t in todos if t.priority == 3]
@@ -868,12 +1016,29 @@ def build_review_field(
     p2 = sort_review_pool(p2)
     p3_sorted = sort_review_pool(p3)
 
+    if p3_random_keys is None:
+        p3_random_keys = {}
+
     old_bucket, middle_bucket, new_bucket = split_p3_buckets(p3_sorted)
 
     chosen_p3: list[TodoItem] = []
-    chosen_p3.extend(choose_p3_from_bucket(old_bucket))
-    chosen_p3.extend(choose_p3_from_bucket(middle_bucket))
-    chosen_p3.extend(choose_p3_from_bucket(new_bucket))
+    new_random_keys: dict[str, str] = {}
+
+    chosen, rand_key = choose_p3_from_bucket(old_bucket, p3_random_keys.get("old"))
+    chosen_p3.extend(chosen)
+    if rand_key:
+        new_random_keys["old"] = rand_key
+
+    chosen, rand_key = choose_p3_from_bucket(middle_bucket, p3_random_keys.get("middle"))
+    chosen_p3.extend(chosen)
+    if rand_key:
+        new_random_keys["middle"] = rand_key
+
+    chosen, rand_key = choose_p3_from_bucket(new_bucket, p3_random_keys.get("new"))
+    chosen_p3.extend(chosen)
+    if rand_key:
+        new_random_keys["new"] = rand_key
+
     chosen_p3 = dedupe_todos(chosen_p3)
 
     # always show at least up to 9 P3s when possible
@@ -902,7 +1067,7 @@ def build_review_field(
         "p3_shown": len(chosen_p3),
     }
 
-    return field, stats
+    return field, stats, new_random_keys
 
 def render_pick_field(
     title: str,
@@ -913,27 +1078,29 @@ def render_pick_field(
     page: int,
     total_pages: int,
     total_items: int,
+    message_line: str | None = None,
 ) -> None:
-    ui_print(f"=  {title}")
-    ui_print()
-    ui_print(f"=  {title}")
-    ui_print(f"(budget: {len(selected_keys)}/{budget})")
-    ui_print(f"(showing all P1={stats['p1']}, all P2={stats['p2']}, P3={stats['p3_shown']}/{stats['p3_total']})")
-    ui_print(f"(page {page + 1}/{max(1, total_pages)}; total items: {total_items})")
-
-    if not page_items:
-        ui_print("(none)")
-        return
+    item_lines: list[str] = []
 
     for i, todo in enumerate(page_items, start=1):
         mark = "*" if todo.key() in selected_keys else " "
-        meta_parts: list[str] = [f"P{todo.priority}"]
-        if todo.deadline:
-            meta_parts.append(todo.deadline)
+        meta_parts = [f"P{todo.priority}"]
+        if todo.bucket:
+            meta_parts.append(todo.bucket)
         if todo.todo_type:
             meta_parts.append(todo.todo_type)
+        if todo.deadline:
+            meta_parts.append(todo.deadline)
         meta = ", ".join(meta_parts)
-        ui_print(f"[{mark}] {i}. {todo.todo} [{meta}]")
+        item_lines.append(f"{mark} {i}. {todo.todo} // {meta}")
+
+    render_uniform_page(
+        heading=title,
+        info_line=f"page {page + 1}/{max(1, total_pages)}",
+        items=item_lines,
+        instruction_line="1-9 toggle   e N edit   n/b page   d done   q cancel",
+        message_line=message_line,
+    )
 
 def parse_pick_numbers(raw: str, limit: int) -> list[int]:
     out: list[int] = []
@@ -955,6 +1122,7 @@ def run_pick_cycle(
 ) -> list[TodoItem]:
     session = PickSession()
     budget = scope_budget(scope)
+    message_line: str | None = None
 
     while True:
         effective_todos = apply_session_edits(
@@ -964,7 +1132,11 @@ def run_pick_cycle(
         )
 
         annotated = annotate_todos(c, effective_todos, report_day)
-        field, stats = build_review_field(annotated, scope)
+        field, stats, session.p3_random_keys = build_review_field(
+            annotated,
+            scope,
+            session.p3_random_keys,
+        )
 
         field_map = {t.key(): t for t in field}
         session.selected_keys = {k for k in session.selected_keys if k in field_map}
@@ -973,7 +1145,6 @@ def run_pick_cycle(
         per_page = page_capacity(term_h)
         page_items, session.page, total_pages = paginate_field(field, session.page, per_page)
 
-        ui_clear()
         render_pick_field(
             title=title,
             page_items=page_items,
@@ -983,14 +1154,17 @@ def run_pick_cycle(
             page=session.page,
             total_pages=total_pages,
             total_items=len(field),
+            message_line=message_line,
         )
 
-        ui_print()
-        ui_print("Numbers = toggle  |  e N = edit  |  n/b = page  |  d = done")
-        ui_print("> ", end="", flush=True)
-        raw = input().strip()
+        had_message = message_line is not None
+        raw = ui_prompt("", message_line)
+        message_line = None
 
         if not raw:
+            if had_message:
+                continue
+            message_line = "no valid selection"
             continue
 
         if raw.lower() in {"d", "done"}:
@@ -1011,12 +1185,12 @@ def run_pick_cycle(
         if raw.lower().startswith("e "):
             parts = raw.split(maxsplit=1)
             if len(parts) != 2 or not parts[1].isdigit():
-                ui_print("(use: e N)")
+                message_line = "use: e N"
                 continue
 
             idx = int(parts[1]) - 1
             if not (0 <= idx < len(page_items)):
-                ui_print("(invalid number)")
+                message_line = "invalid number"
                 continue
 
             run_pick_edit(c, session, page_items[idx])
@@ -1024,20 +1198,22 @@ def run_pick_cycle(
 
         indexes = parse_pick_numbers(raw, len(page_items))
         if not indexes:
-            ui_print("(no valid selection)")
+            message_line = "no valid selection"
             continue
 
         for idx in indexes:
             key = page_items[idx].key()
             if key in session.selected_keys:
                 session.selected_keys.discard(key)
+                message_line = "updated"
                 continue
 
             if len(session.selected_keys) >= budget:
-                ui_print("(budget reached)")
+                message_line = "budget reached"
                 break
 
             session.selected_keys.add(key)
+            message_line = "updated"
 
 # ============================================================
 # overrides
@@ -1108,84 +1284,117 @@ def run_pick_edit(
     item: TodoItem,
 ) -> None:
     edited = copy_todo_item(session.edited_items.get(item.key(), item))
+    message_line: str | None = None
 
     while True:
-        ui_print()
-        ui_print(f"Edit: {edited.todo}")
-        ui_print(f"  status   : {edited.status or ''}")
-        ui_print(f"  priority : {edited.priority}")
-        ui_print(f"  deadline : {edited.deadline or ''}")
-        ui_print(f"  tags     : {', '.join(edited.tags)}")
-        ui_print("[d]one  [r]edundant  [p]riority  [t]ext  [l]deadline  [g]tags  [s]tatus  [w]rite/save  [x]cancel")
-        ui_print("> ", end="", flush=True)
-        action = input().strip().lower()
+        item_lines = [
+            f"text     {edited.todo}",
+            f"status   {edited.status or ''}",
+            f"priority {edited.priority}",
+            f"deadline {edited.deadline or ''}",
+            f"tags     {', '.join(edited.tags)}",
+        ]
 
-        if action in {"", "x", "cancel"}:
+        render_uniform_page(
+            heading="EDIT",
+            info_line=edited.id,
+            items=item_lines,
+            instruction_line="t text   s status   p priority   l deadline   g tags   d done   r redundant   w save   x back",
+            message_line=message_line,
+        )
+
+        raw = ui_prompt("", message_line)
+        action = raw.lower()
+        message_line = None
+
+        if action in {"x", "back"}:
             return
 
         if action in {"d", "done"}:
             session.pending_status_updates[edited.id] = "done"
             session.edited_items.pop(edited.key(), None)
             session.selected_keys.discard(edited.key())
-            ui_print("(queued done)")
             return
 
         if action in {"r", "redundant"}:
             session.pending_status_updates[edited.id] = "redundant"
             session.edited_items.pop(edited.key(), None)
             session.selected_keys.discard(edited.key())
-            ui_print("(queued redundant)")
             return
 
-        if action in {"p", "priority"}:
-            ui_print(f"Priority [{edited.priority}]: ", end="", flush=True)
-            raw = input().strip()
-            if raw:
-                try:
-                    edited.priority = int(raw)
-                except Exception:
-                    ui_print("(invalid priority)")
-            continue
-
         if action in {"t", "text"}:
-            ui_print(f"Text [{edited.todo}]: ", end="", flush=True)
-            raw = input().strip()
-            if raw:
-                edited.todo = raw
-            continue
-
-        if action in {"l", "deadline"}:
-            ui_print(f"Deadline [{edited.deadline or ''}] (blank keep, '-' clear): ", end="", flush=True)
-            raw = input().strip()
-            if raw == "-":
-                edited.deadline = None
-            elif raw:
-                edited.deadline = raw
-            continue
-
-        if action in {"g", "tags"}:
-            ui_print(f"Tags [{', '.join(edited.tags)}] (blank keep, '-' clear): ", end="", flush=True)
-            raw = input().strip()
-            if raw == "-":
-                edited.tags = []
-            elif raw:
-                edited.tags = [x.strip().lstrip("#") for x in raw.split(",") if x.strip()]
+            render_uniform_page(
+                heading="EDIT",
+                info_line="text",
+                items=[f"current {edited.todo}"],
+                instruction_line="enter text   q cancel",
+            )
+            raw2 = ui_prompt()
+            if raw2:
+                edited.todo = raw2
             continue
 
         if action in {"s", "status"}:
-            ui_print(f"Status [{edited.status or ''}]: ", end="", flush=True)
-            raw = input().strip()
-            if raw:
-                edited.status = raw
+            render_uniform_page(
+                heading="EDIT",
+                info_line="status",
+                items=[f"current {edited.status or ''}"],
+                instruction_line="enter status   q cancel",
+            )
+            raw2 = ui_prompt()
+            if raw2:
+                edited.status = raw2
+            continue
+
+        if action in {"p", "priority"}:
+            render_uniform_page(
+                heading="EDIT",
+                info_line="priority",
+                items=[f"current {edited.priority}"],
+                instruction_line="enter number   q cancel",
+            )
+            raw2 = ui_prompt()
+            if raw2:
+                try:
+                    edited.priority = int(raw2)
+                except Exception:
+                    message_line = "invalid priority"
+            continue
+
+        if action in {"l", "deadline"}:
+            render_uniform_page(
+                heading="EDIT",
+                info_line="deadline",
+                items=[f"current {edited.deadline or ''}"],
+                instruction_line="enter date, - clear   q cancel",
+            )
+            raw2 = ui_prompt()
+            if raw2 == "-":
+                edited.deadline = None
+            elif raw2:
+                edited.deadline = raw2
+            continue
+
+        if action in {"g", "tags"}:
+            render_uniform_page(
+                heading="EDIT",
+                info_line="tags",
+                items=[f"current {', '.join(edited.tags)}"],
+                instruction_line="comma list, - clear   q cancel",
+            )
+            raw2 = ui_prompt()
+            if raw2 == "-":
+                edited.tags = []
+            elif raw2:
+                edited.tags = [x.strip().lstrip("#") for x in raw2.split(",") if x.strip()]
             continue
 
         if action in {"w", "write", "save"}:
             session.pending_status_updates.pop(edited.id, None)
             session.edited_items[edited.key()] = edited
-            ui_print("(queued edit)")
             return
 
-        ui_print("(unknown edit action)")
+        message_line = "unknown command"
 
 # ============================================================
 # persistence (SQL)
