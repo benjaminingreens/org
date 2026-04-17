@@ -19,33 +19,57 @@ def ui_print(*args, **kwargs) -> None:
 def ui_clear() -> None:
     print("\033[2J\033[H", end="", flush=True)
 
+def terminal_width() -> int:
+    return get_terminal_size((80, 24)).columns
+
+def fit_line(text: str, width: int | None = None) -> str:
+    if width is None:
+        width = terminal_width()
+
+    width = max(8, width)
+    text = str(text)
+
+    if len(text) <= width:
+        return text
+
+    if width <= 3:
+        return text[:width]
+
+    return text[: width - 3] + "..."
+
+def ui_print_fit(text: str = "", **kwargs) -> None:
+    ui_print(fit_line(text), **kwargs)
+
 def render_uniform_page(
     heading: str,
-    info_line: str,
+    page_info: str,
     items: list[str],
-    instruction_line: str,
-    message_line: str | None = None,
+    pad_to_nine: bool = True,
+    fit: bool = True,
 ) -> None:
     ui_clear()
-    ui_print(heading)
-    ui_print(info_line)
 
-    for line in items[:9]:
-        ui_print(line)
+    printer = ui_print_fit if fit else ui_print
 
-    for _ in range(max(0, 9 - len(items))):
-        ui_print("")
-
+    printer(f"{heading} [{page_info}]")
     ui_print("")
-    ui_print(message_line if message_line is not None else instruction_line)
 
-def ui_prompt(help_text: str = "", message_line: str | None = None) -> str:
-    if not message_line and help_text:
-        ui_print(help_text)
+    shown = items[:9] if pad_to_nine else items
+    for line in shown:
+        printer(line)
 
-    prompt_text = "press ENTER to clear" if message_line else "> "
+    if pad_to_nine:
+        for _ in range(max(0, 9 - len(shown))):
+            ui_print("")
 
-    ui_print(prompt_text, end="", flush=True)
+    ui_print("")  # single blank line above prompt/message
+
+def ui_prompt(mode: str = ">", message_line: str | None = None) -> str:
+    if message_line is not None:
+        ui_print_fit(f"{message_line} ", end="")
+    else:
+        ui_print("> ", end="", flush=True)
+
     raw = input().strip()
 
     if raw.lower() in {"q", "quit", "c", "cancel"}:
@@ -53,22 +77,26 @@ def ui_prompt(help_text: str = "", message_line: str | None = None) -> str:
 
     return raw
 
-def prompt_confirm_choice(heading: str, info_line: str) -> bool:
+def prompt_confirm_choice(heading: str, page_info: str) -> bool:
     message_line: str | None = None
 
     while True:
         render_uniform_page(
             heading=heading,
-            info_line=info_line,
+            page_info=page_info,
             items=[],
-            instruction_line="y yes   n no   q cancel",
-            message_line=message_line,
         )
 
-        raw = ui_prompt("", message_line).lower()
+        raw = ui_prompt("confirm >", message_line).lower()
 
         if not raw:
-            message_line = None
+            if message_line is not None:
+                message_line = None
+                continue
+            return True
+
+        if raw in {"h", "help"}:
+            message_line = "y yes   n no   q cancel"
             continue
 
         if raw in {"y", "yes"}:
@@ -254,22 +282,22 @@ def prompt_choice(title: str, options: list[str], default: str) -> str:
 
         render_uniform_page(
             heading=title.upper(),
-            info_line="page 1/1",
+            page_info="page 1/1",
             items=item_lines,
-            instruction_line=f"1-{len(options)} select   ENTER default   q cancel",
-            message_line=message_line,
         )
 
-        raw = ui_prompt("", message_line).lower()
+        showing_message = message_line is not None
+        raw = ui_prompt("scope >", message_line).lower()
+        message_line = None
 
         if not raw:
-            if message_line is not None:
-                message_line = None
+            if showing_message:
                 continue
             return default
 
-        if raw in {"d", "default"}:
-            return default
+        if raw in {"h", "help"}:
+            show_scope_help(options, default)
+            continue
 
         if raw.isdigit():
             idx = int(raw) - 1
@@ -426,10 +454,8 @@ def render_project_page(
 
     render_uniform_page(
         heading="PROJECT",
-        info_line=f"page {page + 1}/{max(1, total_pages)}",
+        page_info=f"{page + 1}/{max(1, total_pages)}",
         items=item_lines,
-        instruction_line="1-9 select   text search   n/b page   d none   q cancel",
-        message_line=message_line,
     )
 
 def choose_focus_project(
@@ -444,11 +470,19 @@ def choose_focus_project(
         page_items, page, total_pages = paginate_list(project_choices, page, per_page)
 
         render_project_page(page_items, page, total_pages, message_line=message_line)
-        raw = ui_prompt("", message_line)
+
+        showing_message = message_line is not None
+        raw = ui_prompt("project >", message_line)
         lowered = raw.lower()
+        message_line = None
 
         if not raw:
-            message_line = None
+            if showing_message:
+                continue
+            continue
+
+        if lowered in {"h", "help"}:
+            show_project_help()
             continue
 
         if lowered in {"d", "done", "none"}:
@@ -467,13 +501,6 @@ def choose_focus_project(
         if raw.isdigit():
             idx = int(raw) - 1
             if 0 <= idx < len(page_items):
-                render_project_page(
-                    page_items,
-                    page,
-                    total_pages,
-                    message_line=f"selected {page_items[idx]}",
-                )
-                ui_pause()
                 return page_items[idx]
             message_line = "invalid number"
             continue
@@ -486,7 +513,7 @@ def choose_focus_project(
         if resolved:
             confirm = prompt_confirm_choice(
                 heading="PROJECT",
-                info_line=f"use {resolved}?",
+                page_info=f"use {resolved}?",
             )
             if confirm:
                 return resolved
@@ -1082,24 +1109,45 @@ def render_pick_field(
 ) -> None:
     item_lines: list[str] = []
 
+    def short_bucket(bucket: str | None) -> str:
+        mapping = {
+            "urgent": "urg",
+            "preparatory": "prep",
+            "important": "imp",
+            "decay": "dec",
+            "background": "back",
+        }
+        if not bucket:
+            return ""
+        bucket = str(bucket)
+        return mapping.get(bucket, bucket[:4])
+
     for i, todo in enumerate(page_items, start=1):
         mark = "*" if todo.key() in selected_keys else " "
-        meta_parts = [f"P{todo.priority}"]
+        meta_parts: list[str] = [f"P{todo.priority}"]
+
+        if todo.tags:
+            meta_parts.extend(
+                f"#{str(t).lstrip('#')}"
+                for t in todo.tags
+                if t is not None and str(t).strip()
+            )
+
         if todo.bucket:
-            meta_parts.append(todo.bucket)
-        if todo.todo_type:
-            meta_parts.append(todo.todo_type)
+            bucket_text = short_bucket(todo.bucket)
+            if bucket_text:
+                meta_parts.append(str(bucket_text))
+
         if todo.deadline:
-            meta_parts.append(todo.deadline)
-        meta = ", ".join(meta_parts)
-        item_lines.append(f"{mark} {i}. {todo.todo} // {meta}")
+            meta_parts.append(str(todo.deadline))
+
+        meta = ", ".join(x for x in meta_parts if x is not None and str(x).strip())
+        item_lines.append(f"{mark} {i}. {todo.todo} — {meta}")
 
     render_uniform_page(
         heading=title,
-        info_line=f"page {page + 1}/{max(1, total_pages)}",
+        page_info=f"{page + 1}/{max(1, total_pages)}",
         items=item_lines,
-        instruction_line="1-9 toggle   e N edit   n/b page   d done   q cancel",
-        message_line=message_line,
     )
 
 def parse_pick_numbers(raw: str, limit: int) -> list[int]:
@@ -1157,43 +1205,44 @@ def run_pick_cycle(
             message_line=message_line,
         )
 
-        had_message = message_line is not None
-        raw = ui_prompt("", message_line)
+        showing_message = message_line is not None
+        raw = ui_prompt("focus >", message_line)
+        lowered = raw.lower()
         message_line = None
 
         if not raw:
-            if had_message:
+            if showing_message:
                 continue
             message_line = "no valid selection"
             continue
 
-        if raw.lower() in {"d", "done"}:
+        if lowered in {"h", "help"}:
+            show_focus_help()
+            continue
+
+        if lowered in {"d", "done"}:
             final_selected = [t for t in field if t.key() in session.selected_keys]
             flush_override_session_changes(c, session)
             return final_selected
 
-        if raw.lower() in {"n", "next"}:
+        if lowered in {"n", "next"}:
             if total_pages > 0:
                 session.page = min(session.page + 1, total_pages - 1)
             continue
 
-        if raw.lower() in {"b", "back", "prev", "previous"}:
+        if lowered in {"b", "back", "prev", "previous"}:
             if total_pages > 0:
                 session.page = max(session.page - 1, 0)
             continue
 
-        if raw.lower().startswith("e "):
-            parts = raw.split(maxsplit=1)
-            if len(parts) != 2 or not parts[1].isdigit():
-                message_line = "use: e N"
-                continue
+        inspect_idx = parse_prefixed_number(lowered, "i", len(page_items))
+        if inspect_idx is not None:
+            inspect_todo(page_items[inspect_idx])
+            continue
 
-            idx = int(parts[1]) - 1
-            if not (0 <= idx < len(page_items)):
-                message_line = "invalid number"
-                continue
-
-            run_pick_edit(c, session, page_items[idx])
+        edit_idx = parse_prefixed_number(lowered, "e", len(page_items))
+        if edit_idx is not None:
+            run_pick_edit(c, session, page_items[edit_idx])
             continue
 
         indexes = parse_pick_numbers(raw, len(page_items))
@@ -1288,24 +1337,29 @@ def run_pick_edit(
 
     while True:
         item_lines = [
-            f"text     {edited.todo}",
-            f"status   {edited.status or ''}",
-            f"priority {edited.priority}",
-            f"deadline {edited.deadline or ''}",
-            f"tags     {', '.join(edited.tags)}",
+            f"1. text {edited.todo}",
+            f"2. status {edited.status or ''}",
+            f"3. priority {edited.priority}",
+            f"4. deadline {edited.deadline or ''}",
+            f"5. tags {', '.join(edited.tags)}",
         ]
 
         render_uniform_page(
             heading="EDIT",
-            info_line=edited.id,
+            page_info=edited.id,
             items=item_lines,
-            instruction_line="t text   s status   p priority   l deadline   g tags   d done   r redundant   w save   x back",
-            message_line=message_line,
         )
 
-        raw = ui_prompt("", message_line)
+        raw = ui_prompt("edit >", message_line)
         action = raw.lower()
         message_line = None
+
+        if not action:
+            continue
+
+        if action in {"h", "help"}:
+            show_edit_help()
+            continue
 
         if action in {"x", "back"}:
             return
@@ -1322,38 +1376,23 @@ def run_pick_edit(
             session.selected_keys.discard(edited.key())
             return
 
-        if action in {"t", "text"}:
-            render_uniform_page(
-                heading="EDIT",
-                info_line="text",
-                items=[f"current {edited.todo}"],
-                instruction_line="enter text   q cancel",
-            )
-            raw2 = ui_prompt()
+        if action == "1":
+            render_uniform_page("EDIT", "text", [f"current {edited.todo}"])
+            raw2 = ui_prompt("value >")
             if raw2:
                 edited.todo = raw2
             continue
 
-        if action in {"s", "status"}:
-            render_uniform_page(
-                heading="EDIT",
-                info_line="status",
-                items=[f"current {edited.status or ''}"],
-                instruction_line="enter status   q cancel",
-            )
-            raw2 = ui_prompt()
+        if action == "2":
+            render_uniform_page("EDIT", "status", [f"current {edited.status or ''}"])
+            raw2 = ui_prompt("value >")
             if raw2:
                 edited.status = raw2
             continue
 
-        if action in {"p", "priority"}:
-            render_uniform_page(
-                heading="EDIT",
-                info_line="priority",
-                items=[f"current {edited.priority}"],
-                instruction_line="enter number   q cancel",
-            )
-            raw2 = ui_prompt()
+        if action == "3":
+            render_uniform_page("EDIT", "priority", [f"current {edited.priority}"])
+            raw2 = ui_prompt("value >")
             if raw2:
                 try:
                     edited.priority = int(raw2)
@@ -1361,28 +1400,18 @@ def run_pick_edit(
                     message_line = "invalid priority"
             continue
 
-        if action in {"l", "deadline"}:
-            render_uniform_page(
-                heading="EDIT",
-                info_line="deadline",
-                items=[f"current {edited.deadline or ''}"],
-                instruction_line="enter date, - clear   q cancel",
-            )
-            raw2 = ui_prompt()
+        if action == "4":
+            render_uniform_page("EDIT", "deadline", [f"current {edited.deadline or ''}"])
+            raw2 = ui_prompt("value >")
             if raw2 == "-":
                 edited.deadline = None
             elif raw2:
                 edited.deadline = raw2
             continue
 
-        if action in {"g", "tags"}:
-            render_uniform_page(
-                heading="EDIT",
-                info_line="tags",
-                items=[f"current {', '.join(edited.tags)}"],
-                instruction_line="comma list, - clear   q cancel",
-            )
-            raw2 = ui_prompt()
+        if action == "5":
+            render_uniform_page("EDIT", "tags", [f"current {', '.join(edited.tags)}"])
+            raw2 = ui_prompt("value >")
             if raw2 == "-":
                 edited.tags = []
             elif raw2:
@@ -1707,12 +1736,11 @@ def print_focus_todos(todos: list[TodoItem], stream=None) -> None:
     heading = "=  FOCUS TODOS"
     rem = term_w - len(heading)
 
+    if not todos:
+        return
+
     print(file=stream)
     print(heading + " " + "=" * max(1, rem - 1), file=stream)
-
-    if not todos:
-        print("(none)", file=stream)
-        return
 
     for todo in todos:
         print(format_todo_for_display(todo, term_w), file=stream)
@@ -1730,12 +1758,11 @@ def print_project_todos(todos: list[TodoItem], focus_project: str | None, stream
 
     rem = term_w - len(heading)
 
+    if not todos:
+        return
+
     print(file=stream)
     print(heading + " " + "=" * max(1, rem - 1), file=stream)
-
-    if not todos:
-        print("(none)", file=stream)
-        return
 
     for todo in todos:
         print(format_todo_for_display(todo, term_w), file=stream)
@@ -1762,6 +1789,100 @@ def build_meta(todo: TodoItem) -> str:
 # ============================================================
 # utilities
 # ============================================================
+
+def wrap_text(text: str, width: int | None = None) -> list[str]:
+    if width is None:
+        width = terminal_width()
+
+    width = max(12, width)
+    words = str(text).split()
+    if not words:
+        return [""]
+
+    lines: list[str] = []
+    cur = words[0]
+
+    for word in words[1:]:
+        if len(cur) + 1 + len(word) <= width:
+            cur += " " + word
+        else:
+            lines.append(cur)
+            cur = word
+
+    lines.append(cur)
+    return lines
+
+
+def inspect_todo(todo: TodoItem) -> None:
+    meta_parts = []
+
+    if todo.status:
+        meta_parts.append(f"={todo.status}")
+    meta_parts.append(f"!{todo.priority}")
+
+    if todo.creation:
+        meta_parts.append(f"~{todo.creation}")
+    if todo.deadline:
+        meta_parts.append(f"%{todo.deadline}")
+
+    if todo.tags:
+        meta_parts.extend(
+            f"#{str(t).lstrip('#')}"
+            for t in todo.tags
+            if str(t).strip()
+        )
+
+    if todo.id:
+        meta_parts.append(f"id/{todo.id}")
+
+    lines = [
+        f"* t: {todo.todo}",
+        " ".join(meta_parts),
+        f"path {todo.path}",
+        f"id {todo.id}",
+    ]
+
+    page = 0
+    per_page = 9
+
+    while True:
+        page_items, page, total_pages = paginate_list(lines, page, per_page)
+
+        render_uniform_page(
+            heading="INSPECT",
+            page_info=f"{page + 1}/{max(1, total_pages)}",
+            items=page_items,
+            pad_to_nine=False,
+            fit=False,
+        )
+
+        raw = ui_prompt("inspect >", None).lower()
+
+        if raw in {"", "x", "back"}:
+            return
+        if raw in {"n", "next"} and total_pages > 0:
+            page = min(page + 1, total_pages - 1)
+            continue
+        if raw in {"b", "backpage", "prev", "previous"} and total_pages > 0:
+            page = max(page - 1, 0)
+            continue
+        if raw in {"h", "help"}:
+            show_inspect_help()
+            continue
+
+def parse_prefixed_number(raw: str, prefix: str, limit: int) -> int | None:
+    raw = raw.strip().lower()
+    if not raw.startswith(prefix):
+        return None
+
+    tail = raw[len(prefix):]
+    if not tail.isdigit():
+        return None
+
+    idx = int(tail) - 1
+    if 0 <= idx < limit:
+        return idx
+    return None
 
 def parse_iso_date(raw: str | None) -> date | None:
     if not raw:
@@ -1790,3 +1911,69 @@ def sortable_creation(raw: str | None) -> tuple[int, str]:
     if not raw:
         return (0, "")
     return (1, raw)
+
+def show_scope_help(options: list[str], default: str) -> None:
+    lines = [
+        "1-4 choose option",
+        "ENTER choose default",
+        f"default is {default}",
+        "q cancel whole report",
+    ]
+    render_uniform_page("SCOPE", "1/1", lines, pad_to_nine=False)
+    ui_pause()
+
+
+def show_project_help() -> None:
+    lines = [
+        "1-9 choose visible project",
+        "type text to search projects or tags",
+        "n next page",
+        "b previous page",
+        "d no project",
+        "q cancel whole report",
+    ]
+    render_uniform_page("PROJECT", "help", lines, pad_to_nine=False)
+    ui_pause()
+
+
+def show_focus_help() -> None:
+    lines = [
+        "1-9 toggle visible todos",
+        "eN edit todo N",
+        "iN inspect todo N",
+        "n next page",
+        "b previous page",
+        "d finish selection",
+        "q cancel whole report",
+    ]
+    render_uniform_page("FOCUS", "help", lines, pad_to_nine=False)
+    ui_pause()
+
+
+def show_edit_help() -> None:
+    lines = [
+        "1 edit text",
+        "2 edit status",
+        "3 edit priority",
+        "4 edit deadline",
+        "5 edit tags",
+        "d mark done",
+        "r mark redundant",
+        "w save edits",
+        "x back",
+        "q cancel whole report",
+    ]
+    render_uniform_page("EDIT", "help", lines, pad_to_nine=False)
+    ui_pause()
+
+
+def show_inspect_help() -> None:
+    lines = [
+        "ENTER back",
+        "x back",
+        "n next page",
+        "b previous page",
+        "q cancel whole report",
+    ]
+    render_uniform_page("INSPECT", "help", lines, pad_to_nine=False, fit=False)
+    ui_pause()
